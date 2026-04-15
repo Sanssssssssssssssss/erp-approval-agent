@@ -1,0 +1,58 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: Uvicorn",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "src.backend.api.app:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8015"
+      ],
+      "jinja": true,
+      "envFile": "${workspaceFolder}/backend/.env"
+    },
+    {
+      "name": "Frontend: Next.js",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "powershell -ExecutionPolicy Bypass -File .\\backend\\scripts\\dev\\start-frontend-dev.ps1",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Studio: LangGraph dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "powershell -ExecutionPolicy Bypass -File .\\backend\\scripts\\dev\\start-langgraph-studio.ps1 -Mode dev -NoBrowser",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Studio: LangGraph dev (Console tracing)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "powershell -ExecutionPolicy Bypass -File .\\backend\\scripts\\dev\\start-langgraph-studio.ps1 -Mode dev -NoBrowser -EnableConsoleTracing",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Open Frontend in Edge",
+      "type": "pwa-msedge",
+      "request": "launch",
+      "url": "http://127.0.0.1:3000",
+      "webRoot": "${workspaceFolder}/src/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Demo: Backend + Frontend",
+      "configurations": [
+        "Backend: Uvicorn",
+        "Frontend: Next.js"
+      ]
+    }
+  ]
+}

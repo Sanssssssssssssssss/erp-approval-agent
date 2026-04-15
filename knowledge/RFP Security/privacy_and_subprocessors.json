@@ -1,0 +1,32 @@
+[
+  {
+    "record_id": "dpa",
+    "question": "Is a data processing agreement available?",
+    "answer": "Yes. A standard data processing agreement is available for enterprise customers.",
+    "label": "privacy"
+  },
+  {
+    "record_id": "subprocessors",
+    "question": "How are subprocessors disclosed?",
+    "answer": "A public subprocessor list is maintained and customers receive notice before material changes.",
+    "label": "privacy"
+  },
+  {
+    "record_id": "residency",
+    "question": "Which data residency options exist?",
+    "answer": "Primary hosting regions are the United States, the European Union, and Singapore.",
+    "label": "privacy"
+  },
+  {
+    "record_id": "transfer",
+    "question": "What cross-border transfer mechanism is used?",
+    "answer": "The vendor offers standard contractual clauses for cross-border transfers where applicable.",
+    "label": "privacy"
+  },
+  {
+    "record_id": "deletion",
+    "question": "How is customer data deleted?",
+    "answer": "Customer data is deleted within 30 days of verified termination unless a shorter contractual period applies.",
+    "label": "privacy"
+  }
+]

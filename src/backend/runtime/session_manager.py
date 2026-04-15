@@ -1,0 +1,381 @@
+from __future__ import annotations
+
+import json
+import time
+import uuid
+from pathlib import Path
+from typing import Any
+
+
+class FsSessionRepository:
+    """Filesystem-backed session repository used by the default local mode."""
+
+    def __init__(self, base_dir: Path) -> None:
+        """Returns no value from one base directory path input and initializes session storage directories."""
+
+        self.base_dir = base_dir
+        self.sessions_dir = base_dir / "sessions"
+        self.archive_dir = self.sessions_dir / "archive"
+        self.sessions_dir.mkdir(parents=True, exist_ok=True)
+        self.archive_dir.mkdir(parents=True, exist_ok=True)
+
+    def _session_path(self, session_id: str) -> Path:
+        """Returns one session JSON path from a session id input and resolves the on-disk record location."""
+
+        return self.sessions_dir / f"{session_id}.json"
+
+    def _archived_session_path(self, session_id: str) -> Path:
+        """Returns one archived session JSON path from a session id input and resolves the archive location."""
+
+        return self.archive_dir / f"{session_id}.json"
+
+    def _default_record(self, session_id: str, title: str = "New Session") -> dict[str, Any]:
+        """Returns one default session record from session id and title inputs and creates the initial session payload."""
+
+        now = time.time()
+        return {
+            "id": session_id,
+            "title": title,
+            "created_at": now,
+            "updated_at": now,
+            "compressed_context": "",
+            "excluded_turn_ids": [],
+            "excluded_run_ids": [],
+            "turn_actions": [],
+            "messages": [],
+        }
+
+    def _read_session_file(self, session_id: str) -> dict[str, Any]:
+        """Returns one session record from a session id input and normalizes legacy or missing session files."""
+
+        path = self._session_path(session_id)
+        archived_path = self._archived_session_path(session_id)
+        if not path.exists() and archived_path.exists():
+            path = archived_path
+        if not path.exists():
+            record = self._default_record(session_id)
+            self._write_session(record)
+            return record
+
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(raw, list):
+            record = self._default_record(session_id)
+            record["messages"] = raw
+            self._write_session(record)
+            return record
+
+        raw.setdefault("id", session_id)
+        raw.setdefault("title", "New Session")
+        raw.setdefault("created_at", time.time())
+        raw.setdefault("updated_at", raw["created_at"])
+        raw.setdefault("compressed_context", "")
+        raw.setdefault("excluded_turn_ids", [])
+        raw.setdefault("excluded_run_ids", [])
+        raw.setdefault("turn_actions", [])
+        raw.setdefault("messages", [])
+        raw.setdefault("archived_at", None)
+        return raw
+
+    def _write_session(self, record: dict[str, Any]) -> None:
+        """Returns no value from one session record input and writes the normalized record back to disk."""
+
+        session_id = str(record["id"])
+        record["updated_at"] = time.time()
+        target = self._archived_session_path(session_id) if record.get("archived_at") else self._session_path(session_id)
+        target.write_text(
+            json.dumps(record, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        if target.parent == self.archive_dir:
+            active_path = self._session_path(session_id)
+            if active_path.exists():
+                active_path.unlink()
+        else:
+            archived_path = self._archived_session_path(session_id)
+            if archived_path.exists():
+                archived_path.unlink()
+
+    def create_session(self, title: str = "New Session") -> dict[str, Any]:
+        """Returns one created session record from an optional title input and persists a brand-new session."""
+
+        session_id = uuid.uuid4().hex
+        record = self._default_record(session_id, title=title)
+        self._write_session(record)
+        return record
+
+    def list_sessions(self) -> list[dict[str, Any]]:
+        """Returns a list of session summaries from no inputs and enumerates active chat sessions."""
+
+        records: list[dict[str, Any]] = []
+        for path in self.sessions_dir.glob("*.json"):
+            if path.parent == self.archive_dir:
+                continue
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            records.append(
+                {
+                    "id": record.get("id", path.stem),
+                    "title": record.get("title", "New Session"),
+                    "created_at": record.get("created_at"),
+                    "updated_at": record.get("updated_at"),
+                    "message_count": len(record.get("messages", [])),
+                }
+            )
+        return sorted(records, key=lambda item: item.get("updated_at") or 0, reverse=True)
+
+    def load_session_record(self, session_id: str) -> dict[str, Any]:
+        """Returns one raw session record from a session id input and loads the stored session payload."""
+
+        return self._read_session_file(session_id)
+
+    def load_session(self, session_id: str) -> list[dict[str, Any]]:
+        """Returns one message list from a session id input and loads stored session messages."""
+
+        return self._read_session_file(session_id)["messages"]
+
+    def load_session_for_agent(self, session_id: str) -> list[dict[str, str]]:
+        """Returns normalized chat turns from a session id input and merges compressed context for agent consumption."""
+
+        record = self._read_session_file(session_id)
+        merged: list[dict[str, str]] = []
+
+        compressed_context = record.get("compressed_context", "").strip()
+        if compressed_context:
+            merged.append(
+                {
+                    "role": "assistant",
+                    "content": f"[Conversation summary]\n{compressed_context}",
+                }
+            )
+
+        for message in record.get("messages", []):
+            role = message.get("role", "")
+            content = str(message.get("content", "") or "")
+            turn_id = str(message.get("turn_id", "") or "")
+            run_id = str(message.get("run_id", "") or "")
+            if bool(message.get("excluded_from_context")):
+                continue
+            if turn_id and turn_id in set(str(item) for item in record.get("excluded_turn_ids", []) or []):
+                continue
+            if run_id and run_id in set(str(item) for item in record.get("excluded_run_ids", []) or []):
+                continue
+            if role == "assistant" and merged and merged[-1]["role"] == "assistant":
+                if content:
+                    if merged[-1]["content"]:
+                        merged[-1]["content"] += "\n\n" + content
+                    else:
+                        merged[-1]["content"] = content
+                continue
+
+            merged.append({"role": role, "content": content})
+
+        return [item for item in merged if item["role"] in {"user", "assistant"}]
+
+    def save_message(
+        self,
+        session_id: str,
+        role: str,
+        content: str,
+        tool_calls: list[dict[str, Any]] | None = None,
+        retrieval_steps: list[dict[str, Any]] | None = None,
+        usage: dict[str, int] | None = None,
+        run_meta: dict[str, Any] | None = None,
+        checkpoint_events: list[dict[str, Any]] | None = None,
+        hitl_events: list[dict[str, Any]] | None = None,
+        message_id: str | None = None,
+        turn_id: str | None = None,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Returns one saved message payload from message fields and appends a chat turn to the session record."""
+
+        record = self._read_session_file(session_id)
+        message: dict[str, Any] = {"role": role, "content": content}
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+        if retrieval_steps:
+            message["retrieval_steps"] = retrieval_steps
+        if usage:
+            message["usage"] = usage
+        if run_meta:
+            message["run_meta"] = run_meta
+        if checkpoint_events:
+            message["checkpoint_events"] = checkpoint_events
+        if hitl_events:
+            message["hitl_events"] = hitl_events
+        if message_id:
+            message["message_id"] = message_id
+        if turn_id:
+            message["turn_id"] = turn_id
+        if run_id:
+            message["run_id"] = run_id
+        record["messages"].append(message)
+        self._write_session(record)
+        return message
+
+    def exclude_turn_from_context(
+        self,
+        *,
+        session_id: str,
+        turn_id: str,
+        run_id: str,
+        reason: str,
+        created_at: str,
+    ) -> dict[str, Any]:
+        record = self._read_session_file(session_id)
+        excluded_turn_ids = [str(item) for item in record.get("excluded_turn_ids", []) or []]
+        excluded_run_ids = [str(item) for item in record.get("excluded_run_ids", []) or []]
+        changed = False
+        if turn_id and turn_id not in excluded_turn_ids:
+            excluded_turn_ids.append(turn_id)
+            changed = True
+        if run_id and run_id not in excluded_run_ids:
+            excluded_run_ids.append(run_id)
+            changed = True
+        for message in record.get("messages", []):
+            if run_id and str(message.get("run_id", "") or "") == run_id:
+                if not message.get("excluded_from_context"):
+                    message["excluded_from_context"] = True
+                    changed = True
+            elif turn_id and str(message.get("turn_id", "") or "") == turn_id:
+                if not message.get("excluded_from_context"):
+                    message["excluded_from_context"] = True
+                    changed = True
+        record["excluded_turn_ids"] = excluded_turn_ids
+        record["excluded_run_ids"] = excluded_run_ids
+        actions = list(record.get("turn_actions", []) or [])
+        if not any(str(item.get("turn_id", "") or "") == turn_id and str(item.get("action", "") or "") == "exclude" for item in actions if isinstance(item, dict)):
+            actions.append(
+                {
+                    "turn_id": turn_id,
+                    "run_id": run_id,
+                    "action": "exclude",
+                    "reason": reason,
+                    "created_at": created_at,
+                }
+            )
+            changed = True
+        record["turn_actions"] = actions
+        if changed:
+            self._write_session(record)
+        return record
+
+    def hard_delete_turn(
+        self,
+        *,
+        session_id: str,
+        turn_id: str,
+        run_id: str,
+        reason: str,
+        created_at: str,
+    ) -> dict[str, Any]:
+        record = self._read_session_file(session_id)
+        remaining: list[dict[str, Any]] = []
+        deleted_count = 0
+        for message in record.get("messages", []):
+            message_run_id = str(message.get("run_id", "") or "")
+            message_turn_id = str(message.get("turn_id", "") or "")
+            if (run_id and message_run_id == run_id) or (turn_id and message_turn_id == turn_id):
+                deleted_count += 1
+                continue
+            remaining.append(message)
+        record["messages"] = remaining
+        record["excluded_turn_ids"] = [item for item in list(record.get("excluded_turn_ids", []) or []) if str(item) != turn_id]
+        record["excluded_run_ids"] = [item for item in list(record.get("excluded_run_ids", []) or []) if str(item) != run_id]
+        actions = list(record.get("turn_actions", []) or [])
+        actions.append(
+            {
+                "turn_id": turn_id,
+                "run_id": run_id,
+                "action": "hard_delete",
+                "reason": reason,
+                "created_at": created_at,
+                "deleted_count": deleted_count,
+            }
+        )
+        record["turn_actions"] = actions
+        self._write_session(record)
+        return record
+
+    def get_history(self, session_id: str) -> dict[str, Any]:
+        """Returns one session history record from a session id input and exposes stored chat history to callers."""
+
+        return self._read_session_file(session_id)
+
+    def rename_session(self, session_id: str, title: str) -> dict[str, Any]:
+        """Returns one updated session record from session id and title inputs and renames a stored session."""
+
+        record = self._read_session_file(session_id)
+        record["title"] = title.strip() or "New Session"
+        self._write_session(record)
+        return record
+
+    def set_title(self, session_id: str, title: str) -> dict[str, Any]:
+        """Returns one updated session record from session id and title inputs and applies a generated title."""
+
+        return self.rename_session(session_id, title)
+
+    def archive_session(self, session_id: str) -> dict[str, Any]:
+        """Returns one archived session record from a session id input and moves the record out of the active list."""
+
+        record = self._read_session_file(session_id)
+        if not record.get("archived_at"):
+            record["archived_at"] = time.time()
+            self._write_session(record)
+        return record
+
+    def delete_session(self, session_id: str) -> None:
+        """Returns no value from a session id input and removes the stored session file when it exists."""
+
+        path = self._session_path(session_id)
+        if path.exists():
+            path.unlink()
+        archived_path = self._archived_session_path(session_id)
+        if archived_path.exists():
+            archived_path.unlink()
+
+    def compress_history(self, session_id: str, summary: str, n_messages: int) -> dict[str, int]:
+        """Returns archive counts from session id, summary, and count inputs and compresses older chat history."""
+
+        record = self._read_session_file(session_id)
+        messages = record.get("messages", [])
+        archived = messages[:n_messages]
+        remaining = messages[n_messages:]
+
+        archive_path = self.archive_dir / f"{session_id}_{int(time.time())}.json"
+        archive_payload = {
+            "session_id": session_id,
+            "archived_at": time.time(),
+            "messages": archived,
+        }
+        archive_path.write_text(
+            json.dumps(archive_payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
+        existing_summary = record.get("compressed_context", "").strip()
+        if existing_summary:
+            record["compressed_context"] = f"{existing_summary}\n---\n{summary.strip()}"
+        else:
+            record["compressed_context"] = summary.strip()
+        record["messages"] = remaining
+        self._write_session(record)
+        return {
+            "archived_count": len(archived),
+            "remaining_count": len(remaining),
+        }
+
+    def get_compressed_context(self, session_id: str) -> str:
+        """Returns one compressed summary string from a session id input and reads archived conversation context."""
+
+        return self._read_session_file(session_id).get("compressed_context", "")
+
+
+class SessionManager(FsSessionRepository):
+    """Backward-compatible alias preserving the historical SessionManager name."""
+
+    pass
+
+
+__all__ = ["FsSessionRepository", "SessionManager"]
