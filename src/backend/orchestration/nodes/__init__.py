@@ -17,6 +17,7 @@ from src.backend.orchestration.nodes.erp_approval import (
     build_erp_context_node,
     build_erp_finalize_node,
     build_erp_guard_node,
+    build_erp_hitl_gate_node,
     build_erp_intake_node,
     build_erp_reasoning_node,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "build_erp_context_node",
     "build_erp_reasoning_node",
     "build_erp_guard_node",
+    "build_erp_hitl_gate_node",
     "build_erp_finalize_node",
     "build_capability_selection_node",
     "build_capability_approval_node",

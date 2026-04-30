@@ -11,6 +11,7 @@ const AUTO_SCROLL_THRESHOLD = 72;
 const AUTO_SCROLL_RESTORE_THRESHOLD = 12;
 const AUTO_SCROLL_USER_PAUSE_MS = 900;
 const CHAT_ITEM_ESTIMATE = 220;
+const ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID = "erp_approval_recommendation_review";
 
 type ChatRow = {
   id: string;
@@ -33,6 +34,11 @@ export function ChatPanel() {
   const [editedInputText, setEditedInputText] = useState("{}");
   const [editError, setEditError] = useState("");
   const { currentSessionId, sessions } = useSessionStore();
+  const isErpRecommendationReview =
+    pendingHitl?.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID;
+  const approveButtonLabel = isErpRecommendationReview ? "Accept recommendation" : "Approve";
+  const approvingButtonLabel = isErpRecommendationReview ? "Accepting..." : "Approving...";
+  const rejectButtonLabel = isErpRecommendationReview ? "Reject recommendation" : "Reject";
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
   const frameRef = useRef<number | null>(null);
@@ -268,11 +274,18 @@ export function ChatPanel() {
 
         {pendingHitl && currentSessionId ? (
           <div className="pixel-card-soft mb-4 px-4 py-4">
-            <p className="pixel-label">ERP approval review required</p>
+            <p className="pixel-label">
+              {isErpRecommendationReview ? "ERP recommendation review required" : "ERP approval review required"}
+            </p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
               {pendingHitl.display_name}
             </h3>
             <p className="pixel-note mt-2">{pendingHitl.reason}</p>
+            {isErpRecommendationReview ? (
+              <p className="pixel-note mt-2">
+                This review accepts or edits the agent recommendation only. It does not execute an ERP approval.
+              </p>
+            ) : null}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className="pixel-tag">risk {pendingHitl.risk_level}</span>
               {pendingHitl.request_id ? <span className="pixel-tag">request {pendingHitl.request_id.slice(0, 8)}</span> : null}
@@ -294,7 +307,7 @@ export function ChatPanel() {
                 onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
                 type="button"
               >
-                {isStreaming ? "Approving..." : "Approve"}
+                {isStreaming ? approvingButtonLabel : approveButtonLabel}
               </button>
               <button
                 className="ui-button"
@@ -310,7 +323,7 @@ export function ChatPanel() {
                 onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
                 type="button"
               >
-                {isStreaming ? "Rejecting..." : "Reject"}
+                {isStreaming ? "Rejecting..." : rejectButtonLabel}
               </button>
             </div>
           </div>

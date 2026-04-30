@@ -79,20 +79,26 @@ Done when:
 - retrieval can include mock ERP policy and business context.
 - no write actions exist yet.
 
-## Phase 3: HITL Approval Workbench
+Status: complete.
+
+## Phase 3: ERP Recommendation HITL Gate
 
 Scope:
 
-- approval cards.
-- request_more_info, escalate, approve, reject, and edit controls.
+- recommendation review through existing HITL UI.
+- approve, reject, and edit decisions only.
 - durable resume.
 - auditable approval trace.
+- no ERP action execution.
 
 Done when:
 
 - approval recommendations are reviewable in the UI.
 - HITL decisions resume the graph deterministically.
 - approval sessions can survive refresh/restart where existing checkpoint persistence supports it.
+- HITL approve is documented and rendered as accepting the agent recommendation only.
+
+Status: complete for recommendation review. Broader action cards remain Phase 4+ work.
 
 ## Phase 4: Guarded ERP Write Actions
 

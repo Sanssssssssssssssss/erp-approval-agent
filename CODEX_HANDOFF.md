@@ -2,7 +2,7 @@
 
 Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
 
-Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only boundaries.
+Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only boundaries.
 
 ## First Read
 
@@ -45,7 +45,7 @@ Prefer small, reviewable changes that keep the current local workbench running.
 
 ## Implemented ERP Skeleton
 
-Phase 1 implemented this skeleton:
+Current ERP graph:
 
 ```text
 bootstrap
@@ -56,24 +56,26 @@ bootstrap
 -> erp_context
 -> erp_reasoning
 -> erp_guard
+-> erp_hitl_gate
 -> erp_finalize
 -> finalize
 ```
 
-It produces an approval recommendation, not autonomous final execution. Phase 2 adds read-only context adapter interfaces and mock records. Real ERP connectors, real HITL approval cards, and write actions remain future work.
+It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
 
 Current capabilities:
 
 - LLM-first ERP intake and reasoning prompts.
 - mock ERP/policy context.
-- soft human review gate via `human_review_required`.
+- deterministic recommendation guard via `human_review_required`.
+- durable ERP recommendation HITL review using existing checkpoint/resume semantics.
 - deterministic guard for weak evidence and unsafe next actions.
 
 Still absent:
 
 - real ERP connector.
 - real approval write action.
-- real ERP HITL approval card.
+- real ERP approval/rejection/payment/supplier/contract/budget execution.
 - ERP benchmark suite.
 
 ## Legacy Compatibility

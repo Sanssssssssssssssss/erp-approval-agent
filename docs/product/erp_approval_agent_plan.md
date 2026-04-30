@@ -11,11 +11,11 @@ The product should recommend next actions. It must not autonomously execute fina
 Current implementation:
 
 - Phase 1 LLM-first ERP approval graph skeleton exists.
-- mock ERP/policy context exists.
-- soft human review gate exists through structured recommendation fields and deterministic guard checks.
+- Phase 2 read-only mock ERP/policy context adapter exists.
+- Phase 3 durable ERP recommendation review HITL gate exists.
 - no real ERP connector exists.
 - no real approval write action exists.
-- no real ERP HITL approval card exists yet.
+- no ERP approval/rejection/payment/supplier/contract/budget execution exists.
 
 ## Enterprise Approval Scenarios
 
@@ -42,7 +42,7 @@ LLM reasoning should evaluate:
 
 ## Graph Workflow
 
-Implemented Phase 1 skeleton:
+Current implemented graph:
 
 ```text
 bootstrap
@@ -53,11 +53,12 @@ bootstrap
 -> erp_context
 -> erp_reasoning
 -> erp_guard
+-> erp_hitl_gate
 -> erp_finalize
 -> finalize
 ```
 
-Future phases can expand this into richer retrieval, explicit HITL approval cards, action proposals, and audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Future phases can expand this into richer retrieval, action proposals, and audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
@@ -107,6 +108,8 @@ The workbench should preserve a durable approval trace:
 
 Human-in-the-loop approval control should gate any action that writes to an ERP system, changes approval status, sends an external comment, or affects payment/vendor/contract state.
 
+Current Phase 3 HITL semantics are narrower: the reviewer accepts, rejects, or edits the agent recommendation only. HITL approve does not approve, reject, pay, onboard, sign, or update any ERP object.
+
 ## Minimal Future Data Model
 
 Early phases can use mock records with normalized context fields:
@@ -144,8 +147,8 @@ Early phases can use mock records with normalized context fields:
 
 ## Non-Goals For Early Phases
 
-- no real SAP, Dynamics, Oracle, or custom ERP connector in Phase 2.
-- no production ERP write actions in early graph skeleton work.
+- no real SAP, Dynamics, Oracle, or custom ERP connector in early phases.
+- no production ERP write actions in early graph skeleton and HITL review work.
 - no autonomous approve/reject behavior.
 - no benchmark-proven ERP approval accuracy claim until ERP benchmark suites exist.
 - no broad runtime rewrite.

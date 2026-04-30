@@ -84,6 +84,12 @@ _FETCH_URL_PATTERNS = (
     re.compile(r"\bvisit\s+(https?://[^\s]+)", re.IGNORECASE),
 )
 _EXPLICIT_CAPABILITY_IDS = {"mcp_filesystem_read_file", "mcp_filesystem_list_directory", "mcp_web_fetch_url"}
+ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID = "erp_approval_recommendation_review"
+ERP_RECOMMENDATION_REVIEW_DISPLAY_NAME = "ERP approval recommendation review"
+ERP_RECOMMENDATION_REVIEW_NON_ACTION = (
+    "This HITL review does not approve, reject, pay, onboard, sign, or update any ERP object."
+)
+ERP_NO_ACTION_EXECUTED_STATEMENT = "No ERP approval, rejection, payment, supplier, contract, or budget action was executed."
 
 
 @dataclass
@@ -879,19 +885,101 @@ class HarnessLangGraphOrchestrator:
         )
         return {**result, **updates}
 
+    async def erp_hitl_gate_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_hitl_gate")
+        request_model = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request_model)
+        recommendation = self._erp_recommendation_from_state(state)
+        recommendation, guard = self._erp_guard_from_state(state, request_model, context, recommendation)
+        turn_id = self._current_turn_id(state)
+        call_ids = self._context_call_ids(state)
+
+        if not recommendation.human_review_required and not guard.human_review_required:
+            result = {
+                "erp_recommendation": self._model_dump(recommendation),
+                "erp_guard_result": self._model_dump(guard),
+                "erp_hitl_request": None,
+                "erp_hitl_decision": None,
+                "erp_review_status": "not_required",
+                "path_kind": "erp_approval",
+                "turn_id": turn_id,
+                "context_call_ids": call_ids,
+            }
+            _payload, updates = self._write_context_snapshot(
+                state=state,
+                result=result,
+                assembly=assembly,
+                turn_id=turn_id,
+                call_ids=call_ids,
+            )
+            return {**result, **updates}
+
+        bindings = self._bindings_or_raise()
+        request = self._build_erp_hitl_request(state, request_model, context, recommendation, guard)
+        with with_observation(
+            "hitl.decision",
+            tracer_name="ragclaw.orchestration",
+            attributes=self._otel_state_attributes(
+                state,
+                path_type="erp_approval",
+                checkpoint_id=str(request.get("checkpoint_id", "") or "") or None,
+                capability_id=request["capability_id"],
+                capability_type=request["capability_type"],
+            ),
+        ) as span:
+            response = self._erp_hitl_interrupt(request)
+            response_payload = dict(response) if isinstance(response, dict) else {"decision": response}
+            decision = str(response_payload.get("decision", "") or "").strip().lower()
+            if decision not in {"approve", "reject", "edit"}:
+                decision = "reject"
+            set_span_attributes(span, {"hitl_decision": decision})
+
+        edited_input = dict(response_payload.get("edited_input", {}) or {}) if decision == "edit" else None
+        hitl_payload = await self._record_erp_hitl_decision(
+            state=state,
+            request=request,
+            response_payload=response_payload,
+            decision=decision,
+            edited_input=edited_input,
+            bindings=bindings,
+        )
+
+        review_status = "accepted_by_human"
+        if decision == "reject":
+            review_status = "rejected_by_human"
+        elif decision == "edit":
+            review_status = "edited_by_human"
+            edited_input = edited_input or dict(hitl_payload.get("edited_input_snapshot", {}) or {})
+            recommendation = self._erp_recommendation_from_edit_payload(edited_input)
+            recommendation, guard = guard_recommendation(request_model, context, recommendation)
+
+        result = {
+            "erp_recommendation": self._model_dump(recommendation),
+            "erp_guard_result": self._model_dump(guard),
+            "erp_hitl_request": dict(request),
+            "erp_hitl_decision": dict(hitl_payload),
+            "erp_review_status": review_status,
+            "path_kind": "erp_approval",
+            "turn_id": turn_id,
+            "context_call_ids": call_ids,
+        }
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=turn_id,
+            call_ids=call_ids,
+        )
+        return {**result, **updates}
+
     async def erp_finalize_node(self, state: GraphState) -> dict[str, Any]:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_finalize")
         request = self._erp_request_from_state(state)
         context = self._erp_context_from_state(state, request=request)
         recommendation = self._erp_recommendation_from_state(state)
-        guard_payload = state.get("erp_guard_result")
-        try:
-            if not guard_payload:
-                raise ValueError("missing ERP guard result")
-            guard = ApprovalGuardResult.model_validate(guard_payload)
-        except Exception:
-            recommendation, guard = guard_recommendation(request, context, recommendation)
-        answer = render_recommendation(request, context, recommendation, guard)
+        recommendation, guard = self._erp_guard_from_state(state, request, context, recommendation)
+        review_status = self._erp_review_status_from_state(state, recommendation, guard)
+        answer = self._render_erp_final_answer(request, context, recommendation, guard, review_status)
         await self._emit_final_answer(answer, usage=state.get("answer_usage"))
         turn_id = self._current_turn_id(state)
         call_ids = self._context_call_ids(state)
@@ -903,6 +991,7 @@ class HarnessLangGraphOrchestrator:
             "erp_context": self._model_dump(context),
             "erp_recommendation": self._model_dump(recommendation),
             "erp_guard_result": self._model_dump(guard),
+            "erp_review_status": review_status,
             "path_kind": "erp_approval",
             "turn_id": turn_id,
             "context_call_ids": call_ids,
@@ -1678,6 +1767,199 @@ class HarnessLangGraphOrchestrator:
             return ApprovalRecommendation.model_validate(payload or {})
         except Exception:
             return parse_recommendation("")
+
+    def _erp_guard_from_state(
+        self,
+        state: GraphState,
+        request: ApprovalRequest,
+        context: ApprovalContextBundle,
+        recommendation: ApprovalRecommendation,
+    ) -> tuple[ApprovalRecommendation, ApprovalGuardResult]:
+        payload = state.get("erp_guard_result")
+        try:
+            if payload:
+                return recommendation, ApprovalGuardResult.model_validate(payload)
+        except Exception:
+            pass
+        return guard_recommendation(request, context, recommendation)
+
+    def _build_erp_hitl_request(
+        self,
+        state: GraphState,
+        request: ApprovalRequest,
+        context: ApprovalContextBundle,
+        recommendation: ApprovalRecommendation,
+        guard: ApprovalGuardResult,
+    ) -> dict[str, Any]:
+        context_source_ids = [record.source_id for record in context.records]
+        return {
+            "run_id": state["run_id"],
+            "thread_id": state.get("thread_id", ""),
+            "session_id": state.get("session_id"),
+            "capability_id": ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID,
+            "capability_type": "function",
+            "display_name": ERP_RECOMMENDATION_REVIEW_DISPLAY_NAME,
+            "risk_level": self._erp_review_risk_level(recommendation, guard),
+            "reason": (
+                "Review the agent's ERP approval recommendation. Accepting this HITL request accepts "
+                "or edits the recommendation only; it does not execute an ERP action."
+            ),
+            "proposed_input": {
+                "review_type": "erp_recommendation_review",
+                "approval_request": self._model_dump(request),
+                "context_source_ids": context_source_ids,
+                "recommendation": self._model_dump(recommendation),
+                "guard_result": self._model_dump(guard),
+                "explicit_non_action_statement": ERP_RECOMMENDATION_REVIEW_NON_ACTION,
+            },
+            "checkpoint_id": self._resume_checkpoint_id or str(state.get("checkpoint_meta", {}).get("checkpoint_id", "") or ""),
+        }
+
+    def _erp_review_risk_level(self, recommendation: ApprovalRecommendation, guard: ApprovalGuardResult) -> str:
+        if recommendation.status in {"blocked", "recommend_reject", "escalate"}:
+            return "high"
+        if guard.warnings:
+            return "high"
+        if recommendation.status == "request_more_info":
+            return "medium"
+        if recommendation.status == "recommend_approve" and recommendation.human_review_required:
+            return "medium"
+        return "low"
+
+    def _erp_hitl_interrupt(self, request: dict[str, Any]) -> Any:
+        return interrupt(request)
+
+    async def _record_erp_hitl_decision(
+        self,
+        *,
+        state: GraphState,
+        request: dict[str, Any],
+        response_payload: dict[str, Any],
+        decision: str,
+        edited_input: dict[str, Any] | None,
+        bindings: _ExecutionBindings,
+    ) -> dict[str, Any]:
+        thread_id = str(request.get("thread_id", "") or "")
+        checkpoint_id = self._resume_checkpoint_id or str(request.get("checkpoint_id", "") or "")
+        audited_request = None
+        audited_decision = None
+        if thread_id and checkpoint_id:
+            try:
+                audited_request = checkpoint_store.get_hitl_request(thread_id=thread_id, checkpoint_id=checkpoint_id)
+                audited_decision = (
+                    checkpoint_store.get_hitl_decision(request_id=audited_request.request_id)
+                    if audited_request is not None
+                    else None
+                )
+                if audited_request is not None and audited_decision is None:
+                    audited_request, audited_decision, _ = checkpoint_store.record_hitl_decision(
+                        thread_id=thread_id,
+                        checkpoint_id=checkpoint_id,
+                        decision=decision,
+                        actor_id=str(response_payload.get("actor_id", "") or f"session:{request.get('session_id') or thread_id}"),
+                        actor_type=str(response_payload.get("actor_type", "") or "session_user"),
+                        decided_at=str(response_payload.get("decided_at", "") or bindings.runtime.now()),
+                        resume_source=str(response_payload.get("resume_source", "") or self._resume_source or "langgraph_resume"),
+                        edited_input_snapshot=edited_input,
+                    )
+            except Exception:
+                audited_request = None
+                audited_decision = None
+
+        payload = {
+            "request_id": str(getattr(audited_request, "request_id", "") or response_payload.get("request_id", "") or ""),
+            "requested_at": str(getattr(audited_request, "requested_at", "") or ""),
+            "decision_id": str(getattr(audited_decision, "decision_id", "") or response_payload.get("decision_id", "") or ""),
+            "decision": decision,
+            "actor_id": str(getattr(audited_decision, "actor_id", "") or response_payload.get("actor_id", "") or ""),
+            "actor_type": str(getattr(audited_decision, "actor_type", "") or response_payload.get("actor_type", "") or ""),
+            "decided_at": str(getattr(audited_decision, "decided_at", "") or response_payload.get("decided_at", "") or ""),
+            "run_id": str(getattr(audited_request, "run_id", "") or request.get("run_id", "") or bindings.handle.run_id),
+            "session_id": getattr(audited_request, "session_id", None) if audited_request is not None else request.get("session_id"),
+            "thread_id": thread_id or str(state.get("thread_id", "") or ""),
+            "checkpoint_id": str(getattr(audited_request, "checkpoint_id", "") or checkpoint_id),
+            "capability_id": request["capability_id"],
+            "capability_type": request["capability_type"],
+            "display_name": request["display_name"],
+            "risk_level": request["risk_level"],
+            "reason": request["reason"],
+            "proposed_input": dict(request["proposed_input"]),
+            "resume_source": str(
+                getattr(audited_decision, "resume_source", "") or response_payload.get("resume_source", "") or self._resume_source or "hitl_api"
+            ),
+            "orchestration_engine": "langgraph",
+        }
+        if decision == "approve":
+            payload["approved_input_snapshot"] = (
+                dict(getattr(audited_decision, "approved_input_snapshot", {}) or {})
+                if audited_decision is not None
+                else dict(request["proposed_input"])
+            )
+        elif decision == "edit":
+            payload["edited_input_snapshot"] = (
+                dict(getattr(audited_decision, "edited_input_snapshot", {}) or {})
+                if audited_decision is not None
+                else dict(edited_input or request["proposed_input"])
+            )
+        else:
+            payload["rejected_input_snapshot"] = (
+                dict(getattr(audited_decision, "rejected_input_snapshot", {}) or {})
+                if audited_decision is not None
+                else dict(request["proposed_input"])
+            )
+        await bindings.runtime.emit(
+            bindings.handle,
+            "hitl.approved" if decision == "approve" else "hitl.edited" if decision == "edit" else "hitl.rejected",
+            dict(payload),
+        )
+        return payload
+
+    def _erp_recommendation_from_edit_payload(self, edited_input: dict[str, Any] | None) -> ApprovalRecommendation:
+        candidate: Any = dict(edited_input or {})
+        if isinstance(candidate, dict) and isinstance(candidate.get("recommendation"), dict):
+            candidate = candidate["recommendation"]
+        if isinstance(candidate, dict):
+            try:
+                return ApprovalRecommendation.model_validate(candidate)
+            except Exception:
+                return parse_recommendation(json.dumps(candidate, ensure_ascii=False))
+        return parse_recommendation("")
+
+    def _erp_review_status_from_state(
+        self,
+        state: GraphState,
+        recommendation: ApprovalRecommendation,
+        guard: ApprovalGuardResult | None = None,
+    ) -> str:
+        status = str(state.get("erp_review_status", "") or "").strip()
+        if status:
+            return status
+        if recommendation.human_review_required or (guard is not None and guard.human_review_required):
+            return "requested"
+        return "not_required"
+
+    def _render_erp_final_answer(
+        self,
+        request: ApprovalRequest,
+        context: ApprovalContextBundle,
+        recommendation: ApprovalRecommendation,
+        guard: ApprovalGuardResult,
+        review_status: str,
+    ) -> str:
+        if review_status == "rejected_by_human":
+            return "\n".join(
+                [
+                    "ERP approval recommendation review",
+                    "",
+                    "Human review status: rejected_by_human",
+                    "Human reviewer rejected the agent recommendation.",
+                    "",
+                    f"Approval request: {request.approval_type} / {request.approval_id or 'unidentified'}",
+                    ERP_NO_ACTION_EXECUTED_STATEMENT,
+                ]
+            ).strip()
+        answer = render_recommendation(request, context, recommendation, guard)
+        return f"{answer}\n\nHuman review status: {review_status}".strip()
 
     def _format_erp_reasoning_input(self, request: ApprovalRequest, context: ApprovalContextBundle) -> str:
         erp_records = [record.model_dump() for record in context.records if record.record_type != "policy"]

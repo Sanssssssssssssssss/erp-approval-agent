@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useChatStore, useSessionStore } from "@/lib/store";
 
+const ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID = "erp_approval_recommendation_review";
+
 function prettyJson(value: Record<string, unknown> | null | undefined) {
   return JSON.stringify(value ?? {}, null, 2);
 }
@@ -26,6 +28,8 @@ export function AssetsPanel() {
     excludeContextTurn
   } = useChatStore();
   const { currentSessionId } = useSessionStore();
+  const isErpRecommendationReview =
+    pendingHitl?.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID;
   const [editedInputText, setEditedInputText] = useState("{}");
   const [editError, setEditError] = useState("");
 
@@ -129,7 +133,11 @@ export function AssetsPanel() {
 
         <section className="pixel-card p-4">
           <p className="pixel-label">hitl</p>
-          <p className="pixel-note mt-2">Pending approval plus the latest request and decision audit trail.</p>
+          <p className="pixel-note mt-2">
+            {isErpRecommendationReview
+              ? "ERP recommendation review required. This accepts or edits the agent recommendation only and does not execute an ERP approval."
+              : "Pending approval plus the latest request and decision audit trail."}
+          </p>
           {pendingHitl ? (
             <div className="pixel-card-soft mt-4 p-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -141,6 +149,11 @@ export function AssetsPanel() {
               </div>
               <h4 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">{pendingHitl.display_name}</h4>
               <p className="pixel-note mt-2">{pendingHitl.reason}</p>
+              {isErpRecommendationReview ? (
+                <p className="pixel-note mt-2">
+                  This review accepts or edits the agent recommendation only. It does not execute an ERP approval.
+                </p>
+              ) : null}
               <div className="mt-3 grid gap-2 text-sm text-[var(--color-ink-soft)] md:grid-cols-2">
                 <p>checkpoint_id: {pendingHitl.checkpoint_id}</p>
                 <p>requested_at: {pendingHitl.requested_at || "-"}</p>
@@ -159,7 +172,7 @@ export function AssetsPanel() {
                   onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
                   type="button"
                 >
-                  Approve
+                  {isErpRecommendationReview ? "Accept recommendation" : "Approve"}
                 </button>
                 <button
                   className="ui-button"
@@ -175,7 +188,7 @@ export function AssetsPanel() {
                   onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
                   type="button"
                 >
-                  Reject
+                  {isErpRecommendationReview ? "Reject recommendation" : "Reject"}
                 </button>
               </div>
             </div>
