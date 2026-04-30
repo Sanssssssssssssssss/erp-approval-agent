@@ -2,7 +2,7 @@
 
 Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
 
-Phase 0 is semantic migration only. Preserve the runnable architecture while aligning naming, documentation, and frontend copy with the ERP approval direction.
+Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only boundaries.
 
 ## First Read
 
@@ -28,11 +28,11 @@ Keep these intact unless a task explicitly changes them:
 Do not add a second runtime.
 Do not add a second agent framework.
 Do not bypass graph/HITL governance for tool execution or irreversible actions.
-Do not over-engineer the Phase 0 migration.
+Do not over-engineer the migration.
 
 ## Product Direction
 
-The intended product is an LLM-first approval reasoning workbench for ERP business approvals. Future work should introduce an `erp_approval` domain incrementally, next to the legacy `rfp_security` module.
+The intended product is an LLM-first approval reasoning workbench for ERP business approvals. The `erp_approval` domain now exists beside the legacy `rfp_security` module.
 
 LLM-first is the intended approval reasoning strategy:
 
@@ -43,29 +43,42 @@ LLM-first is the intended approval reasoning strategy:
 
 Prefer small, reviewable changes that keep the current local workbench running.
 
-## Future Target Graph
+## Implemented ERP Skeleton
 
-This graph is a future plan, not implemented in Phase 0:
+Phase 1 implemented this skeleton:
 
 ```text
 bootstrap
 -> route
--> erp_intake_llm
--> erp_context_retrieval
--> erp_policy_context
--> erp_approval_reasoning_llm
--> erp_recommendation_structuring
--> erp_self_check
--> erp_hitl_gate
--> erp_action_proposal
--> erp_finalize_audit
+-> skill
+-> memory_retrieval
+-> erp_intake
+-> erp_context
+-> erp_reasoning
+-> erp_guard
+-> erp_finalize
+-> finalize
 ```
 
-The target graph should produce an approval recommendation, not autonomous final execution. It should preserve an auditable approval trace and expose human-in-the-loop approval control before any guarded action.
+It produces an approval recommendation, not autonomous final execution. Phase 2 adds read-only context adapter interfaces and mock records. Real ERP connectors, real HITL approval cards, and write actions remain future work.
+
+Current capabilities:
+
+- LLM-first ERP intake and reasoning prompts.
+- mock ERP/policy context.
+- soft human review gate via `human_review_required`.
+- deterministic guard for weak evidence and unsafe next actions.
+
+Still absent:
+
+- real ERP connector.
+- real approval write action.
+- real ERP HITL approval card.
+- ERP benchmark suite.
 
 ## Legacy Compatibility
 
-Do not remove or aggressively rename these in Phase 0:
+Do not remove or aggressively rename these:
 
 - [src/backend/domains/rfp_security](src/backend/domains/rfp_security)
 - [backend/benchmarks/rfp_security_suite.py](backend/benchmarks/rfp_security_suite.py)
@@ -84,6 +97,17 @@ Focused backend compatibility tests:
   backend.tests.test_rfp_security_domain `
   backend.tests.test_rfp_security_benchmark `
   backend.tests.test_benchmark_evaluator
+```
+
+Focused ERP approval tests:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m unittest `
+  backend.tests.test_erp_approval_domain `
+  backend.tests.test_erp_approval_routing `
+  backend.tests.test_erp_approval_edges `
+  backend.tests.test_erp_approval_context_adapter `
+  backend.tests.test_erp_approval_graph_smoke
 ```
 
 Legacy RFP/security compatibility smoke benchmark:

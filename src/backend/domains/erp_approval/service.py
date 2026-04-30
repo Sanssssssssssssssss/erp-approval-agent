@@ -20,7 +20,19 @@ FINAL_ACTION_TERMS = {
     "final_reject",
     "execute_approve",
     "execute_reject",
+    "approve_request",
+    "reject_request",
+    "issue_payment",
+    "execute_payment",
+    "release_payment",
+    "onboard_supplier",
+    "activate_supplier",
+    "update_budget",
+    "execute_budget",
+    "execute_contract",
+    "sign_contract",
 }
+FINAL_ACTION_KEYWORDS = ("approve", "reject", "payment", "supplier", "vendor", "budget", "contract")
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
@@ -72,10 +84,11 @@ def guard_recommendation(
     context: ApprovalContextBundle,
     recommendation: ApprovalRecommendation,
 ) -> tuple[ApprovalRecommendation, ApprovalGuardResult]:
-    del request, context
+    del request
     warnings: list[str] = []
     updates: dict[str, Any] = {}
     original_status = recommendation.status
+    context_source_ids = {record.source_id for record in context.records}
 
     if recommendation.status == "recommend_approve" and recommendation.missing_information:
         updates["status"] = "request_more_info"
@@ -91,17 +104,43 @@ def guard_recommendation(
         warnings.append("recommend_approve downgraded because confidence is below 0.72.")
 
     proposed_action = str(updates.get("proposed_next_action", recommendation.proposed_next_action) or "")
-    if proposed_action in FINAL_ACTION_TERMS:
+    normalized_action = proposed_action.strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized_action in FINAL_ACTION_TERMS or normalized_action.startswith("execute_"):
         updates["proposed_next_action"] = "manual_review"
         updates["human_review_required"] = True
-        warnings.append("Final approve/reject execution action replaced with manual_review.")
+        warnings.append("Proposed irreversible ERP execution action replaced with manual_review.")
+    elif normalized_action not in {
+        "none",
+        "request_more_info",
+        "route_to_manager",
+        "route_to_finance",
+        "route_to_procurement",
+        "route_to_legal",
+        "manual_review",
+    } and any(keyword in normalized_action for keyword in FINAL_ACTION_KEYWORDS):
+        updates["proposed_next_action"] = "manual_review"
+        updates["human_review_required"] = True
+        warnings.append("Proposed ERP write-like action replaced with manual_review.")
 
     if not recommendation.citations:
         updates["human_review_required"] = True
         warnings.append("No citations were provided; human review is required.")
+        if str(updates.get("status", recommendation.status)) == "recommend_approve":
+            updates["status"] = "escalate"
+            updates["proposed_next_action"] = "manual_review"
+            warnings.append("recommend_approve downgraded because no citations were provided.")
+    else:
+        invalid_citations = [citation for citation in recommendation.citations if citation not in context_source_ids]
+        if invalid_citations:
+            updates["human_review_required"] = True
+            warnings.append("Unknown citation source_id values: " + ", ".join(invalid_citations))
+            if str(updates.get("status", recommendation.status)) == "recommend_approve":
+                updates["status"] = "escalate"
+                updates["proposed_next_action"] = "manual_review"
+                warnings.append("recommend_approve downgraded because citations are outside the current context bundle.")
 
     final_status = str(updates.get("status", recommendation.status))
-    if final_status in {"blocked", "recommend_reject", "escalate"} or recommendation.missing_information:
+    if final_status in {"blocked", "recommend_reject", "escalate", "request_more_info"} or recommendation.missing_information:
         updates["human_review_required"] = True
 
     guarded = recommendation.model_copy(update=updates) if updates else recommendation
@@ -116,13 +155,22 @@ def guard_recommendation(
     return guarded, guard
 
 
+def validate_approval_recommendation(
+    request: ApprovalRequest,
+    context: ApprovalContextBundle,
+    recommendation: ApprovalRecommendation,
+) -> tuple[ApprovalRecommendation, ApprovalGuardResult]:
+    return guard_recommendation(request, context, recommendation)
+
+
 def render_recommendation(
     request: ApprovalRequest,
     context: ApprovalContextBundle,
     recommendation: ApprovalRecommendation,
     guard: ApprovalGuardResult,
 ) -> str:
-    citations = recommendation.citations or [record.source_id for record in context.records[:2]]
+    model_citations = list(recommendation.citations)
+    fallback_sources = [] if model_citations else [record.source_id for record in context.records[:2]]
     lines = [
         "ERP approval recommendation",
         "",
@@ -145,8 +193,14 @@ def render_recommendation(
     if guard.warnings:
         lines.extend(["", "Guard notes:"])
         lines.extend(f"- {item}" for item in guard.warnings)
-    lines.extend(["", "Citations:"])
-    lines.extend(f"- {item}" for item in citations)
+    lines.extend(["", "Model citations:"])
+    if model_citations:
+        lines.extend(f"- {item}" for item in model_citations)
+    else:
+        lines.append("- none provided by model")
+    if fallback_sources:
+        lines.extend(["", "Fallback context sources (not model citations):"])
+        lines.extend(f"- {item}" for item in fallback_sources)
     lines.extend(
         [
             "",

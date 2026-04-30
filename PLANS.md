@@ -55,7 +55,9 @@ Target output fields:
 - citations
 - proposed_next_action
 
-Done when:
+Status: complete.
+
+Done:
 
 - the graph can route an ERP approval prompt into a minimal ERP approval path.
 - output is structured and self-checked.
@@ -65,7 +67,8 @@ Done when:
 
 Scope:
 
-- mock connector first.
+- read-only adapter interface.
+- mock connector first using local fixture data.
 - later SAP, Dynamics, Oracle, and custom ERP adapter interfaces.
 - normalize all outputs into evidence/context records.
 - keep connector responses read-only.

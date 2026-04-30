@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligns the public product language and future direction while preserving the current runnable architecture.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, and Phase 1 added the first minimal ERP approval graph skeleton.
 
 ## Product Direction
 
@@ -19,7 +19,7 @@ The intended future product posture is approval recommendation, not autonomous f
 
 ## Current Architecture Anchors
 
-These anchors stay intact in Phase 0:
+These anchors stay intact across the migration:
 
 - `HarnessRuntime` remains the HarnessRuntime-owned execution lifecycle.
 - LangGraph remains the graph-driven approval workflow orchestration layer.
@@ -43,37 +43,47 @@ The previous implementation focused on RFP/security answer drafting and security
 
 These legacy paths are not the new product identity. They are retained to avoid unnecessary breakage during the semantic migration.
 
-## Phase 0 Scope
+## Current Phase Status
 
-Phase 0 is product-semantic migration and graph direction alignment:
+Completed:
 
-- update README, handoff notes, plans, status, run docs, and frontend copy
-- introduce ERP Approval Agent Workbench naming
-- document the LLM-first approval reasoning direction
-- add a future product direction document and ERP knowledge placeholder
-- keep behavior, API routes, tests, and legacy modules stable
+- Phase 0 product-semantic migration.
+- Phase 1 LLM-first ERP approval graph skeleton:
+  `bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_finalize -> finalize`.
+- mock ERP/policy context for approval reasoning.
+- soft human review gate through structured recommendations and deterministic guard checks.
 
-Phase 0 does not implement production ERP automation, real ERP connectors, ERP business rules, or ERP benchmark accuracy claims.
+Current Phase 2 target:
+
+- read-only ERP context adapter interface.
+- normalized mock ERP records for approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy context.
+
+Still not implemented:
+
+- real ERP connectors.
+- approval write actions.
+- production ERP automation.
+- real HITL approval cards for ERP decisions.
+- ERP benchmark accuracy claims.
 
 ## Future ERP Approval Direction
 
-Future phases should add an `erp_approval` domain next to the legacy RFP/security module. The intended flow is:
+The current implemented skeleton flow is:
 
 ```text
 bootstrap
 -> route
--> erp_intake_llm
--> erp_context_retrieval
--> erp_policy_context
--> erp_approval_reasoning_llm
--> erp_recommendation_structuring
--> erp_self_check
--> erp_hitl_gate
--> erp_action_proposal
--> erp_finalize_audit
+-> skill
+-> memory_retrieval
+-> erp_intake
+-> erp_context
+-> erp_reasoning
+-> erp_guard
+-> erp_finalize
+-> finalize
 ```
 
-That graph is documentation only in Phase 0. The future output should be a structured approval recommendation with confidence, missing information, risk flags, citations, and proposed next action.
+It produces a structured approval recommendation with confidence, missing information, risk flags, citations, and proposed next action. Phase 2 keeps context read-only and mock-only.
 
 ## Quick Start
 
@@ -125,6 +135,17 @@ Focused backend compatibility tests:
   backend.tests.test_benchmark_evaluator
 ```
 
+Focused ERP approval tests:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m unittest `
+  backend.tests.test_erp_approval_domain `
+  backend.tests.test_erp_approval_routing `
+  backend.tests.test_erp_approval_edges `
+  backend.tests.test_erp_approval_context_adapter `
+  backend.tests.test_erp_approval_graph_smoke
+```
+
 Legacy RFP/security compatibility benchmark smoke:
 
 ```powershell
@@ -159,7 +180,7 @@ This repository does not currently claim to:
 - provide production-ready ERP automation.
 - benchmark-prove ERP approval accuracy.
 
-Current ERP work is product direction alignment. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
+Current ERP work includes a graph skeleton and mock read-only context. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 

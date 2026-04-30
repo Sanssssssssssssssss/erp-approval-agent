@@ -25,6 +25,8 @@ NO_TOOL_PATTERNS = (
     re.compile(r"(?:do not|don't|never)\s+(?:use|call)\s+(?:any|all)\s+tools?", re.IGNORECASE),
 )
 NO_KNOWLEDGE_PATTERNS = (
+    re.compile(r"(?:\u4e0d\u8981|\u522b|\u8bf7\u52ff|\u7981\u6b62).{0,12}(?:\u77e5\u8bc6\u5e93|\u77e5\u8bc6\u68c0\u7d22|\u68c0\u7d22\u77e5\u8bc6)"),
+    re.compile(r"(?:不要|别|请勿|禁止).{0,12}(?:知识库|知识检索|检索知识)"),
     re.compile(r"(?:不要|别|请勿|禁止).{0,8}(?:读取|使用|走|进入|触发)?.{0,10}(?:知识库|知识检索|知识库检索)"),
     re.compile(
         r"(?:do not|don't|never)\s+(?:read|use|trigger|enter)\s+(?:the\s+)?knowledge(?:\s+base|\s+retrieval)?",
@@ -32,6 +34,8 @@ NO_KNOWLEDGE_PATTERNS = (
     ),
 )
 NO_RETRIEVAL_PATTERNS = (
+    re.compile(r"(?:\u4e0d\u8981|\u522b|\u8bf7\u52ff|\u7981\u6b62).{0,12}(?:\u68c0\u7d22|\u641c\u7d22|\u53ec\u56de)"),
+    re.compile(r"(?:不要|别|请勿|禁止).{0,12}(?:检索|搜索|召回)"),
     re.compile(r"(?:不要|别|请勿|禁止).{0,8}(?:检索|搜索|召回)"),
     re.compile(r"(?:do not|don't|never)\s+(?:retrieve|search)", re.IGNORECASE),
 )

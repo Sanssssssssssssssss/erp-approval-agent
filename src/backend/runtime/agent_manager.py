@@ -323,13 +323,17 @@ class AgentManager:
         needs_retrieval = decision.needs_retrieval and strategy.allow_knowledge and strategy.allow_retrieval
         needs_tools = bool(allowed_tools) and strategy.allow_tools
 
-        if intent == "knowledge_qa" and not needs_retrieval:
+        if intent in {"erp_approval", "knowledge_qa"} and not needs_retrieval:
             intent = "direct_answer" if not needs_tools else "workspace_file_ops"
         if intent == "direct_answer":
             allowed_tools = []
             needs_tools = False
             needs_retrieval = False
         elif intent == "knowledge_qa":
+            allowed_tools = []
+            needs_tools = False
+            needs_retrieval = True
+        elif intent == "erp_approval":
             allowed_tools = []
             needs_tools = False
             needs_retrieval = True

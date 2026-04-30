@@ -1,0 +1,210 @@
+{
+  "records": [
+    {
+      "source_id": "mock_erp://approval_request/PR-1001",
+      "title": "Purchase requisition PR-1001",
+      "record_type": "approval_request",
+      "content": "PR-1001 requests USD 24,500 for replacement laptops for the Operations team. Requester: Lin Chen. Vendor: Acme Supplies. Cost center: OPS-CC-10.",
+      "metadata": {
+        "approval_ids": ["PR-1001"],
+        "approval_type": "purchase_requisition",
+        "requester": "Lin Chen",
+        "department": "Operations",
+        "amount": 24500,
+        "currency": "USD",
+        "vendor_name": "Acme Supplies",
+        "cost_center": "OPS-CC-10"
+      }
+    },
+    {
+      "source_id": "mock_erp://vendor/acme-supplies",
+      "title": "Vendor Acme Supplies",
+      "record_type": "vendor",
+      "content": "Acme Supplies is an active mock vendor with standard payment terms and no mock onboarding block.",
+      "metadata": {
+        "approval_ids": ["PR-1001"],
+        "vendor_name": "Acme Supplies"
+      }
+    },
+    {
+      "source_id": "mock_erp://budget/OPS-CC-10",
+      "title": "Budget OPS-CC-10",
+      "record_type": "budget",
+      "content": "Mock budget record for OPS-CC-10 shows remaining laptop refresh budget of USD 31,000 before PR-1001.",
+      "metadata": {
+        "approval_ids": ["PR-1001"],
+        "cost_center": "OPS-CC-10"
+      }
+    },
+    {
+      "source_id": "mock_erp://approval_request/EXP-2001",
+      "title": "Expense approval EXP-2001",
+      "record_type": "approval_request",
+      "content": "EXP-2001 requests reimbursement of USD 842 for client travel. Receipt image and business purpose are attached in mock data.",
+      "metadata": {
+        "approval_ids": ["EXP-2001"],
+        "approval_type": "expense",
+        "requester": "Maya Ortiz",
+        "department": "Sales",
+        "amount": 842,
+        "currency": "USD",
+        "cost_center": "SALES-CC-02"
+      }
+    },
+    {
+      "source_id": "mock_erp://approval_request/INV-3001",
+      "title": "Invoice payment INV-3001",
+      "record_type": "approval_request",
+      "content": "INV-3001 requests payment of USD 18,000 to Northwind Components. Mock invoice review references PO-7788 and GRN-8899.",
+      "metadata": {
+        "approval_ids": ["INV-3001"],
+        "approval_type": "invoice_payment",
+        "vendor_name": "Northwind Components",
+        "amount": 18000,
+        "currency": "USD"
+      }
+    },
+    {
+      "source_id": "mock_erp://purchase_order/PO-7788",
+      "title": "Purchase order PO-7788",
+      "record_type": "purchase_order",
+      "content": "PO-7788 is a mock purchase order for USD 18,000 matching Northwind Components.",
+      "metadata": {
+        "approval_ids": ["INV-3001"]
+      }
+    },
+    {
+      "source_id": "mock_erp://goods_receipt/GRN-8899",
+      "title": "Goods receipt GRN-8899",
+      "record_type": "goods_receipt",
+      "content": "GRN-8899 is a mock goods receipt showing the ordered components were received.",
+      "metadata": {
+        "approval_ids": ["INV-3001"]
+      }
+    },
+    {
+      "source_id": "mock_erp://invoice/INV-3001",
+      "title": "Invoice INV-3001",
+      "record_type": "invoice",
+      "content": "Invoice INV-3001 is a mock invoice for USD 18,000 and references PO-7788.",
+      "metadata": {
+        "approval_ids": ["INV-3001"]
+      }
+    },
+    {
+      "source_id": "mock_erp://approval_request/VEND-4001",
+      "title": "Supplier onboarding VEND-4001",
+      "record_type": "approval_request",
+      "content": "VEND-4001 requests onboarding of BrightPath Logistics. Mock checks include tax form, banking, and sanctions screening status.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"],
+        "approval_type": "supplier_onboarding",
+        "vendor_name": "BrightPath Logistics"
+      }
+    },
+    {
+      "source_id": "mock_erp://vendor/brightpath-logistics",
+      "title": "Vendor BrightPath Logistics",
+      "record_type": "vendor",
+      "content": "BrightPath Logistics is a mock vendor candidate. Tax and banking details are present; sanctions screening is pending legal/procurement confirmation.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"],
+        "vendor_name": "BrightPath Logistics"
+      }
+    },
+    {
+      "source_id": "mock_erp://approval_request/CON-5001",
+      "title": "Contract exception CON-5001",
+      "record_type": "approval_request",
+      "content": "CON-5001 requests an exception to standard liability terms for a customer contract. Legal review is required in mock policy context.",
+      "metadata": {
+        "approval_ids": ["CON-5001"],
+        "approval_type": "contract_exception"
+      }
+    },
+    {
+      "source_id": "mock_erp://contract/CON-5001",
+      "title": "Contract CON-5001",
+      "record_type": "contract",
+      "content": "Contract CON-5001 contains a mock non-standard liability cap and termination clause exception.",
+      "metadata": {
+        "approval_ids": ["CON-5001"]
+      }
+    },
+    {
+      "source_id": "mock_erp://approval_request/BUD-6001",
+      "title": "Budget exception BUD-6001",
+      "record_type": "approval_request",
+      "content": "BUD-6001 requests a USD 55,000 budget exception for accelerated implementation support. Finance review is required.",
+      "metadata": {
+        "approval_ids": ["BUD-6001"],
+        "approval_type": "budget_exception",
+        "cost_center": "FIN-CC-77"
+      }
+    },
+    {
+      "source_id": "mock_erp://budget/FIN-CC-77",
+      "title": "Budget FIN-CC-77",
+      "record_type": "budget",
+      "content": "Mock budget record for FIN-CC-77 shows insufficient uncommitted funds for BUD-6001 without finance exception approval.",
+      "metadata": {
+        "approval_ids": ["BUD-6001"],
+        "cost_center": "FIN-CC-77"
+      }
+    },
+    {
+      "source_id": "mock_policy://approval_matrix",
+      "title": "Approval matrix",
+      "record_type": "policy",
+      "content": "Mock approval matrix: manager review is expected for normal requests; finance review for budget impact; procurement review for purchases and supplier onboarding; legal review for contract exceptions.",
+      "metadata": {
+        "applies_to": ["all"]
+      }
+    },
+    {
+      "source_id": "mock_policy://procurement_policy",
+      "title": "Procurement policy",
+      "record_type": "policy",
+      "content": "Mock procurement policy: purchase requisitions should include vendor, amount, cost center, business purpose, and budget evidence.",
+      "metadata": {
+        "applies_to": ["purchase_requisition", "contract_exception"]
+      }
+    },
+    {
+      "source_id": "mock_policy://expense_policy",
+      "title": "Expense policy",
+      "record_type": "policy",
+      "content": "Mock expense policy: reimbursement should include receipt evidence, business purpose, amount, department, requester, and exception review when policy evidence is incomplete.",
+      "metadata": {
+        "applies_to": ["expense"]
+      }
+    },
+    {
+      "source_id": "mock_policy://invoice_payment_policy",
+      "title": "Invoice/payment policy",
+      "record_type": "policy",
+      "content": "Mock invoice/payment policy: payment review should compare purchase order, goods receipt, invoice, vendor identity, amount, and approval authority.",
+      "metadata": {
+        "applies_to": ["invoice_payment"]
+      }
+    },
+    {
+      "source_id": "mock_policy://supplier_onboarding_policy",
+      "title": "Supplier onboarding policy",
+      "record_type": "policy",
+      "content": "Mock supplier onboarding policy: onboarding should verify tax, banking, sanctions, ownership, and procurement due diligence before operational use.",
+      "metadata": {
+        "applies_to": ["supplier_onboarding"]
+      }
+    },
+    {
+      "source_id": "mock_policy://budget_policy",
+      "title": "Generic budget policy",
+      "record_type": "policy",
+      "content": "Mock budget policy: budget exceptions or unclear funding require finance review and cannot be treated as final approval without human confirmation.",
+      "metadata": {
+        "applies_to": ["budget_exception", "purchase_requisition", "all"]
+      }
+    }
+  ]
+}

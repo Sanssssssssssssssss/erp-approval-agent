@@ -2,9 +2,15 @@
 
 ## Current Active Phase
 
-Phase 0: ERP Approval Agent product-semantic migration.
+Phase 2: read-only ERP context adapter interface.
 
-The current task is to align product language, documentation, frontend copy, and high-level repository direction with ERP Approval Agent Workbench. This phase does not implement real ERP connectors, approval business rules, ERP benchmark suites, or production ERP automation.
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton:
+
+```text
+bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_finalize -> finalize
+```
+
+The current active task is Phase 2: add a read-only ERP context adapter interface with mock records. This phase does not implement real ERP connectors, approval write actions, real ERP HITL cards, ERP benchmark suites, or production ERP automation.
 
 ## Active Product Direction
 
@@ -14,19 +20,23 @@ Current positioning:
 
 - approval recommendation, not autonomous final execution.
 - LLM-first approval reasoning, governed by graph nodes and HITL controls.
+- existing ERP approval graph skeleton.
+- mock ERP/policy context.
+- soft human review gate.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
 - ERP policy and business context retrieval through existing knowledge abstractions.
 
-## Phase 0 Done Criteria
+## Completed Phase 1 Capabilities
 
-- public docs present ERP Approval Agent Workbench as the product identity.
-- legacy RFP/security modules are labeled compatibility assets.
-- frontend copy uses approval assistant, audit trace, evidence, approval threads, workflow tools, and policy/evidence index language.
-- API title is updated without route changes.
-- existing focused backend compatibility tests still pass.
-- frontend build remains green.
+- `erp_approval` domain package.
+- ERP approval routing intent.
+- ERP graph path in LangGraph.
+- LLM-first intake and reasoning prompts.
+- mock context bundle.
+- deterministic guard for recommendations.
+- unit tests for domain, routing, and graph edge behavior.
 
 ## Historical Infrastructure Context
 
@@ -67,15 +77,16 @@ These paths support existing tests and compatibility benchmarks until an `erp_ap
 
 ## Known Risks / Blockers
 
-- ERP-specific approval logic is not implemented yet.
+- ERP-specific approval logic is minimal and mock-only.
 - no SAP, Dynamics, Oracle, or custom ERP connector exists yet.
+- no real approval write action exists yet.
+- no real ERP HITL approval card exists yet.
 - current benchmark evidence is legacy RFP/security compatibility evidence, not ERP approval accuracy evidence.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. add an `erp_approval` domain skeleton beside the legacy `rfp_security` domain.
-2. define a minimal mock approval request schema and structured LLM output.
-3. add graph nodes for ERP intake, context retrieval, policy context, reasoning, self-check, HITL gate, action proposal, and audit finalization.
-4. keep mock context read-only until Phase 2 adapters exist.
+1. complete the read-only mock ERP context adapter interface.
+2. normalize approval request, vendor, budget, PO, invoice, goods receipt, contract, and policy context records.
+3. keep all ERP write actions out of scope until guarded action phases.

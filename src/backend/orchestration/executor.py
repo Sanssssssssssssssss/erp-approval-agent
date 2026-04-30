@@ -26,7 +26,8 @@ from src.backend.domains.erp_approval import (
     ApprovalGuardResult,
     ApprovalRecommendation,
     ApprovalRequest,
-    build_mock_context,
+    ErpContextQuery,
+    MockErpContextAdapter,
     guard_recommendation,
     parse_approval_request,
     parse_recommendation,
@@ -114,6 +115,7 @@ class HarnessLangGraphOrchestrator:
         self._graph = compile_harness_orchestration_graph(self, include_checkpointer=include_checkpointer)
         self._context_assembler = ContextAssembler(base_dir=self._agent.base_dir)
         self._context_writer = ContextWriter(base_dir=self._agent.base_dir)
+        self._erp_context_adapter = MockErpContextAdapter(base_dir=self._agent.base_dir)
         self._resume_checkpoint_id = str(resume_checkpoint_id or "")
         self._resume_thread_id = str(resume_thread_id or "")
         self._resume_source = str(resume_source or "")
@@ -788,7 +790,7 @@ class HarnessLangGraphOrchestrator:
     async def erp_context_node(self, state: GraphState) -> dict[str, Any]:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_context")
         request = self._erp_request_from_state(state)
-        context = build_mock_context(request)
+        context = self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
         result = {
             "erp_request": self._model_dump(request),
             "erp_context": self._model_dump(context),
@@ -822,13 +824,7 @@ class HarnessLangGraphOrchestrator:
         messages.append(
             {
                 "role": "user",
-                "content": (
-                    "approval_request_json:\n"
-                    + json.dumps(self._model_dump(request), ensure_ascii=False)
-                    + "\n\ncontext_json:\n"
-                    + json.dumps(self._model_dump(context), ensure_ascii=False)
-                    + "\n\nReturn the ERP approval recommendation JSON only."
-                ),
+                "content": self._format_erp_reasoning_input(request, context),
             }
         )
         try:
@@ -1667,12 +1663,12 @@ class HarnessLangGraphOrchestrator:
     def _erp_context_from_state(self, state: GraphState, *, request: ApprovalRequest) -> ApprovalContextBundle:
         payload = state.get("erp_context")
         if not payload:
-            return build_mock_context(request)
+            return self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
         try:
             context = ApprovalContextBundle.model_validate(payload or {})
-            return context if context.records else build_mock_context(request)
+            return context if context.records else self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
         except Exception:
-            return build_mock_context(request)
+            return self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
 
     def _erp_recommendation_from_state(self, state: GraphState) -> ApprovalRecommendation:
         payload = state.get("erp_recommendation")
@@ -1682,6 +1678,58 @@ class HarnessLangGraphOrchestrator:
             return ApprovalRecommendation.model_validate(payload or {})
         except Exception:
             return parse_recommendation("")
+
+    def _format_erp_reasoning_input(self, request: ApprovalRequest, context: ApprovalContextBundle) -> str:
+        erp_records = [record.model_dump() for record in context.records if record.record_type != "policy"]
+        policy_records = [record.model_dump() for record in context.records if record.record_type == "policy"]
+        schema = {
+            "status": "recommend_approve | recommend_reject | request_more_info | escalate | blocked",
+            "confidence": 0.0,
+            "summary": "string",
+            "rationale": ["string"],
+            "missing_information": ["string"],
+            "risk_flags": ["string"],
+            "citations": ["source_id"],
+            "proposed_next_action": "none | request_more_info | route_to_manager | route_to_finance | route_to_procurement | route_to_legal | manual_review",
+            "human_review_required": True,
+        }
+        return (
+            "[Approval request]\n"
+            + json.dumps(self._model_dump(request), ensure_ascii=False, indent=2)
+            + "\n\n[ERP records]\n"
+            + json.dumps(erp_records, ensure_ascii=False, indent=2)
+            + "\n\n[Policy records]\n"
+            + json.dumps(policy_records, ensure_ascii=False, indent=2)
+            + "\n\n[Missing context hints]\n"
+            + json.dumps(self._erp_missing_context_hints(request, context), ensure_ascii=False, indent=2)
+            + "\n\n[Output JSON schema]\n"
+            + json.dumps(schema, ensure_ascii=False, indent=2)
+            + "\n\nReturn JSON only. Citations must be source_id values from ERP records or Policy records."
+        )
+
+    def _erp_missing_context_hints(self, request: ApprovalRequest, context: ApprovalContextBundle) -> list[str]:
+        record_types = {record.record_type for record in context.records}
+        hints: list[str] = []
+        if "approval_request" not in record_types:
+            hints.append("approval_request record is missing")
+        if "policy" not in record_types:
+            hints.append("policy records are missing")
+        if request.approval_type == "purchase_requisition":
+            if "vendor" not in record_types:
+                hints.append("vendor record is missing for purchase requisition")
+            if "budget" not in record_types:
+                hints.append("budget record is missing for purchase requisition")
+        if request.approval_type == "invoice_payment":
+            for record_type in ("purchase_order", "goods_receipt", "invoice"):
+                if record_type not in record_types:
+                    hints.append(f"{record_type} record is missing for invoice/payment review")
+        if request.approval_type == "supplier_onboarding" and "vendor" not in record_types:
+            hints.append("vendor onboarding record is missing")
+        if request.approval_type == "contract_exception" and "contract" not in record_types:
+            hints.append("contract record is missing")
+        if request.approval_type == "budget_exception" and "budget" not in record_types:
+            hints.append("budget record is missing")
+        return hints
 
     async def _activate_skill_capability(self, *, message: str, routing_decision: "RoutingDecision", skill_decision: SkillDecision) -> None:
         skill_key = skill_decision.skill_name.replace("-", "_")

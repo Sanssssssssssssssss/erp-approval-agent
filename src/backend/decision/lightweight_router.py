@@ -129,6 +129,7 @@ KNOWLEDGE_PATTERNS = (
 )
 
 ERP_APPROVAL_PATTERNS = (
+    re.compile(r"(\u5ba1\u6279|\u5ba1\u6279\u6d41|\u91c7\u8d2d\u7533\u8bf7|\u8d39\u7528\u62a5\u9500|\u62a5\u9500|\u53d1\u7968\u4ed8\u6b3e|\u4ed8\u6b3e\u7533\u8bf7|\u4f9b\u5e94\u5546\u51c6\u5165|\u5408\u540c\u4f8b\u5916|\u9884\u7b97\u4f8b\u5916)"),
     re.compile(r"(审批|审批流|采购申请|费用报销|报销|发票付款|付款申请|供应商准入|合同例外|预算例外)"),
     re.compile(r"\b(invoice approval|expense approval|purchase requisition|vendor onboarding)\b", re.IGNORECASE),
     re.compile(r"\b(PR|PO)\b.{0,40}\b(approval|approve|request|review)\b", re.IGNORECASE),
@@ -465,7 +466,8 @@ def deterministic_route(
         )
 
     if (
-        strategy.allow_retrieval
+        strategy.allow_knowledge
+        and strategy.allow_retrieval
         and _is_erp_approval_request(normalized)
         and not _has_explicit_workspace_anchor(normalized)
         and not any(pattern.search(normalized) for pattern in WEB_LOOKUP_PATTERNS)

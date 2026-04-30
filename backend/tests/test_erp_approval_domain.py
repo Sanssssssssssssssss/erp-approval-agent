@@ -9,6 +9,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from src.backend.domains.erp_approval.context_adapter import ErpContextQuery, MockErpContextAdapter
 from src.backend.domains.erp_approval.mock_context import build_mock_context
 from src.backend.domains.erp_approval.schemas import ApprovalRecommendation, ApprovalRequest
 from src.backend.domains.erp_approval.service import (
@@ -93,6 +94,70 @@ class ErpApprovalDomainTests(unittest.TestCase):
         self.assertEqual(guarded.proposed_next_action, "manual_review")
         self.assertTrue(guarded.human_review_required)
         self.assertTrue(guard.downgraded)
+
+    def test_guard_downgrades_approve_without_citations(self) -> None:
+        request = ApprovalRequest(approval_type="purchase_requisition", approval_id="PR-1001")
+        context = MockErpContextAdapter(base_dir=BACKEND_DIR).fetch_context(
+            ErpContextQuery(approval_type="purchase_requisition", approval_id="PR-1001")
+        )
+        recommendation = ApprovalRecommendation(
+            status="recommend_approve",
+            confidence=0.9,
+            summary="Looks acceptable.",
+            citations=[],
+            proposed_next_action="none",
+            human_review_required=False,
+        )
+
+        guarded, guard = guard_recommendation(request, context, recommendation)
+
+        self.assertEqual(guarded.status, "escalate")
+        self.assertEqual(guarded.proposed_next_action, "manual_review")
+        self.assertTrue(guarded.human_review_required)
+        self.assertTrue(guard.downgraded)
+
+    def test_guard_warns_and_downgrades_unknown_citation_source_id(self) -> None:
+        request = ApprovalRequest(approval_type="purchase_requisition", approval_id="PR-1001")
+        context = MockErpContextAdapter(base_dir=BACKEND_DIR).fetch_context(
+            ErpContextQuery(approval_type="purchase_requisition", approval_id="PR-1001")
+        )
+        recommendation = ApprovalRecommendation(
+            status="recommend_approve",
+            confidence=0.9,
+            summary="Looks acceptable.",
+            citations=["mock_erp://missing/NOPE"],
+            proposed_next_action="none",
+            human_review_required=False,
+        )
+
+        guarded, guard = guard_recommendation(request, context, recommendation)
+
+        self.assertEqual(guarded.status, "escalate")
+        self.assertTrue(guarded.human_review_required)
+        self.assertTrue(any("Unknown citation" in warning for warning in guard.warnings))
+
+    def test_guard_replaces_final_execution_action_with_manual_review(self) -> None:
+        request = ApprovalRequest(approval_type="purchase_requisition", approval_id="PR-1001")
+        context = MockErpContextAdapter(base_dir=BACKEND_DIR).fetch_context(
+            ErpContextQuery(approval_type="purchase_requisition", approval_id="PR-1001")
+        )
+        recommendation = ApprovalRecommendation.model_construct(
+            status="request_more_info",
+            confidence=0.8,
+            summary="Needs follow-up.",
+            rationale=[],
+            missing_information=["budget owner confirmation"],
+            risk_flags=[],
+            citations=["mock_erp://approval_request/PR-1001"],
+            proposed_next_action="execute_approve",
+            human_review_required=False,
+        )
+
+        guarded, guard = guard_recommendation(request, context, recommendation)
+
+        self.assertEqual(guarded.proposed_next_action, "manual_review")
+        self.assertTrue(guarded.human_review_required)
+        self.assertTrue(any("irreversible ERP execution" in warning for warning in guard.warnings))
 
 
 if __name__ == "__main__":

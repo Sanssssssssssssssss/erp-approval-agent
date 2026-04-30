@@ -1,12 +1,21 @@
 # ERP Approval Agent Product Plan
 
-This document describes the future target for ERP Approval Agent Workbench. It is a plan, not a claim about current implementation.
+This document describes the target direction for ERP Approval Agent Workbench and the current phased implementation state.
 
 ## Product Goal
 
 ERP Approval Agent Workbench should help enterprise approvers review ERP business requests with LLM-first approval reasoning, retrieved ERP policy and business context, human-in-the-loop approval control, and an auditable approval trace.
 
-The product should recommend next actions. It should not autonomously execute final ERP approvals without strict HITL governance.
+The product should recommend next actions. It must not autonomously execute final ERP approvals without strict HITL governance.
+
+Current implementation:
+
+- Phase 1 LLM-first ERP approval graph skeleton exists.
+- mock ERP/policy context exists.
+- soft human review gate exists through structured recommendation fields and deterministic guard checks.
+- no real ERP connector exists.
+- no real approval write action exists.
+- no real ERP HITL approval card exists yet.
 
 ## Enterprise Approval Scenarios
 
@@ -31,27 +40,28 @@ LLM reasoning should evaluate:
 - approval authority and escalation needs
 - irreversible action risk
 
-## Target Graph Workflow
+## Graph Workflow
 
-Planned graph, not implemented in Phase 0:
+Implemented Phase 1 skeleton:
 
 ```text
 bootstrap
 -> route
--> erp_intake_llm
--> erp_context_retrieval
--> erp_policy_context
--> erp_approval_reasoning_llm
--> erp_recommendation_structuring
--> erp_self_check
--> erp_hitl_gate
--> erp_action_proposal
--> erp_finalize_audit
+-> skill
+-> memory_retrieval
+-> erp_intake
+-> erp_context
+-> erp_reasoning
+-> erp_guard
+-> erp_finalize
+-> finalize
 ```
+
+Future phases can expand this into richer retrieval, explicit HITL approval cards, action proposals, and audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
-Target future prompt structure:
+Current and target prompt structure:
 
 - system prompt: enterprise ERP approval analyst
 - context sections:
@@ -134,7 +144,7 @@ Early phases can use mock records with normalized context fields:
 
 ## Non-Goals For Early Phases
 
-- no real SAP, Dynamics, Oracle, or custom ERP connector in Phase 0.
+- no real SAP, Dynamics, Oracle, or custom ERP connector in Phase 2.
 - no production ERP write actions in early graph skeleton work.
 - no autonomous approve/reject behavior.
 - no benchmark-proven ERP approval accuracy claim until ERP benchmark suites exist.
@@ -147,4 +157,4 @@ Early phases can use mock records with normalized context fields:
 
 LangGraph should remain the graph layer because ERP approval reasoning benefits from explicit stages: intake, retrieval, policy context, reasoning, self-check, HITL gate, action proposal, and audit finalization.
 
-The existing knowledge retrieval abstraction should remain because ERP approvals need policy and business context retrieval without coupling the runtime to a specific connector or index.
+The existing knowledge retrieval and context abstractions should remain because ERP approvals need policy and business context retrieval without coupling the runtime to a specific connector or index. Phase 2 introduces read-only adapter interfaces first, with mock context records only.
