@@ -1,179 +1,134 @@
-# Ragclaw Infrastructure + Observability Upgrade Plan
+# ERP Approval Agent Migration Plan
 
-## Scope
-Upgrade Ragclaw from a local-first single-node agent runtime into a pluggable infrastructure-oriented system without changing canonical harness control semantics.
+## Active Direction
 
-Primary themes:
+The active product direction is ERP Approval Agent Workbench, repository target identity `erp-approval-agent`.
 
-- persistence and extensibility
-- observability / LLMOps
+This repo is becoming a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. The migration should preserve the existing HarnessRuntime-owned execution lifecycle, LangGraph orchestration, harness event semantics, checkpoint/HITL concepts, and knowledge retrieval abstractions.
 
-Out of primary scope unless required for compatibility:
+Historical infrastructure and observability work remains useful context. The active plan below is product migration toward ERP approval assistance.
 
-- major RAG algorithm rewrites
-- query routing redesign
-- reranking strategy changes
-- new agent framework
+## Non-Negotiable Architecture Anchors
 
-## Current Anchors Verified On 2026-04-11
+- `HarnessRuntime` remains the only lifecycle owner.
+- LangGraph remains the graph layer.
+- existing harness events remain canonical.
+- checkpoints and human-in-the-loop approval control remain durable.
+- retrieval remains the abstraction for policy and business context.
+- no second runtime, second agent framework, or premature ERP connector stack.
 
-- `src/backend/runtime/runtime.py`
-  - `build_harness_runtime(...)` currently wires `RunTraceStore` and `SessionSerialQueue` into `HarnessRuntime`
-- `src/backend/runtime/session_manager.py`
-  - `SessionManager` is filesystem-backed and persists session JSON under `backend/sessions`
-- `src/backend/observability/trace_store.py`
-  - `RunTraceStore` persists append-only JSONL traces plus summary JSON
-- `src/backend/runtime/policy.py`
-  - `SessionSerialQueue` is an in-process asyncio per-session FIFO queue
-- `src/backend/api/app.py`
-  - `/health` exists
-  - `/metrics` is now available
-  - CORS is currently configured as allow-all
+## Phase 0: Product Semantic Migration
 
-## Drift / Reality Notes
+Scope:
 
-- HITL and checkpoint persistence already have a local SQLite-backed implementation in `src/backend/orchestration/checkpointing.py`. This should become the seed local `HitlRepository` rather than be re-invented.
-- Observability already has partial OTel tracing from the previous phase, but metrics and repository/query infrastructure are still missing.
-- There is already a meaningful benchmark/live-validation harness under `backend/benchmarks`, so the upgrade should extend and connect it rather than replace it.
-- Redis queue, Postgres run/event storage, and `/metrics` are now implemented behind configuration-selected backends.
-- The repo currently appears to use `unittest`-style execution rather than a full pytest-native toolchain, so new validation entrypoints should stay compatible with the existing setup.
-
-## Phase Plan
-
-### Phase 0: Audit + Baseline
-Done when:
-
-- relevant runtime, API, observability, benchmark, and test entrypoints are confirmed
-- environment fingerprint is captured
-- baseline tests, benchmark smoke, and service smoke are run
-- outputs are stored under `artifacts/baseline/`
-- baseline summary exists at `reports/baseline_report.md`
-
-Risks:
-
-- live benchmark paths may depend on local API keys or model connectivity
-- baseline may need scaled-down variants if environment capacity is limited
-
-### Phase 1: Infrastructure Abstractions + Local Parity
-Deliverables:
-
-- repository/backend interfaces:
-  - `SessionRepository`
-  - `RunTraceRepository`
-  - `QueueBackend`
-  - `HitlRepository`
-- local adapters:
-  - filesystem session repository
-  - JSONL trace repository
-  - in-memory queue backend
-  - SQLite HITL repository
-- runtime wiring updated to depend on abstractions
-- compatibility tests and behavior parity tests
+- README, CODEX_HANDOFF, docs, and frontend copy
+- product naming and repository direction
+- new ERP approval product direction document
+- ERP knowledge placeholder
+- no behavior change
+- no full ERP domain implementation
 
 Done when:
 
-- local mode remains default
-- local mode behavior matches pre-refactor semantics
-- runtime no longer directly depends on concrete local backends
-- touched modules have focused tests and parity checks
+- public docs present ERP Approval Agent Workbench as the product identity.
+- legacy RFP/security tests and benchmarks are labeled compatibility validation.
+- frontend labels describe approval assistant, audit trace, evidence, approval threads, workflow tools, and policy/evidence index.
+- API title is updated without route changes.
 
-Risks:
+## Phase 1: LLM-First ERP Approval Graph Skeleton
 
-- refactor could accidentally alter ordering or lifecycle semantics
-- agent manager/session code may need careful compatibility shims
+Scope:
 
-### Phase 2: Redis Queue Backend + Distributed Lease
-Deliverables:
+- add an `erp_approval` path kind.
+- add minimal graph nodes next to existing graph paths.
+- no real ERP connector yet.
+- use mock approval context.
+- produce structured output from the LLM.
 
-- Redis-backed `QueueBackend`
-- per-session lease with TTL and heartbeat
-- wait-time stats and queue depth metrics
-- multi-worker integration tests and failure injection
+Target output fields:
 
-Done when:
-
-- same-session double-active count is 0 under concurrent tests
-- lease heartbeat and expiry are validated
-- local in-memory queue remains available and default
-
-Risks:
-
-- local environment may not already have Redis; likely use Docker/testcontainers or a compose profile
-- async shutdown and lease fencing semantics need careful testing
-
-### Phase 3: Postgres Event Store + Dual Write
-Deliverables:
-
-- Postgres schema + migrations
-- Postgres implementations for run/session/HITL persistence where appropriate
-- dual-write JSONL + Postgres event persistence
-- parity checker and import/migration tooling
-- run explorer APIs
+- status
+- recommendation
+- confidence
+- missing_information
+- risk_flags
+- citations
+- proposed_next_action
 
 Done when:
 
-- Postgres path runs end-to-end
-- parity mismatch count is 0 in tests and load runs
-- run explorer APIs return DB-backed results
+- the graph can route an ERP approval prompt into a minimal ERP approval path.
+- output is structured and self-checked.
+- existing legacy paths and tests still work.
 
-Risks:
+## Phase 2: Read-Only ERP Context Adapters
 
-- idempotency, ordering, and crash-retry semantics must be explicit
-- local compatibility/migration needs careful handling
+Scope:
 
-### Phase 4: Observability + LLMOps
-Deliverables:
-
-- Prometheus metrics and `/metrics`
-- richer runtime/API OTel spans and attributes
-- optional OTLP export configuration
-- Grafana dashboard JSON
-- Prometheus alert rules
-- benchmark/run metadata correlation
+- mock connector first.
+- later SAP, Dynamics, Oracle, and custom ERP adapter interfaces.
+- normalize all outputs into evidence/context records.
+- keep connector responses read-only.
 
 Done when:
 
-- metrics are scrapeable and change under test load
-- traces show request -> run -> tool/retrieval/checkpoint/HITL -> answer
-- dashboards/alerts are deliverable artifacts, not placeholders
+- adapters produce normalized request, supplier, invoice, PO, policy, budget, and history records.
+- retrieval can include mock ERP policy and business context.
+- no write actions exist yet.
 
-Risks:
+## Phase 3: HITL Approval Workbench
 
-- metrics can drift from canonical event semantics if instrumented in the wrong place
+Scope:
 
-### Phase 5: Verification, Load, Soak, Chaos
-Deliverables:
-
-- repeatable benchmark harness
-- load/stress/soak scripts
-- failure injection scripts
-- coverage artifact for touched modules
-- final reports
+- approval cards.
+- request_more_info, escalate, approve, reject, and edit controls.
+- durable resume.
+- auditable approval trace.
 
 Done when:
 
-- smoke/load/stress/soak variants are actually run
-- failure drills have measured outcomes
-- final reports include throughput, latency, queueing, parity, and error metrics
+- approval recommendations are reviewable in the UI.
+- HITL decisions resume the graph deterministically.
+- approval sessions can survive refresh/restart where existing checkpoint persistence supports it.
 
-Risks:
+## Phase 4: Guarded ERP Write Actions
 
-- hardware/time limits may require scaled-down runs
-- external dependency startup may be unavailable in the environment and require documented fallback
+Scope:
 
-## Validation Strategy
+- comments and request-more-info actions first.
+- final approve/reject only after strict HITL.
+- idempotency and audit trace required.
+- no irreversible action without explicit approval.
 
-- baseline before major code changes
-- phase-by-phase unit, integration, and perf smoke
-- dual-write parity checks after Postgres work lands
-- observability smoke after metrics/tracing work lands
-- final regression with existing critical tests
+Done when:
 
-## Success Criteria
+- action proposals are separated from action execution.
+- idempotency keys and audit events exist for every guarded write.
+- final approve/reject actions require strict human confirmation.
 
-- local-first compatibility preserved
-- pluggable backends wired by configuration
-- distributed same-session serialization proven
-- queryable run/event warehouse available
-- `/metrics` and OTel exports operational
-- reproducible benchmark and chaos reports committed
+## Phase 5: Management Efficiency Analytics
+
+Scope:
+
+- bottlenecks.
+- missing-document patterns.
+- approval SLA.
+- policy friction.
+- high-risk approval clusters.
+
+Done when:
+
+- approval traces can be summarized into operational analytics.
+- metrics distinguish recommendation quality, queue delay, missing context, and escalation drivers.
+- analytics remain grounded in stored approval events and evidence records.
+
+## Historical Infrastructure Notes
+
+The previous infrastructure plan introduced useful runtime foundations:
+
+- runtime backend abstractions for sessions, traces, queueing, and HITL persistence.
+- Redis and Postgres backend options.
+- `/metrics`, OTel spans, Grafana dashboard, and alert artifacts.
+- benchmark and live-validation harness metadata.
+
+These are infrastructure capabilities, not the active product identity. Future ERP phases should reuse them without rewriting the lifecycle model.

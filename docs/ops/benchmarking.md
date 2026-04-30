@@ -1,4 +1,10 @@
-# RFP Security Benchmarking
+# Compatibility Benchmarking
+
+## Phase 0 Context
+
+ERP Approval Agent Workbench does not yet have an ERP-specific benchmark suite. The current `rfp_security` suite is retained as legacy RFP/security compatibility validation for the existing harness, retrieval, grounding, HITL, and benchmark infrastructure.
+
+Do not describe these commands as ERP approval accuracy benchmarks.
 
 ## Benchmark Principles
 
@@ -11,7 +17,7 @@
 
 ## Primary Entry Points
 
-Focused RFP/security benchmark:
+Legacy RFP/security compatibility benchmark:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -59,9 +65,9 @@ Benchmark outputs include `execution_metadata` with:
 - benchmark selection config
 - retrieval strategy and suite config
 
-## Current RFP Suite Shape
+## Current Legacy Suite Shape
 
-The `rfp_security` suite covers at least these scenarios:
+The `rfp_security` suite covers legacy scenarios:
 
 - RFP section extraction
 - security questionnaire field answering
@@ -77,7 +83,7 @@ Current pressure-matrix dimensions:
 - top_k: `5 / 10`
 - strategy: `baseline_hybrid`
 
-## Current Tuned Snapshot
+## Historical Tuned Snapshot
 
 From [reports/rfp_security_quality_delta.md](../../reports/rfp_security_quality_delta.md):
 
@@ -93,7 +99,6 @@ From [reports/rfp_security_quality_delta.md](../../reports/rfp_security_quality_
 
 ## Interpretation Notes
 
-- `unsupported_claim_rate = 0.0` is a hard guardrail, not a nice-to-have
-- `citation_precision` improved because the tuned branch prunes weak citations instead of spraying every retrieved document
-- `groundedness` and `response_completeness` should rise together through stronger evidence mapping, not evaluator loopholes
-- if a future change boosts completeness while harming support quality, treat that as a regression
+- `unsupported_claim_rate = 0.0` remains a useful safety guardrail.
+- these metrics are not ERP approval metrics.
+- future ERP benchmark suites should measure approval recommendation quality, missing information detection, policy grounding, escalation accuracy, and HITL gating behavior.

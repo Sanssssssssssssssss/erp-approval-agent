@@ -75,7 +75,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="Mini-OpenClaw API",
+    title="ERP Approval Agent API",
     version="0.1.0",
     lifespan=lifespan,
 )

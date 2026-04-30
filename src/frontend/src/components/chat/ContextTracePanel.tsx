@@ -152,8 +152,8 @@ export function ContextTracePanel() {
   if (!currentSessionId) {
     return (
       <div className="pixel-card-soft px-6 py-8">
-        <p className="pixel-label">context trace</p>
-        <p className="pixel-note mt-4">Select a session to inspect model-visible context.</p>
+        <p className="pixel-label">approval context trace</p>
+        <p className="pixel-note mt-4">Select an approval session to inspect model-visible context.</p>
       </div>
     );
   }
@@ -161,10 +161,10 @@ export function ContextTracePanel() {
   if (!contextTurns.length && !contextTurnsLoading) {
     return (
       <div className="pixel-card-soft px-6 py-8">
-        <p className="pixel-label">context trace</p>
+        <p className="pixel-label">approval context trace</p>
         <h3 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">No assistant turn snapshot yet</h3>
         <p className="pixel-note mt-4 max-w-3xl">
-          Once this session produces an assistant answer, the model-call level context snapshots will appear here.
+          Once this approval session produces a recommendation draft, the model-call level context snapshots will appear here.
         </p>
       </div>
     );
@@ -233,7 +233,7 @@ export function ContextTracePanel() {
                 <section className="pixel-card-soft p-4">
                   <div className="pixel-label mb-3 flex items-center gap-2">
                     <Blocks size={14} />
-                    Path / run meta
+                    Approval path / run meta
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="pixel-tag">{selectedContextTurn.path_type}</span>
@@ -263,7 +263,7 @@ export function ContextTracePanel() {
               <SectionBlock title="Procedural memory hits" content={envelope?.procedural_block ?? ""} />
               <SectionBlock title="Conversation recall" content={envelope?.conversation_block ?? ""} />
               <SectionBlock title="Artifacts / MCP / capability outputs" content={envelope?.artifact_block ?? ""} />
-              <SectionBlock title="Retrieval evidence" content={envelope?.evidence_block ?? ""} />
+              <SectionBlock title="Policy / evidence retrieval" content={envelope?.evidence_block ?? ""} />
               <SectionBlock
                 title="Post-turn state snapshot"
                 content={objectToText(selectedContextTurn.post_turn_state_snapshot)}

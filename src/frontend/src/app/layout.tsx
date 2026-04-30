@@ -16,8 +16,8 @@ const monoFont = VT323({
 });
 
 export const metadata: Metadata = {
-  title: "Onyx Chat",
-  description: "A dark, local-first workspace for retrieval and agent chat."
+  title: "ERP Approval Agent Workbench",
+  description: "A local-first workbench for ERP approval recommendations, evidence retrieval, and audit traces."
 };
 
 export default function RootLayout({

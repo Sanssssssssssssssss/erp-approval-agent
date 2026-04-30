@@ -268,7 +268,7 @@ export function ChatPanel() {
 
         {pendingHitl && currentSessionId ? (
           <div className="pixel-card-soft mb-4 px-4 py-4">
-            <p className="pixel-label">Approval required</p>
+            <p className="pixel-label">ERP approval review required</p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
               {pendingHitl.display_name}
             </h3>
@@ -280,7 +280,7 @@ export function ChatPanel() {
                 {JSON.stringify(pendingHitl.proposed_input)}
               </span>
             </div>
-            <label className="pixel-label mt-4 block">Edit payload</label>
+            <label className="pixel-label mt-4 block">Review or edit proposed payload</label>
             <textarea
               className="mt-2 min-h-[120px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
               onChange={(event) => setEditedInputText(event.target.value)}
@@ -319,15 +319,15 @@ export function ChatPanel() {
         {!renderableMessages.length ? (
           <div className="chat-scroll-area flex-1 overflow-y-auto pr-2" ref={scrollRef}>
             <div className="cli-welcome px-6 py-7">
-              <div className="cli-welcome-bar">ragclaw local // kimi-k2.5</div>
+              <div className="cli-welcome-bar">ERP Approval Agent // local-first workbench</div>
               <div className="cli-welcome-grid mt-8">
                 <section className="cli-welcome-main">
                   <h3 className="pixel-title text-[2.3rem] text-[var(--color-ink)]">
                     {isInitializing
-                      ? "Starting workspace"
+                      ? "Starting workbench"
                       : isSessionLoading
-                        ? "Switching thread"
-                        : "Build anything"}
+                        ? "Switching approval thread"
+                        : "Review ERP approvals with evidence"}
                   </h3>
                   <div className="cli-emoji-wrap mt-8">
                     <div className="cli-emoji">
@@ -336,10 +336,10 @@ export function ChatPanel() {
                   </div>
                   <div className="mt-8 text-center">
                     <p className="mono text-[1rem] text-[var(--color-ink-soft)]">
-                      kimi-k2.5 / api usage billing
+                      LLM-first approval reasoning / policy retrieval / audit trace
                     </p>
                     <p className="mono mt-2 text-[1rem] text-[var(--color-ink)]">
-                      $0.60 input / $3.00 output / $0.10 cache hit
+                      Approval recommendation only / HITL before irreversible action
                     </p>
                     <p className="mt-4 text-sm text-[var(--color-ink-muted)]">
                       <a className="underline underline-offset-4" href="https://pxlkit.xyz" rel="noreferrer" target="_blank">
@@ -353,9 +353,9 @@ export function ChatPanel() {
                   <div>
                     <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">Tips</h4>
                     <div className="mono mt-4 space-y-3 text-[1rem] leading-8 text-[var(--color-ink-soft)]">
-                      <p>Use Trace when you want retrieval, tools, checkpoints, and HITL separated from the main run.</p>
-                      <p>Open Tools for files, runtime toggles, and session controls.</p>
-                      <p>Use Ctrl/Cmd + Enter to send. Only the chat viewport scrolls.</p>
+                      <p>Use Audit trace when you want retrieval, workflow tools, checkpoints, and HITL separated from the main run.</p>
+                      <p>Open Workflow tools for files, runtime toggles, and approval session controls.</p>
+                      <p>Use Ctrl/Cmd + Enter to send. Only the approval assistant viewport scrolls.</p>
                     </div>
                   </div>
 

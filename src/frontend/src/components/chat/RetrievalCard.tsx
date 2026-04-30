@@ -21,7 +21,7 @@ const STEP_META: Record<
     badge: "bg-[rgba(189,118,80,0.12)] text-[var(--color-accent)]"
   },
   skill: {
-    label: "Skill",
+    label: "Capability",
     icon: Search,
     border: "border-[var(--color-line)] bg-[var(--color-surface-soft)]",
     badge: "bg-[var(--color-surface)] text-[var(--color-ink)]"
@@ -117,7 +117,7 @@ export const RetrievalCard = memo(function RetrievalCard({ steps }: { steps: Ret
     <div className="pixel-card-soft mb-4 p-4">
       <div className="pixel-label flex items-center gap-2 text-[var(--color-accent)]">
         <Database size={15} />
-        # Retrieval trace
+        # Policy / evidence retrieval trace
       </div>
 
       <div className="mt-3 space-y-3">

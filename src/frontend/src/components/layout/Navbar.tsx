@@ -51,13 +51,13 @@ export function Navbar({
 
   return (
     <header className="panel workspace-topbar">
-      <button aria-label="Open sessions" className="ui-button" onClick={onOpenSessions} type="button">
+      <button aria-label="Open approval threads" className="ui-button" onClick={onOpenSessions} type="button">
         <Menu size={16} />
-        Threads
+        Approval threads
       </button>
 
       <div className="workspace-title-wrap">
-        <p className="workspace-title-label">Current chat</p>
+        <p className="workspace-title-label">Current approval session</p>
         <h1 className="workspace-title-text" title={currentSessionTitle}>
           {currentSessionTitle}
         </h1>
@@ -65,19 +65,19 @@ export function Navbar({
 
       <div className="relative" ref={menuRef}>
         <button
-          aria-label="Open tools"
+          aria-label="Open workflow tools"
           className="ui-button"
           onClick={() => setMenuOpen((value) => !value)}
           type="button"
         >
           <Wrench size={16} />
-          Tools
+          Workflow tools
         </button>
 
         {menuOpen ? (
           <div className="menu-popover absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[420px] p-3">
             <div className="menu-section">
-              <p className="menu-label">Session</p>
+              <p className="menu-label">Approval session</p>
               <div className="grid gap-2">
                 <button
                   className="menu-card"
@@ -88,15 +88,15 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">New session</div>
-                    <div className="menu-card-copy">Start a fresh thread</div>
+                    <div className="menu-card-title">New approval session</div>
+                    <div className="menu-card-copy">Start a fresh approval thread</div>
                   </div>
                   <Plus size={16} />
                 </button>
                 <button
                   className="menu-card"
                   onClick={() => {
-                    const nextTitle = window.prompt("Rename the current session", currentSessionTitle);
+                    const nextTitle = window.prompt("Rename the current approval session", currentSessionTitle);
                     if (nextTitle) {
                       void renameCurrentSession(nextTitle);
                     }
@@ -105,7 +105,7 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Rename session</div>
+                    <div className="menu-card-title">Rename approval session</div>
                     <div className="menu-card-copy">{currentSessionTitle}</div>
                   </div>
                   <Pencil size={16} />
@@ -119,8 +119,8 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Compress session</div>
-                    <div className="menu-card-copy">Summarize older context</div>
+                    <div className="menu-card-title">Compress approval context</div>
+                    <div className="menu-card-copy">Summarize older approval context</div>
                   </div>
                   <Wrench size={16} />
                 </button>
@@ -142,7 +142,7 @@ export function Navbar({
             </div>
 
             <div className="menu-section">
-              <p className="menu-label">Runtime</p>
+              <p className="menu-label">Workflow runtime</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 <button
                   className="menu-card"
@@ -151,7 +151,7 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">RAG</div>
+                    <div className="menu-card-title">Policy retrieval</div>
                     <div className="menu-card-copy">{ragMode ? "Enabled" : "Disabled"}</div>
                   </div>
                   <Search size={16} />
@@ -163,7 +163,7 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Skill retrieval</div>
+                    <div className="menu-card-title">Capability retrieval</div>
                     <div className="menu-card-copy">
                       {skillRetrievalEnabled ? "Enabled" : "Disabled"}
                     </div>
@@ -194,7 +194,7 @@ export function Navbar({
             </div>
 
             <div className="menu-section">
-              <p className="menu-label">Knowledge index</p>
+              <p className="menu-label">Policy / evidence index</p>
               <div className="menu-note">{knowledgeLabel}</div>
               <button
                 className="menu-card"
@@ -204,7 +204,7 @@ export function Navbar({
               >
                 <div>
                   <div className="menu-card-title">Rebuild index</div>
-                  <div className="menu-card-copy">Refresh the current knowledge catalog</div>
+                  <div className="menu-card-copy">Refresh the current policy and evidence catalog</div>
                 </div>
                 <Database size={16} />
               </button>

@@ -23,14 +23,14 @@ export function Sidebar({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="drawer-root">
-      <button aria-label="Close sessions drawer" className="drawer-backdrop" onClick={onClose} type="button" />
+      <button aria-label="Close approval threads drawer" className="drawer-backdrop" onClick={onClose} type="button" />
       <aside className="drawer-panel drawer-panel-left">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--color-line)] px-5 py-5">
           <div>
             <p className="pixel-label">
-              # Sessions
+              # Approval threads
             </p>
-            <h2 className="pixel-title mt-2 text-[0.92rem] text-[var(--color-ink)]">Thread rail</h2>
+            <h2 className="pixel-title mt-2 text-[0.92rem] text-[var(--color-ink)]">Approval queue</h2>
           </div>
           <button className="ui-button" onClick={onClose} type="button">
             <X size={16} />
@@ -44,7 +44,7 @@ export function Sidebar({ onClose }: { onClose: () => void }) {
             <input
               className="pixel-field py-2 pl-10 pr-4 text-sm"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="# SEARCH SESSIONS"
+              placeholder="# SEARCH APPROVALS"
               value={query}
             />
           </label>
@@ -77,7 +77,7 @@ export function Sidebar({ onClose }: { onClose: () => void }) {
                       {session.title}
                     </p>
                     <p className="mono mt-3 text-[1rem] text-[var(--color-ink-muted)]">
-                      {session.message_count} messages
+                      {session.message_count} events
                     </p>
                   </button>
 

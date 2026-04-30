@@ -1,6 +1,6 @@
 # QUICKSTART
 
-This is the fastest path to a working RFP/security benchmark and draft-generation setup.
+This is the fastest path to a working local ERP Approval Agent Workbench. Phase 0 updates product identity and direction while keeping the existing runnable architecture.
 
 ## 1. Create the backend venv
 
@@ -17,9 +17,19 @@ cd ..
 Copy-Item .\backend\.env.example .\backend\.env
 ```
 
-Edit `backend/.env` and fill in your own model and provider keys.
+Edit `backend/.env` and fill in your own model and provider keys. Do not commit real keys.
 
-## 3. Run the focused RFP/security tests
+## 3. Install frontend dependencies
+
+```powershell
+cd src\frontend
+npm install
+cd ..\..
+```
+
+## 4. Run focused backend compatibility tests
+
+These tests still exercise the legacy RFP/security compatibility path until ERP-specific tests are added.
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m unittest `
@@ -29,7 +39,9 @@ Edit `backend/.env` and fill in your own model and provider keys.
   backend.tests.test_benchmark_evaluator
 ```
 
-## 4. Run a smoke benchmark
+## 5. Run a legacy compatibility smoke benchmark
+
+This command validates the existing benchmark harness and retrieval path. It is not an ERP approval benchmark.
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -38,9 +50,7 @@ Edit `backend/.env` and fill in your own model and provider keys.
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
 ```
 
-## 5. Optional full-stack local run
-
-If you want the UI and API together:
+## 6. Start the local workbench
 
 ```powershell
 .\backend\scripts\dev\start-dev.ps1 -InstallIfMissing
@@ -53,8 +63,9 @@ Default URLs:
 - Health: [http://127.0.0.1:8015/health](http://127.0.0.1:8015/health)
 - Metrics: [http://127.0.0.1:8015/metrics](http://127.0.0.1:8015/metrics)
 
-## If You Want More Detail
+## More Detail
 
-- ops and benchmark commands: [docs/ops/benchmarking.md](docs/ops/benchmarking.md)
 - local run guide: [LOCAL_DEV.md](LOCAL_DEV.md)
+- operator runbook: [RUNBOOK.md](RUNBOOK.md)
+- future product plan: [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
 - architecture handoff: [CODEX_HANDOFF.md](CODEX_HANDOFF.md)

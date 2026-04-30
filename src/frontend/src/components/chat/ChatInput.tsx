@@ -40,14 +40,16 @@ export function ChatInput({
             submitValue();
           }
         }}
-        placeholder="随便问点什么… “优化数据库查询”"
+        placeholder="Paste an ERP approval request, invoice exception, supplier onboarding question, or budget exception to review."
         value={value}
       />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="mono text-[0.92rem] text-[var(--color-ink-soft)]">Ctrl/Cmd + Enter to send.</p>
+        <p className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
+          Ctrl/Cmd + Enter to send for approval review.
+        </p>
         <button className="ui-button ui-button-primary" disabled={disabled || !value.trim()} type="submit">
           <SendHorizonal size={16} />
-          Send
+          Review
         </button>
       </div>
     </form>

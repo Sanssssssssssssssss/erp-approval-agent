@@ -1,10 +1,11 @@
-# Ragclaw Runtime Runbook
+# ERP Approval Agent Runtime Runbook
 
 ## Goals
 
 - keep the default developer experience local-first
 - allow optional Redis and Postgres backends without changing `/api/chat` semantics
 - make runtime state, traces, and drills explicit instead of silently skipping missing infrastructure
+- preserve HarnessRuntime-owned execution lifecycle for ERP Approval Agent Workbench
 
 ## Default Local Mode
 
@@ -42,6 +43,8 @@ Environment variables:
 - `RAGCLAW_QUEUE_LEASE_TTL_SECONDS=30`
 - `RAGCLAW_QUEUE_HEARTBEAT_INTERVAL_SECONDS=10`
 - `RAGCLAW_QUEUE_POLL_INTERVAL_SECONDS=0.25`
+
+The `RAGCLAW_*` variable prefix is legacy runtime configuration naming and remains for compatibility in Phase 0.
 
 Recommended rollout order:
 

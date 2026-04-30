@@ -1,49 +1,82 @@
 # CODEX_HANDOFF
 
-This repository is no longer a generic agent sandbox. Treat it as an RFP/security answer drafting product with a benchmarkable retrieval pipeline.
+Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
+
+Phase 0 is semantic migration only. Preserve the runnable architecture while aligning naming, documentation, and frontend copy with the ERP approval direction.
 
 ## First Read
 
 - [README.md](README.md)
+- [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
 - [RUNBOOK.md](RUNBOOK.md)
-- [docs/ops/benchmarking.md](docs/ops/benchmarking.md)
-- [src/backend/domains/rfp_security](src/backend/domains/rfp_security)
-- [backend/benchmarks/rfp_security_suite.py](backend/benchmarks/rfp_security_suite.py)
+- [LOCAL_DEV.md](LOCAL_DEV.md)
+- [src/backend/runtime/runtime.py](src/backend/runtime/runtime.py)
+- [src/backend/orchestration](src/backend/orchestration)
+- [src/backend/knowledge](src/backend/knowledge)
 
 ## Architecture Invariants
 
 Keep these intact unless a task explicitly changes them:
 
-- `HarnessRuntime` is still the lifecycle owner
-- canonical harness events remain the execution truth
-- retrieval strategy abstraction lives in the knowledge layer, not the runtime layer
-- the existing benchmark framework is the only benchmark framework
-- evidence-first answer governance matters more than surface fluency
+- `HarnessRuntime` is the lifecycle owner.
+- LangGraph is the orchestration graph layer.
+- canonical harness events remain the execution truth.
+- HITL and checkpoint semantics remain durable and auditable.
+- knowledge retrieval abstractions remain the context/evidence boundary.
+- capability governance remains the boundary for tool execution.
 
 Do not add a second runtime.
-Do not bypass evidence planning and verifier paths with hidden side channels.
-Do not trade unsupported-claim safety for cosmetic completeness.
+Do not add a second agent framework.
+Do not bypass graph/HITL governance for tool execution or irreversible actions.
+Do not over-engineer the Phase 0 migration.
 
-## Where To Look First
+## Product Direction
 
-- domain logic: [src/backend/domains/rfp_security](src/backend/domains/rfp_security)
-- retrieval abstraction: [src/backend/knowledge/retrieval_strategy.py](src/backend/knowledge/retrieval_strategy.py)
-- retrieval registry: [src/backend/knowledge/retrieval_registry.py](src/backend/knowledge/retrieval_registry.py)
-- knowledge orchestrator: [src/backend/knowledge/orchestrator.py](src/backend/knowledge/orchestrator.py)
-- benchmark suite: [backend/benchmarks/rfp_security_suite.py](backend/benchmarks/rfp_security_suite.py)
-- benchmark runner: [backend/benchmarks/run_harness_benchmark.py](backend/benchmarks/run_harness_benchmark.py)
-- live validation: [backend/benchmarks/run_harness_live_validation.py](backend/benchmarks/run_harness_live_validation.py)
+The intended product is an LLM-first approval reasoning workbench for ERP business approvals. Future work should introduce an `erp_approval` domain incrementally, next to the legacy `rfp_security` module.
 
-## What Good Looks Like
+LLM-first is the intended approval reasoning strategy:
 
-- grounded answers with direct citations
-- explicit `insufficient_evidence` or approval escalation when support is weak
-- retrieval recall stays high without flooding the answer with loose citations
-- benchmark artifacts stay reproducible and carry `execution_metadata`
+- prompts and structured LLM outputs should carry the approval analysis.
+- graph nodes should define the execution boundary and audit stages.
+- tools and external actions must remain graph/HITL governed.
+- irreversible ERP actions must never bypass explicit approval controls.
+
+Prefer small, reviewable changes that keep the current local workbench running.
+
+## Future Target Graph
+
+This graph is a future plan, not implemented in Phase 0:
+
+```text
+bootstrap
+-> route
+-> erp_intake_llm
+-> erp_context_retrieval
+-> erp_policy_context
+-> erp_approval_reasoning_llm
+-> erp_recommendation_structuring
+-> erp_self_check
+-> erp_hitl_gate
+-> erp_action_proposal
+-> erp_finalize_audit
+```
+
+The target graph should produce an approval recommendation, not autonomous final execution. It should preserve an auditable approval trace and expose human-in-the-loop approval control before any guarded action.
+
+## Legacy Compatibility
+
+Do not remove or aggressively rename these in Phase 0:
+
+- [src/backend/domains/rfp_security](src/backend/domains/rfp_security)
+- [backend/benchmarks/rfp_security_suite.py](backend/benchmarks/rfp_security_suite.py)
+- [backend/benchmarks/cases/rfp_security](backend/benchmarks/cases/rfp_security)
+- [knowledge/RFP Security](knowledge/RFP%20Security)
+
+Existing RFP/security tests and benchmarks are compatibility checks until ERP-specific suites are added.
 
 ## Local Commands
 
-Focused tests:
+Focused backend compatibility tests:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m unittest `
@@ -53,7 +86,7 @@ Focused tests:
   backend.tests.test_benchmark_evaluator
 ```
 
-Smoke benchmark:
+Legacy RFP/security compatibility smoke benchmark:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -62,12 +95,11 @@ Smoke benchmark:
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
 ```
 
-Full benchmark:
+Frontend build:
 
 ```powershell
-.\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
-  --suite rfp_security `
-  --output artifacts\benchmarks\latest\rfp_security_full.json
+cd src\frontend
+npm run build
 ```
 
 ## Secrets

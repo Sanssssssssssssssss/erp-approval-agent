@@ -30,10 +30,10 @@ async function main() {
     await page.waitForFunction(
       () => {
         const textarea = document.querySelector("textarea");
-        const sendButton = Array.from(document.querySelectorAll("button")).find(
-          (node) => node.textContent?.trim().toLowerCase() === "send"
+        const reviewButton = Array.from(document.querySelectorAll("button")).find(
+          (node) => node.textContent?.trim().toLowerCase() === "review"
         );
-        return Boolean(textarea && !textarea.hasAttribute("disabled") && sendButton);
+        return Boolean(textarea && !textarea.hasAttribute("disabled") && reviewButton);
       },
       null,
       { timeout: 180000 }
@@ -42,17 +42,23 @@ async function main() {
     await page
       .locator("textarea")
       .first()
-      .fill("According to the knowledge base, summarize XSS briefly and include file paths.");
+      .fill("Review a $12,000 purchase requisition for a new analytics license and identify missing approval context.");
     await page.waitForFunction(
       () =>
         Array.from(document.querySelectorAll("button")).some(
           (node) =>
-            node.textContent?.trim().toLowerCase() === "send" && !node.hasAttribute("disabled")
+            node.textContent?.trim().toLowerCase() === "review" && !node.hasAttribute("disabled")
         ),
       null,
       { timeout: 30000 }
     );
     await page.locator("textarea").first().press(`${process.platform === "darwin" ? "Meta" : "Control"}+Enter`);
+
+    await page.waitForFunction(
+      () => document.querySelectorAll("article").length > 0,
+      null,
+      { timeout: 30000 }
+    );
 
     const scrollSamples = [];
     for (let index = 0; index < sampleCount; index += 1) {
@@ -70,17 +76,17 @@ async function main() {
       { timeout: 180000 }
     );
 
-    await page.getByRole("button", { name: "Trace" }).click();
+    await page.getByRole("button", { name: "Audit trace" }).click();
     await page.waitForFunction(
       () => {
         const text = document.body.textContent || "";
-        return text.includes("Every turn // split from main chat") || text.includes("# Trace");
+        return text.includes("Audit trace") || text.includes("Model-visible context");
       },
       null,
       { timeout: 30000 }
     );
 
-    await page.getByRole("button", { name: "Tools" }).click();
+    await page.getByRole("button", { name: "Open workflow tools" }).click();
     await page.getByRole("button", { name: "Open files" }).click();
     await page.waitForFunction(
       () => document.body.textContent?.includes("Workspace editor"),
@@ -90,14 +96,15 @@ async function main() {
 
     const articles = page.locator("article");
     const articleCount = await articles.count();
-    const lastArticleText = await articles.nth(articleCount - 1).innerText();
+    const lastArticleText =
+      articleCount > 0 ? await articles.nth(articleCount - 1).innerText() : await page.locator("body").innerText();
     const tokenBadgeTexts = await page.locator("article").evaluateAll((nodes) =>
       nodes
         .map((node) => node.textContent || "")
         .filter((text) => text.includes("Input ") && text.includes(" Output "))
     );
     const traceVisible = await page
-      .locator("text=Every turn // split from main chat")
+      .locator("text=Audit trace")
       .count();
     const filesVisible = await page.locator("text=Workspace editor").count();
 

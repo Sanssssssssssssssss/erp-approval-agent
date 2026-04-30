@@ -1,1 +1,1 @@
-"""API routers for Mini-OpenClaw."""
+"""API routers for ERP Approval Agent Workbench."""

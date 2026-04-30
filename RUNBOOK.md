@@ -3,12 +3,16 @@
 ## Repository Map
 
 - [src/backend](src/backend): backend product code
-- [src/frontend](src/frontend): frontend workbench
-- [src/backend/domains/rfp_security](src/backend/domains/rfp_security): RFP/security domain logic
+- [src/frontend](src/frontend): frontend approval workbench
+- [src/backend/knowledge](src/backend/knowledge): retrieval abstractions for policy and business context
+- [src/backend/orchestration](src/backend/orchestration): LangGraph orchestration and execution paths
+- [src/backend/runtime](src/backend/runtime): HarnessRuntime-owned lifecycle wiring
+- [src/backend/domains/rfp_security](src/backend/domains/rfp_security): legacy RFP/security compatibility domain
 - [backend/benchmarks](backend/benchmarks): benchmark runners, suites, evaluators, and case files
 - [backend/tests](backend/tests): backend tests
 - [backend/scripts/dev](backend/scripts/dev): local startup and validation scripts
-- [knowledge/RFP Security](knowledge/RFP%20Security): sample corpus for this domain
+- [knowledge/ERP Approval](knowledge/ERP%20Approval): future ERP approval policy/context placeholder
+- [knowledge/RFP Security](knowledge/RFP%20Security): legacy sample corpus still used by compatibility checks
 
 ## Common Tasks
 
@@ -21,13 +25,31 @@ py -3.13 -m venv .venv
 cd ..
 ```
 
+Install frontend dependencies:
+
+```powershell
+cd src\frontend
+npm install
+cd ..\..
+```
+
 Start the app:
 
 ```powershell
 .\backend\scripts\dev\start-dev.ps1 -InstallIfMissing
 ```
 
-Run the focused RFP suite:
+Run focused backend compatibility tests:
+
+```powershell
+.\backend\.venv\Scripts\python.exe -m unittest `
+  backend.tests.test_retrieval_strategy `
+  backend.tests.test_rfp_security_domain `
+  backend.tests.test_rfp_security_benchmark `
+  backend.tests.test_benchmark_evaluator
+```
+
+Run the legacy RFP/security compatibility suite:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -35,7 +57,7 @@ Run the focused RFP suite:
   --output artifacts\benchmarks\latest\rfp_security_full.json
 ```
 
-Run pressure mode:
+Run legacy pressure mode:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -46,12 +68,19 @@ Run pressure mode:
   --output artifacts\benchmarks\latest\rfp_security_pressure_matrix.json
 ```
 
-Run live validation:
+Run live validation for the existing harness:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_live_validation.py `
   --limit 3 `
   --output artifacts\benchmarks\latest\rfp_security_live_validation_smoke.json
+```
+
+Build the frontend:
+
+```powershell
+cd src\frontend
+npm run build
 ```
 
 ## Environment Variables
@@ -64,9 +93,14 @@ The most common local variables are:
 - backend host and port overrides
 - LangSmith and OTel settings if you want tracing
 
+Do not commit real keys.
+
 ## Benchmarks And Reports
 
-- benchmark commands and methodology: [docs/ops/benchmarking.md](docs/ops/benchmarking.md)
-- headline RFP results: [reports/rfp_security_benchmark_report.md](reports/rfp_security_benchmark_report.md)
-- tuned quality analysis: [reports/rfp_security_quality_tuning_report.md](reports/rfp_security_quality_tuning_report.md)
-- baseline vs tuned delta: [reports/rfp_security_quality_delta.md](reports/rfp_security_quality_delta.md)
+- legacy compatibility benchmark commands and methodology: [docs/ops/benchmarking.md](docs/ops/benchmarking.md)
+- future ERP approval product plan: [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
+- historical RFP/security reports remain under [reports](reports)
+
+## Operating Posture
+
+ERP Approval Agent Workbench should provide approval recommendation, not autonomous final execution. Future ERP write actions must be guarded by explicit HITL, idempotency, and auditable approval trace requirements.

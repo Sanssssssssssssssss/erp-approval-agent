@@ -55,9 +55,9 @@ export function AssetsPanel() {
       <div className="panel flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="pixel-label">assets</p>
+            <p className="pixel-label">evidence</p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
-              Checkpoints, context memory, HITL requests, and MCP capabilities
+              Checkpoints, approval context memory, HITL requests, and workflow capabilities
             </h3>
           </div>
           <button className="ui-button" disabled={assetsLoading || isStreaming} onClick={() => void refreshAssets()} type="button">
@@ -67,7 +67,7 @@ export function AssetsPanel() {
 
         {!currentSessionId ? (
           <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-            No active session yet.
+            No active approval session yet.
           </div>
         ) : null}
 
@@ -75,7 +75,7 @@ export function AssetsPanel() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="pixel-label">checkpoints</p>
-              <p className="pixel-note mt-2">Resume from an existing thread checkpoint.</p>
+              <p className="pixel-note mt-2">Resume from an existing approval thread checkpoint.</p>
             </div>
             {latestCheckpoint ? (
               <button
@@ -121,7 +121,7 @@ export function AssetsPanel() {
               ))
             ) : (
               <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-                No checkpoints for this session yet.
+                No checkpoints for this approval session yet.
               </div>
             )}
           </div>
@@ -181,7 +181,7 @@ export function AssetsPanel() {
             </div>
           ) : (
             <div className="pixel-card-soft mt-4 px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-              No pending HITL request right now.
+              No pending HITL approval request right now.
             </div>
           )}
           <div className="mt-4 space-y-3">
@@ -210,8 +210,8 @@ export function AssetsPanel() {
         </section>
 
         <section className="pixel-card p-4">
-          <p className="pixel-label">context memory</p>
-          <p className="pixel-note mt-2">Current working memory, episodic summary, and the latest semantic/procedural hits used for context assembly.</p>
+          <p className="pixel-label">approval context memory</p>
+          <p className="pixel-note mt-2">Current working memory, episodic summary, and the latest semantic/procedural hits used for approval context assembly.</p>
           {sessionContext ? (
             <div className="mt-4 space-y-3">
               <div className="pixel-card-soft p-4">
@@ -286,7 +286,7 @@ export function AssetsPanel() {
               <div className="pixel-card-soft p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="pixel-label">memory governance</p>
+                    <p className="pixel-label">approval memory governance</p>
                     <p className="pixel-note mt-2">Manifest-first recall state, consolidation summary, and lifecycle flags.</p>
                   </div>
                   <button
@@ -499,20 +499,20 @@ export function AssetsPanel() {
                   </div>
                 ) : (
                   <div className="mt-4 rounded-[10px] border border-[var(--color-line)] px-3 py-3 text-sm text-[var(--color-ink-soft)]">
-                    Pick a turn in the Context Trace panel to inspect derived memories and exclude it from future context.
+                    Pick a turn in the approval context trace panel to inspect derived memories and exclude it from future context.
                   </div>
                 )}
               </div>
             </div>
           ) : (
             <div className="pixel-card-soft mt-4 px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-              No context snapshot for this session yet.
+              No approval context snapshot for this session yet.
             </div>
           )}
         </section>
 
         <section className="pixel-card p-4">
-          <p className="pixel-label">mcp capabilities</p>
+          <p className="pixel-label">workflow capabilities</p>
           <p className="pixel-note mt-2">Current read-only MCP assets registered in the unified capability system.</p>
           <div className="mt-4 space-y-3">
             {mcpCapabilities.length ? (
@@ -535,7 +535,7 @@ export function AssetsPanel() {
               ))
             ) : (
               <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-                No MCP capabilities are registered.
+                No workflow capabilities are registered.
               </div>
             )}
           </div>

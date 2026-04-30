@@ -16,7 +16,7 @@ const TracePanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        Loading trace view...
+        Loading audit trace...
       </section>
     ),
     ssr: false
@@ -28,7 +28,7 @@ const AssetsPanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        Loading assets view...
+        Loading evidence view...
       </section>
     ),
     ssr: false
@@ -72,21 +72,21 @@ function WorkspaceBottomBar({
           onClick={() => onViewChange("chat")}
           type="button"
         >
-          Chat
+          Approval assistant
         </button>
         <button
           className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("trace")}
           type="button"
         >
-          Trace
+          Audit trace
         </button>
         <button
           className={workspaceView === "assets" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("assets")}
           type="button"
         >
-          Assets
+          Evidence
         </button>
         {workspaceView === "trace" && resumableCheckpoint ? (
           <button
@@ -107,7 +107,7 @@ function WorkspaceBottomBar({
         {tokenStats ? (
           <>
             <span>{`Model ${tokenStats.model_call_total_tokens.toLocaleString()} tokens`}</span>
-            <span>{`Trace ${tokenStats.session_trace_tokens.toLocaleString()} tokens`}</span>
+            <span>{`Audit trace ${tokenStats.session_trace_tokens.toLocaleString()} tokens`}</span>
           </>
         ) : (
           <span>No token stats yet</span>

@@ -1,4 +1,4 @@
-# Ragclaw Observability
+# ERP Approval Agent Observability
 
 ## What Is Instrumented
 
@@ -39,7 +39,7 @@ Current key attributes across spans:
 
 ## Prometheus Metrics
 
-`GET /metrics` exposes:
+`GET /metrics` exposes legacy `ragclaw_*` metric names in Phase 0. The names are retained for compatibility with existing dashboards and alerts:
 
 - `ragclaw_runs_started_total`
 - `ragclaw_runs_completed_total`
@@ -95,8 +95,8 @@ This keeps the control truth in harness events while giving us a standard trace 
 
 Repository artifacts:
 
-- Grafana dashboard: [`ops/grafana/ragclaw-observability-dashboard.json`](/E:/GPTProject2/Ragclaw/ops/grafana/ragclaw-observability-dashboard.json)
-- Prometheus alerts: [`ops/prometheus/ragclaw-alerts.yml`](/E:/GPTProject2/Ragclaw/ops/prometheus/ragclaw-alerts.yml)
+- Grafana dashboard: [`ops/grafana/ragclaw-observability-dashboard.json`](../../ops/grafana/ragclaw-observability-dashboard.json)
+- Prometheus alerts: [`ops/prometheus/ragclaw-alerts.yml`](../../ops/prometheus/ragclaw-alerts.yml)
 
 ## Validation
 

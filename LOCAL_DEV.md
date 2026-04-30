@@ -7,6 +7,10 @@
 - Node.js `v24.14.0`
 - npm `11.9.0`
 
+## Product Context
+
+The local app is ERP Approval Agent Workbench. Phase 0 is a product-semantic migration, so the workbench can run while legacy RFP/security compatibility tests remain in place.
+
 ## Backend Setup
 
 ```powershell
@@ -59,7 +63,7 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\dev\start-frontend-de
 
 ## Core Validation Commands
 
-Focused RFP/security tests:
+Focused backend compatibility tests:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m unittest `
@@ -75,7 +79,7 @@ Full backend regression:
 .\backend\.venv\Scripts\python.exe -m unittest discover backend/tests
 ```
 
-RFP/security smoke benchmark:
+Legacy RFP/security compatibility smoke benchmark:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -84,12 +88,26 @@ RFP/security smoke benchmark:
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
 ```
 
-Live validation smoke:
+Live validation smoke for the existing harness:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_live_validation.py `
   --limit 3 `
   --output artifacts\benchmarks\latest\rfp_security_live_validation_smoke.json
+```
+
+Frontend build:
+
+```powershell
+cd src/frontend
+npm run build
+```
+
+Frontend UI verification, if browser dependencies are available:
+
+```powershell
+cd src/frontend
+npm run verify:chat-ui
 ```
 
 ## Main Config Entrypoints
@@ -100,6 +118,7 @@ Live validation smoke:
 
 ## Notes
 
-- the benchmark and live-validation artifacts are written under `artifacts/`
-- the RFP/security corpus lives under [knowledge/RFP Security](knowledge/RFP%20Security)
-- keep this repo local-first by default; external infra and observability are optional, not mandatory to run the RFP suite
+- benchmark and live-validation artifacts are written under `artifacts/`
+- [knowledge/ERP Approval](knowledge/ERP%20Approval) is the future ERP approval context placeholder
+- [knowledge/RFP Security](knowledge/RFP%20Security) remains for legacy compatibility
+- keep this repo local-first by default; external infra and observability are optional

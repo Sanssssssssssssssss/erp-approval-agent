@@ -1,44 +1,79 @@
-# RFP Security RAG
+# ERP Approval Agent Workbench
 
-RFP Security RAG is a local-first agent workbench for answering security questionnaires and drafting RFP sections with auditable evidence.
+ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-It keeps the proven Ragclaw runtime core, but this repository is scoped around one domain:
+The repository target identity is `erp-approval-agent`. Phase 0 aligns the public product language and future direction while preserving the current runnable architecture.
 
-- normalize questionnaire fields and RFP prompts into a stable answer schema
-- retrieve security evidence with a pluggable knowledge-layer retrieval strategy
-- generate section-level draft answers with citations, approval guards, and explicit insufficiency handling
-- benchmark the whole path with repeatable retrieval, groundedness, and completeness metrics
+## Product Direction
 
-## What Is In This Repo
+This project is becoming an enterprise approval assistant for ERP workflows such as:
+
+- purchase requisitions
+- expense approvals
+- invoice and payment review
+- supplier onboarding
+- contract exception review
+- budget exception review
+
+The intended future product posture is approval recommendation, not autonomous final execution. LLM-first approval reasoning is the primary direction, but graph nodes, HarnessRuntime events, checkpoints, HITL gates, and capability governance remain the execution boundary.
+
+## Current Architecture Anchors
+
+These anchors stay intact in Phase 0:
+
+- `HarnessRuntime` remains the HarnessRuntime-owned execution lifecycle.
+- LangGraph remains the graph-driven approval workflow orchestration layer.
+- existing harness event semantics remain the execution truth.
+- checkpoint and human-in-the-loop approval control concepts remain in place.
+- knowledge retrieval abstractions remain the path for ERP policy and business context retrieval.
+- no second runtime, second agent framework, or parallel lifecycle owner is introduced.
+
+## Legacy Compatibility
+
+The previous implementation focused on RFP/security answer drafting and security questionnaire validation. That code remains available as legacy compatibility while ERP-specific domains are introduced later:
 
 - [src/backend/domains/rfp_security](src/backend/domains/rfp_security)
-  - domain schemas, normalizers, prompts, policies, evidence planning, verifier, and exports
-- [src/backend/knowledge](src/backend/knowledge)
-  - retrieval strategy interface, registry, orchestrator, evidence organization, hybrid retriever plumbing
+  - legacy domain schemas, prompts, policies, evidence planning, verifier, and exports
 - [knowledge/RFP Security](knowledge/RFP%20Security)
-  - sample corpus for security docs, approval policy, historical proposal snippets, and legacy answers
+  - legacy corpus still used by existing tests and benchmark smoke checks
 - [backend/benchmarks/cases/rfp_security](backend/benchmarks/cases/rfp_security)
-  - 20-case evaluation pack covering extraction, missing evidence, conflicts, and approval-gated answers
+  - legacy 20-case compatibility evaluation pack
 - [backend/benchmarks/rfp_security_suite.py](backend/benchmarks/rfp_security_suite.py)
-  - suite runner for standalone RFP/security benchmark evaluation
+  - legacy suite runner used until ERP-specific benchmark suites exist
 
-## Headline Results
+These legacy paths are not the new product identity. They are retained to avoid unnecessary breakage during the semantic migration.
 
-From the tuned full-suite run documented in [reports/rfp_security_quality_delta.md](reports/rfp_security_quality_delta.md):
+## Phase 0 Scope
 
-| Metric | Tuned Result |
-| --- | ---: |
-| Overall pass rate | `1.0000` |
-| Retrieval hit@k | `1.0000` |
-| Retrieval recall@k | `0.9722` |
-| Evidence coverage | `0.8889` |
-| Citation precision | `0.4478` |
-| Citation recall | `0.8889` |
-| Groundedness | `0.7500` |
-| Response completeness | `0.8750` |
-| Unsupported claim rate | `0.0000` |
+Phase 0 is product-semantic migration and graph direction alignment:
 
-The quality-tuned branch reached the requested merge thresholds without changing the retrieval strategy interface or the canonical runtime event semantics.
+- update README, handoff notes, plans, status, run docs, and frontend copy
+- introduce ERP Approval Agent Workbench naming
+- document the LLM-first approval reasoning direction
+- add a future product direction document and ERP knowledge placeholder
+- keep behavior, API routes, tests, and legacy modules stable
+
+Phase 0 does not implement production ERP automation, real ERP connectors, ERP business rules, or ERP benchmark accuracy claims.
+
+## Future ERP Approval Direction
+
+Future phases should add an `erp_approval` domain next to the legacy RFP/security module. The intended flow is:
+
+```text
+bootstrap
+-> route
+-> erp_intake_llm
+-> erp_context_retrieval
+-> erp_policy_context
+-> erp_approval_reasoning_llm
+-> erp_recommendation_structuring
+-> erp_self_check
+-> erp_hitl_gate
+-> erp_action_proposal
+-> erp_finalize_audit
+```
+
+That graph is documentation only in Phase 0. The future output should be a structured approval recommendation with confidence, missing information, risk flags, citations, and proposed next action.
 
 ## Quick Start
 
@@ -57,7 +92,30 @@ cd ..
 Copy-Item .\backend\.env.example .\backend\.env
 ```
 
-3. Run the focused RFP/security validation.
+3. Install frontend dependencies.
+
+```powershell
+cd src\frontend
+npm install
+cd ..\..
+```
+
+4. Start the local workbench UI and API.
+
+```powershell
+.\backend\scripts\dev\start-dev.ps1 -InstallIfMissing
+```
+
+Default URLs:
+
+- Frontend: [http://127.0.0.1:3000](http://127.0.0.1:3000)
+- Backend: [http://127.0.0.1:8015](http://127.0.0.1:8015)
+- Health: [http://127.0.0.1:8015/health](http://127.0.0.1:8015/health)
+- Metrics: [http://127.0.0.1:8015/metrics](http://127.0.0.1:8015/metrics)
+
+## Validation Commands
+
+Focused backend compatibility tests:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m unittest `
@@ -67,7 +125,7 @@ Copy-Item .\backend\.env.example .\backend\.env
   backend.tests.test_benchmark_evaluator
 ```
 
-4. Run the benchmark smoke suite.
+Legacy RFP/security compatibility benchmark smoke:
 
 ```powershell
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
@@ -76,48 +134,32 @@ Copy-Item .\backend\.env.example .\backend\.env
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
 ```
 
-If you want the full local workbench UI, the repo still supports the existing full-stack startup path:
+Frontend production build:
 
 ```powershell
-.\backend\scripts\dev\start-dev.ps1 -InstallIfMissing
-```
-
-## Benchmark Commands
-
-Full RFP/security suite:
-
-```powershell
-.\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
-  --suite rfp_security `
-  --output artifacts\benchmarks\latest\rfp_security_full.json
-```
-
-Pressure matrix:
-
-```powershell
-.\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
-  --suite rfp_security `
-  --limit 2 `
-  --pressure-matrix `
-  --pressure-rounds 1 `
-  --output artifacts\benchmarks\latest\rfp_security_pressure_matrix.json
-```
-
-Live validation smoke:
-
-```powershell
-.\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_live_validation.py `
-  --limit 3 `
-  --output artifacts\benchmarks\latest\rfp_security_live_validation_smoke.json
+cd src\frontend
+npm run build
 ```
 
 ## Safety And Governance
 
-- every exported answer is evidence-first and audit-friendly
-- unsupported claims are downgraded to explicit insufficiency instead of padded prose
-- approval-gated fields stay approval-gated
-- retrieval remains replaceable through the knowledge-layer strategy interface
-- `HarnessRuntime` remains the lifecycle owner; this repo does not introduce a second runtime
+- every approval recommendation should be evidence-first and audit-friendly.
+- unsupported claims should be surfaced as missing context or insufficient evidence.
+- human-in-the-loop approval control remains required before irreversible actions.
+- retrieval remains replaceable through the knowledge-layer strategy interface.
+- `HarnessRuntime` remains the lifecycle owner.
+- future ERP write actions must be idempotent, auditable, and guarded by explicit HITL.
+
+## Non-Claims
+
+This repository does not currently claim to:
+
+- integrate with SAP, Dynamics, Oracle, or any other live ERP system.
+- automatically approve ERP requests.
+- provide production-ready ERP automation.
+- benchmark-prove ERP approval accuracy.
+
+Current ERP work is product direction alignment. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 
@@ -125,7 +167,5 @@ Live validation smoke:
 - [RUNBOOK.md](RUNBOOK.md)
 - [LOCAL_DEV.md](LOCAL_DEV.md)
 - [CODEX_HANDOFF.md](CODEX_HANDOFF.md)
+- [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
 - [docs/ops/benchmarking.md](docs/ops/benchmarking.md)
-- [reports/rfp_security_benchmark_report.md](reports/rfp_security_benchmark_report.md)
-- [reports/rfp_security_quality_tuning_report.md](reports/rfp_security_quality_tuning_report.md)
-- [reports/rfp_security_resume_metrics.md](reports/rfp_security_resume_metrics.md)

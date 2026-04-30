@@ -36,7 +36,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="ui-pill">
           <Route size={14} />
-          {turn.streaming ? "Live trace" : "Trace"}
+          {turn.streaming ? "Live audit trace" : "Audit trace"}
         </div>
         {turn.usage ? (
           <div className="mono text-sm text-[var(--color-ink-soft)]">
@@ -49,7 +49,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
         <section className="pixel-card-soft p-4">
           <div className="pixel-label mb-3 flex items-center gap-2">
             <MessageSquareText size={14} />
-            user prompt
+            approval prompt
           </div>
           <div className="whitespace-pre-wrap text-[0.98rem] leading-7 text-[var(--color-ink)]">
             {turn.prompt?.trim() || "No direct user prompt was captured for this assistant turn."}
@@ -59,7 +59,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
         <section className="pixel-card-soft p-4">
           <div className="pixel-label mb-3 flex items-center gap-2">
             <Sparkles size={14} />
-            assistant response
+            recommendation draft
           </div>
           <div className="whitespace-pre-wrap text-[0.98rem] leading-7 text-[var(--color-ink-soft)]">
             {turn.answer?.trim() || (turn.streaming ? "Streaming response..." : "No text response.")}
@@ -82,7 +82,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
       <div className="mt-4">
         {turn.hitlEvents.length ? (
           <div className="pixel-card-soft mb-4 px-4 py-3 text-sm text-[var(--color-ink-soft)]">
-            <p className="pixel-label mb-3">hitl trace</p>
+            <p className="pixel-label mb-3">HITL approval trace</p>
             <div className="space-y-2">
               {turn.hitlEvents.map((item, index) => (
                 <div key={`${item.type}-${item.checkpoint_id}-${index}`} className="flex flex-wrap items-center gap-2">
@@ -125,7 +125,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
         {turn.toolCalls.length ? <ThoughtChain toolCalls={turn.toolCalls} /> : null}
         {!hasTrace ? (
           <div className="pixel-card-soft px-4 py-3 text-sm text-[var(--color-ink-soft)]">
-            No retrieval or tool trace was emitted for this turn.
+            No retrieval or workflow trace was emitted for this turn.
           </div>
         ) : null}
       </div>
@@ -215,7 +215,7 @@ export function TracePanel() {
             onClick={() => setView("execution")}
             type="button"
           >
-            Execution trace
+            Audit event trace
           </button>
         </div>
 
@@ -228,10 +228,10 @@ export function TracePanel() {
             <div className="pixel-card-soft px-6 py-8">
               <p className="pixel-label">ready</p>
               <h3 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">
-                Trace opens only when you need it
+                Audit trace opens only when you need it
               </h3>
               <p className="pixel-note mt-4 max-w-3xl">
-                Retrieval, tools, checkpoint events, and HITL stay fully available here without weighing down the default chat surface.
+                Retrieval, workflow tools, checkpoint events, and HITL stay fully available here without weighing down the default approval assistant surface.
               </p>
             </div>
           </div>
