@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,15 +13,18 @@ if str(BACKEND_DIR) not in sys.path:
 from src.backend.context import ContextAssembler
 from src.backend.domains.erp_approval.context_adapter import MockErpContextAdapter
 from src.backend.domains.erp_approval.prompts import ERP_INTAKE_SYSTEM_PROMPT
+from src.backend.domains.erp_approval.trace_store import ApprovalTraceRepository
 from src.backend.orchestration.executor import HarnessLangGraphOrchestrator
 from src.backend.orchestration.state import create_initial_graph_state
 
 
 class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
-    async def test_erp_nodes_reach_final_answer_with_mocked_model(self) -> None:
+    def _orchestrator(self, trace_repository=None):
         orchestrator = HarnessLangGraphOrchestrator.__new__(HarnessLangGraphOrchestrator)
         orchestrator._context_assembler = ContextAssembler(base_dir=BACKEND_DIR)
         orchestrator._erp_context_adapter = MockErpContextAdapter(base_dir=BACKEND_DIR)
+        if trace_repository is not None:
+            orchestrator._erp_trace_repository = trace_repository
         emitted_answers: list[str] = []
 
         async def fake_stream_model_answer(_messages, *, system_prompt_override=None, **_kwargs):
@@ -74,17 +78,62 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             {**dict(kwargs.get("state", {}) or {}), **dict(kwargs.get("result", {}) or {})},
             {},
         )
+        return orchestrator, emitted_answers
 
+    async def test_erp_nodes_reach_final_answer_with_mocked_model_and_writes_trace(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            trace_repository = ApprovalTraceRepository(Path(temp_dir) / "approval_traces.jsonl")
+            orchestrator, emitted_answers = self._orchestrator(trace_repository)
+
+            state = create_initial_graph_state(
+                run_id="run-erp-smoke",
+                session_id="session-erp-smoke",
+                thread_id="thread-erp-smoke",
+                user_message="Review PR-1001",
+                history=[],
+            )
+            state["turn_id"] = "run-erp-smoke:0"
+            state["path_kind"] = "erp_approval"
+
+            for node in (
+                orchestrator.erp_intake_node,
+                orchestrator.erp_context_node,
+                orchestrator.erp_reasoning_node,
+                orchestrator.erp_guard_node,
+                orchestrator.erp_hitl_gate_node,
+                orchestrator.erp_action_proposal_node,
+                orchestrator.erp_finalize_node,
+            ):
+                state.update(await node(state))
+
+            traces = trace_repository.list_recent(limit=10)
+
+        self.assertTrue(state["answer_finalized"])
+        self.assertEqual(state["erp_review_status"], "not_required")
+        self.assertIn("ERP approval recommendation", state["final_answer"])
+        self.assertIn("Action proposals", state["final_answer"])
+        self.assertIn("No ERP write action was executed.", state["final_answer"])
+        self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
+        self.assertTrue(state["erp_trace_write_result"]["success"])
+        self.assertEqual(len(traces), 1)
+        self.assertEqual(traces[0].recommendation_status, "recommend_approve")
+        self.assertEqual(emitted_answers, [state["final_answer"]])
+
+    async def test_erp_finalize_trace_write_failure_does_not_block_final_answer(self) -> None:
+        class FailingTraceRepository:
+            def upsert(self, _record):
+                raise OSError("trace write failed")
+
+        orchestrator, emitted_answers = self._orchestrator(FailingTraceRepository())
         state = create_initial_graph_state(
-            run_id="run-erp-smoke",
-            session_id="session-erp-smoke",
-            thread_id="thread-erp-smoke",
+            run_id="run-erp-trace-fail",
+            session_id="session-erp-trace-fail",
+            thread_id="thread-erp-trace-fail",
             user_message="Review PR-1001",
             history=[],
         )
-        state["turn_id"] = "run-erp-smoke:0"
+        state["turn_id"] = "run-erp-trace-fail:0"
         state["path_kind"] = "erp_approval"
-
         for node in (
             orchestrator.erp_intake_node,
             orchestrator.erp_context_node,
@@ -97,11 +146,8 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             state.update(await node(state))
 
         self.assertTrue(state["answer_finalized"])
-        self.assertEqual(state["erp_review_status"], "not_required")
         self.assertIn("ERP approval recommendation", state["final_answer"])
-        self.assertIn("Action proposals", state["final_answer"])
-        self.assertIn("No ERP write action was executed.", state["final_answer"])
-        self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
+        self.assertIsNone(state["erp_trace_write_result"])
         self.assertEqual(emitted_answers, [state["final_answer"]])
 
 

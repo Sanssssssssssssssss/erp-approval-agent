@@ -5,6 +5,7 @@ import re
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from langgraph.types import Command, interrupt
@@ -28,9 +29,12 @@ from src.backend.domains.erp_approval import (
     ApprovalGuardResult,
     ApprovalRecommendation,
     ApprovalRequest,
+    ApprovalTraceRepository,
     ErpContextQuery,
     MockErpContextAdapter,
     build_action_proposals,
+    build_trace_record_from_state,
+    default_trace_path,
     guard_recommendation,
     parse_approval_request,
     parse_recommendation,
@@ -127,6 +131,7 @@ class HarnessLangGraphOrchestrator:
         self._context_assembler = ContextAssembler(base_dir=self._agent.base_dir)
         self._context_writer = ContextWriter(base_dir=self._agent.base_dir)
         self._erp_context_adapter = MockErpContextAdapter(base_dir=self._agent.base_dir)
+        self._erp_trace_repository = ApprovalTraceRepository(default_trace_path(self._agent.base_dir))
         self._resume_checkpoint_id = str(resume_checkpoint_id or "")
         self._resume_thread_id = str(resume_thread_id or "")
         self._resume_source = str(resume_source or "")
@@ -1058,6 +1063,9 @@ class HarnessLangGraphOrchestrator:
             "turn_id": turn_id,
             "context_call_ids": call_ids,
         }
+        trace_result = self._write_erp_trace_record({**dict(state), **result})
+        if trace_result is not None:
+            result["erp_trace_write_result"] = self._model_dump(trace_result)
         final_state, updates = self._write_context_snapshot(
             state=state,
             result=result,
@@ -1860,6 +1868,27 @@ class HarnessLangGraphOrchestrator:
             )
         bundle = build_action_proposals(request, context, recommendation, guard, review_status)
         return validate_action_proposals(request, context, bundle)
+
+    def _write_erp_trace_record(self, state: GraphState | dict[str, Any]):
+        repository = getattr(self, "_erp_trace_repository", None)
+        if repository is None:
+            agent = getattr(self, "_agent", None)
+            base_dir = getattr(agent, "base_dir", None)
+            if base_dir is None:
+                return None
+            repository = ApprovalTraceRepository(default_trace_path(base_dir))
+            self._erp_trace_repository = repository
+        try:
+            record = build_trace_record_from_state(dict(state), self._trace_now())
+            return repository.upsert(record)
+        except Exception:
+            return None
+
+    def _trace_now(self) -> str:
+        try:
+            return str(self._bindings_or_raise().runtime.now())
+        except Exception:
+            return datetime.now(timezone.utc).isoformat()
 
     def _erp_guard_from_state(
         self,

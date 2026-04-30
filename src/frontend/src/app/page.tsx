@@ -9,7 +9,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Navbar } from "@/components/layout/Navbar";
 import { AppProvider, useChatStore, useSessionStore } from "@/lib/store";
 
-type WorkspaceView = "chat" | "trace" | "assets";
+type WorkspaceView = "chat" | "trace" | "assets" | "insights";
 
 const TracePanel = dynamic(
   () => import("@/components/chat/TracePanel").then((module) => module.TracePanel),
@@ -29,6 +29,18 @@ const AssetsPanel = dynamic(
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
         Loading evidence view...
+      </section>
+    ),
+    ssr: false
+  }
+);
+
+const InsightsPanel = dynamic(
+  () => import("@/components/chat/InsightsPanel").then((module) => module.InsightsPanel),
+  {
+    loading: () => (
+      <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
+        Loading management insights...
       </section>
     ),
     ssr: false
@@ -88,6 +100,13 @@ function WorkspaceBottomBar({
         >
           Evidence
         </button>
+        <button
+          className={workspaceView === "insights" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
+          onClick={() => onViewChange("insights")}
+          type="button"
+        >
+          Insights
+        </button>
         {workspaceView === "trace" && resumableCheckpoint ? (
           <button
             className="workspace-tab"
@@ -129,7 +148,15 @@ function Workspace() {
         <Navbar onOpenFiles={() => setFilesOpen(true)} onOpenSessions={() => setSessionsOpen(true)} />
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {workspaceView === "chat" ? <ChatPanel /> : workspaceView === "trace" ? <TracePanel /> : <AssetsPanel />}
+          {workspaceView === "chat" ? (
+            <ChatPanel />
+          ) : workspaceView === "trace" ? (
+            <TracePanel />
+          ) : workspaceView === "assets" ? (
+            <AssetsPanel />
+          ) : (
+            <InsightsPanel />
+          )}
         </div>
 
         {workspaceView === "chat" ? (

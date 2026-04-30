@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 4: Guarded ERP action proposal skeleton.
+Phase 5: ERP Approval Trace Ledger + Analytics Foundation.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, and Phase 4 adds proposed-only ERP action drafts:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, and Phase 5 adds a local structured trace ledger plus read-only analytics summary:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 4: after recommendation review, the graph can draft guarded action proposals such as request-more-info, route-to-finance, internal comment, or manual review. These proposals are always `executable=false`; they do not call tools, connectors, capabilities, or ERP APIs.
+The current active capability is Phase 5: after finalization, the graph writes a local ERP approval trace record from structured state and exposes read-only analytics over those records. Analytics summarize recommendation status, review status, missing information, risk flags, guard warnings, and action proposal validation outcomes. They do not parse final answer text and do not call ERP systems.
 
 ## Active Product Direction
 
@@ -24,6 +24,9 @@ Current positioning:
 - mock ERP/policy context.
 - durable ERP recommendation review HITL gate.
 - guarded ERP action proposal drafts.
+- local ERP approval trace ledger.
+- read-only ERP approval analytics API.
+- frontend management Insights panel.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -63,6 +66,17 @@ Current positioning:
 - validation blocks unknown citation sources, invalid action types, and payloads with ERP execution semantics.
 - final answers render Action proposals and explicitly state that no ERP write action was executed.
 
+## Completed Phase 5 Capabilities
+
+- structured `ApprovalTraceRecord` model for ERP approval run summaries.
+- local JSONL trace repository with trace-id upsert dedupe.
+- `erp_finalize` trace write that does not block final answers if storage fails.
+- read-only endpoints for traces, trace detail, and analytics summary:
+  - `GET /api/erp-approval/traces`
+  - `GET /api/erp-approval/traces/{trace_id}`
+  - `GET /api/erp-approval/analytics/summary`
+- frontend `Insights` tab with trace-based management summary counts.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -98,7 +112,7 @@ Still intentionally present:
 - [backend/benchmarks/cases/rfp_security](backend/benchmarks/cases/rfp_security)
 - [knowledge/RFP Security](knowledge/RFP%20Security)
 
-These paths support existing tests and compatibility benchmarks until an `erp_approval` domain and ERP-specific validation suite are added.
+These paths support existing tests and compatibility benchmarks until ERP-specific validation suites can replace legacy compatibility checks.
 
 ## Known Risks / Blockers
 
@@ -108,11 +122,12 @@ These paths support existing tests and compatibility benchmarks until an `erp_ap
 - no real comment/request-more-info/routing action exists yet.
 - no real ERP write-action approval card exists yet.
 - current benchmark evidence is legacy RFP/security compatibility evidence, not ERP approval accuracy evidence.
+- trace analytics are operational summaries only, not process mining or benchmark accuracy.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 5 management efficiency analytics over stored recommendation/action-proposal traces.
-2. keep analytics grounded in evidence, review status, validation warnings, and proposal outcomes.
+1. start Phase 6 read-only analytics refinement: trend filters, export, and richer trace drill-down.
+2. keep analytics grounded in structured trace records, evidence, review status, validation warnings, and proposal outcomes.
 3. keep all real ERP writes out of scope until a separate guarded execution phase.

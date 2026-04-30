@@ -119,21 +119,40 @@ Done when:
 
 Status: complete for proposed-only skeleton. Real guarded write execution remains future work.
 
-## Phase 5: Management Efficiency Analytics
+## Phase 5: ERP Approval Trace Ledger + Analytics Foundation
 
 Scope:
 
-- bottlenecks.
-- missing-document patterns.
-- approval SLA.
-- policy friction.
-- high-risk approval clusters.
+- local JSONL trace ledger for ERP approval runs.
+- trace records built from structured graph state, not final answer parsing.
+- read-only trace listing, trace detail, and analytics summary API.
+- frontend management Insights tab.
+- missing-document, risk-flag, guard-warning, review-status, and proposal outcome summary counts.
 
 Done when:
 
 - approval traces can be summarized into operational analytics.
-- metrics distinguish recommendation quality, queue delay, missing context, and escalation drivers.
-- analytics remain grounded in stored approval events and evidence records.
+- analytics remain grounded in stored structured trace records.
+- trace writes do not break final answer delivery if storage fails.
+- no write endpoint or ERP action execution is introduced.
+
+Status: complete for local trace ledger and lightweight read-only analytics foundation. This is not a benchmark, process-mining system, or ERP connector.
+
+## Phase 6: Read-Only Analytics Refinement
+
+Scope:
+
+- trace filters by approval type, recommendation status, review status, and date.
+- lightweight export for audit review.
+- richer trace drill-down in the frontend.
+- trend views for missing-document patterns, policy friction, escalation drivers, and high-risk clusters.
+- keep all analytics read-only and grounded in structured trace records.
+
+Done when:
+
+- managers can review stored ERP approval trace summaries without touching ERP systems.
+- analytics remain clearly separated from benchmark accuracy claims.
+- no approval write action is introduced.
 
 ## Historical Infrastructure Notes
 

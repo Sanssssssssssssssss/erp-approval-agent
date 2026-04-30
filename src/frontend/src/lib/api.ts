@@ -84,6 +84,22 @@ export type HitlAuditEntry = {
   } | null;
 };
 
+export type ErpApprovalAnalyticsSummary = {
+  total_traces: number;
+  by_approval_type: Record<string, number>;
+  by_recommendation_status: Record<string, number>;
+  by_review_status: Record<string, number>;
+  human_review_required_count: number;
+  guard_downgrade_count: number;
+  top_missing_information: Array<{ item: string; count: number }>;
+  top_risk_flags: Array<{ item: string; count: number }>;
+  top_guard_warnings: Array<{ item: string; count: number }>;
+  proposal_action_type_counts: Record<string, number>;
+  blocked_proposal_count: number;
+  rejected_proposal_count: number;
+  high_risk_trace_ids: string[];
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -589,6 +605,10 @@ export async function getPendingHitl(sessionId: string) {
   }>(
     `/sessions/${sessionId}/hitl`
   );
+}
+
+export async function getErpApprovalAnalyticsSummary(limit = 500) {
+  return request<ErpApprovalAnalyticsSummary>(`/erp-approval/analytics/summary?limit=${limit}`);
 }
 
 export async function listMcpCapabilities() {

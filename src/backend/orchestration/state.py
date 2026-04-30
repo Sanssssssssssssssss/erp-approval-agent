@@ -36,6 +36,7 @@ class GraphState(TypedDict, total=False):
     erp_review_status: str
     erp_action_proposals: dict[str, Any] | None
     erp_action_validation_result: dict[str, Any] | None
+    erp_trace_write_result: dict[str, Any] | None
     selected_capabilities: list[str]
     capability_results: list[dict[str, Any]]
     answer_segments: list[str]
@@ -101,6 +102,7 @@ def create_initial_graph_state(
         erp_review_status="",
         erp_action_proposals=None,
         erp_action_validation_result=None,
+        erp_trace_write_result=None,
         selected_capabilities=[],
         capability_results=[],
         answer_segments=[],
@@ -121,7 +123,7 @@ def create_initial_graph_state(
             "thread_id": resolved_thread_id,
             "checkpoint_namespace": "harness_langgraph_orchestration_v1",
             "checkpoint_enabled": True,
-            "graph_version": "phase4",
+            "graph_version": "phase5",
             "run_status": "fresh",
             "resume_source": "",
             "updated_at": "",
