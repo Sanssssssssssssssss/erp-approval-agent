@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 3: ERP recommendation HITL gate.
+Phase 4: Guarded ERP action proposal skeleton.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, and Phase 3 adds durable recommendation review through the existing HITL checkpoint/resume mechanism:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, and Phase 4 adds proposed-only ERP action drafts:
 
 ```text
-bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_finalize -> finalize
+bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 3: when an ERP recommendation requires human review, the graph creates a durable HITL request. A reviewer can accept, reject, or edit the agent recommendation. That decision never executes a real ERP approval, rejection, payment, supplier, contract, or budget action.
+The current active capability is Phase 4: after recommendation review, the graph can draft guarded action proposals such as request-more-info, route-to-finance, internal comment, or manual review. These proposals are always `executable=false`; they do not call tools, connectors, capabilities, or ERP APIs.
 
 ## Active Product Direction
 
@@ -23,6 +23,7 @@ Current positioning:
 - existing ERP approval graph skeleton.
 - mock ERP/policy context.
 - durable ERP recommendation review HITL gate.
+- guarded ERP action proposal drafts.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -53,6 +54,14 @@ Current positioning:
 - review statuses: `not_required`, `requested`, `accepted_by_human`, `rejected_by_human`, `edited_by_human`.
 - frontend copy clarifying that HITL approve accepts the recommendation only.
 - final answers continue to state that no ERP action was executed.
+
+## Completed Phase 4 Capabilities
+
+- `erp_action_proposal` node between `erp_hitl_gate` and `erp_finalize`.
+- action proposal schemas and validation result models.
+- deterministic idempotency key and fingerprint generation.
+- validation blocks unknown citation sources, invalid action types, and payloads with ERP execution semantics.
+- final answers render Action proposals and explicitly state that no ERP write action was executed.
 
 ## Historical Infrastructure Context
 
@@ -96,6 +105,7 @@ These paths support existing tests and compatibility benchmarks until an `erp_ap
 - ERP-specific approval logic is minimal and mock-only.
 - no SAP, Dynamics, Oracle, or custom ERP connector exists yet.
 - no real approval write action exists yet.
+- no real comment/request-more-info/routing action exists yet.
 - no real ERP write-action approval card exists yet.
 - current benchmark evidence is legacy RFP/security compatibility evidence, not ERP approval accuracy evidence.
 - model/provider credentials and network availability may affect live model validation.
@@ -103,6 +113,6 @@ These paths support existing tests and compatibility benchmarks until an `erp_ap
 
 ## Recommended Next Steps
 
-1. design Phase 4 guarded action proposals without executing real ERP writes.
-2. start with comments/request-more-info proposals before any approve/reject action.
-3. require idempotency, audit trace, and strict HITL before future writes.
+1. start Phase 5 management efficiency analytics over stored recommendation/action-proposal traces.
+2. keep analytics grounded in evidence, review status, validation warnings, and proposal outcomes.
+3. keep all real ERP writes out of scope until a separate guarded execution phase.

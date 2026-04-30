@@ -231,10 +231,14 @@ class ErpApprovalHitlGateTests(unittest.IsolatedAsyncioTestCase):
         orchestrator._erp_hitl_interrupt = lambda _request: {"decision": "reject", "decision_id": "decision-reject"}
 
         state.update(await orchestrator.erp_hitl_gate_node(state))
+        state.update(await orchestrator.erp_action_proposal_node(state))
         state.update(await orchestrator.erp_finalize_node(state))
 
         self.assertEqual(state["erp_review_status"], "rejected_by_human")
+        self.assertEqual(state["erp_action_proposals"]["proposals"], [])
         self.assertIn("Human reviewer rejected the agent recommendation.", state["final_answer"])
+        self.assertIn("Action proposals", state["final_answer"])
+        self.assertIn("No ERP write action was executed.", state["final_answer"])
         self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
         self.assertNotIn("Status: escalate", state["final_answer"])
         self.assertEqual(emitted, [state["final_answer"]])
@@ -297,9 +301,12 @@ class ErpApprovalHitlGateTests(unittest.IsolatedAsyncioTestCase):
             )
         )
         state.update(await orchestrator.erp_hitl_gate_node(state))
+        state.update(await orchestrator.erp_action_proposal_node(state))
         state.update(await orchestrator.erp_finalize_node(state))
 
         self.assertIn("Human review status: not_required", state["final_answer"])
+        self.assertIn("Action proposals", state["final_answer"])
+        self.assertIn("No ERP write action was executed.", state["final_answer"])
         self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
         self.assertEqual(emitted, [state["final_answer"]])
 

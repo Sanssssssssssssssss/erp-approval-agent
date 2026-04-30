@@ -13,8 +13,10 @@ Current implementation:
 - Phase 1 LLM-first ERP approval graph skeleton exists.
 - Phase 2 read-only mock ERP/policy context adapter exists.
 - Phase 3 durable ERP recommendation review HITL gate exists.
+- Phase 4 guarded action proposal skeleton exists.
 - no real ERP connector exists.
 - no real approval write action exists.
+- no real comment/request-more-info/routing write action exists.
 - no ERP approval/rejection/payment/supplier/contract/budget execution exists.
 
 ## Enterprise Approval Scenarios
@@ -54,11 +56,12 @@ bootstrap
 -> erp_reasoning
 -> erp_guard
 -> erp_hitl_gate
+-> erp_action_proposal
 -> erp_finalize
 -> finalize
 ```
 
-Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Future phases can expand this into richer retrieval, action proposals, and audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Future phases can expand this into richer analytics and, later, audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
@@ -110,6 +113,8 @@ Human-in-the-loop approval control should gate any action that writes to an ERP 
 
 Current Phase 3 HITL semantics are narrower: the reviewer accepts, rejects, or edits the agent recommendation only. HITL approve does not approve, reject, pay, onboard, sign, or update any ERP object.
 
+Current Phase 4 action proposals are also non-executing. They can describe request-more-info, internal-comment, routing, or manual-review drafts, but every proposal is `executable=false` and says no ERP write action was executed.
+
 ## Minimal Future Data Model
 
 Early phases can use mock records with normalized context fields:
@@ -144,11 +149,22 @@ Early phases can use mock records with normalized context fields:
   - risk_flags
   - citations
   - proposed_next_action
+- action_proposal
+  - proposal_id
+  - action_type
+  - status
+  - target
+  - payload_preview
+  - citations
+  - idempotency_key
+  - idempotency_fingerprint
+  - executable
 
 ## Non-Goals For Early Phases
 
 - no real SAP, Dynamics, Oracle, or custom ERP connector in early phases.
 - no production ERP write actions in early graph skeleton and HITL review work.
+- no action proposal is a tool call or ERP connector call.
 - no autonomous approve/reject behavior.
 - no benchmark-proven ERP approval accuracy claim until ERP benchmark suites exist.
 - no broad runtime rewrite.

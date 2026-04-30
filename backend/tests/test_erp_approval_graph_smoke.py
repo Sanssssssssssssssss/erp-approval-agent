@@ -91,6 +91,7 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             orchestrator.erp_reasoning_node,
             orchestrator.erp_guard_node,
             orchestrator.erp_hitl_gate_node,
+            orchestrator.erp_action_proposal_node,
             orchestrator.erp_finalize_node,
         ):
             state.update(await node(state))
@@ -98,6 +99,8 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(state["answer_finalized"])
         self.assertEqual(state["erp_review_status"], "not_required")
         self.assertIn("ERP approval recommendation", state["final_answer"])
+        self.assertIn("Action proposals", state["final_answer"])
+        self.assertIn("No ERP write action was executed.", state["final_answer"])
         self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
         self.assertEqual(emitted_answers, [state["final_answer"]])
 

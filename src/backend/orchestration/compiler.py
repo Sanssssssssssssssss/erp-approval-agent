@@ -13,6 +13,7 @@ from src.backend.orchestration.nodes import (
     build_capability_selection_node,
     build_capability_synthesis_node,
     build_direct_answer_node,
+    build_erp_action_proposal_node,
     build_erp_context_node,
     build_erp_finalize_node,
     build_erp_guard_node,
@@ -42,6 +43,7 @@ def compile_harness_orchestration_graph(orchestrator, *, include_checkpointer: b
     graph.add_node("erp_reasoning", build_erp_reasoning_node(orchestrator))
     graph.add_node("erp_guard", build_erp_guard_node(orchestrator))
     graph.add_node("erp_hitl_gate", build_erp_hitl_gate_node(orchestrator))
+    graph.add_node("erp_action_proposal", build_erp_action_proposal_node(orchestrator))
     graph.add_node("erp_finalize", build_erp_finalize_node(orchestrator))
     graph.add_node("knowledge_retrieval", build_knowledge_retrieval_node(orchestrator))
     graph.add_node("knowledge_synthesis", build_knowledge_synthesis_node(orchestrator))
@@ -72,7 +74,8 @@ def compile_harness_orchestration_graph(orchestrator, *, include_checkpointer: b
     graph.add_edge("erp_context", "erp_reasoning")
     graph.add_edge("erp_reasoning", "erp_guard")
     graph.add_edge("erp_guard", "erp_hitl_gate")
-    graph.add_edge("erp_hitl_gate", "erp_finalize")
+    graph.add_edge("erp_hitl_gate", "erp_action_proposal")
+    graph.add_edge("erp_action_proposal", "erp_finalize")
     graph.add_edge("erp_finalize", "finalize")
     graph.add_edge("knowledge_retrieval", "knowledge_synthesis")
     graph.add_edge("knowledge_synthesis", "knowledge_guard")

@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, and Phase 3 adds a durable recommendation review HITL gate.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, and Phase 4 adds guarded ERP action proposal drafts.
 
 ## Product Direction
 
@@ -49,11 +49,12 @@ Completed:
 
 - Phase 0 product-semantic migration.
 - current LLM-first ERP approval graph:
-  `bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_finalize -> finalize`.
+  `bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize`.
 - Phase 2 read-only ERP context adapter interface.
 - normalized mock ERP records for approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy context.
 - Phase 3 ERP recommendation review HITL gate using the existing checkpoint/resume mechanism.
-- frontend copy for ERP recommendation review where approve means accepting the agent recommendation only.
+- Phase 4 guarded ERP action proposal skeleton with deterministic validation, idempotency keys, and `executable=false`.
+- frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
 Still not implemented:
 
@@ -61,6 +62,7 @@ Still not implemented:
 - approval write actions.
 - production ERP automation.
 - real ERP approval/rejection/payment/supplier/contract/budget execution.
+- real ERP comment/request-more-info/route execution.
 - ERP benchmark accuracy claims.
 
 ## Future ERP Approval Direction
@@ -77,11 +79,14 @@ bootstrap
 -> erp_reasoning
 -> erp_guard
 -> erp_hitl_gate
+-> erp_action_proposal
 -> erp_finalize
 -> finalize
 ```
 
-It produces a structured approval recommendation with confidence, missing information, risk flags, citations, and proposed next action. If `human_review_required=true`, the graph creates a durable HITL review request. That review accepts, rejects, or edits the agent recommendation only; it does not execute an ERP approval.
+It produces a structured approval recommendation with confidence, missing information, risk flags, citations, proposed next action, and guarded action proposal drafts. If `human_review_required=true`, the graph creates a durable HITL review request. That review accepts, rejects, or edits the agent recommendation only; it does not execute an ERP approval.
+
+Action proposals are proposed-only drafts. They include idempotency fields and validation warnings, but they are not tool calls, capability invocations, connector calls, or ERP writes.
 
 ## Quick Start
 
@@ -142,7 +147,8 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_edges `
   backend.tests.test_erp_approval_context_adapter `
   backend.tests.test_erp_approval_graph_smoke `
-  backend.tests.test_erp_approval_hitl_gate
+  backend.tests.test_erp_approval_hitl_gate `
+  backend.tests.test_erp_approval_action_proposals
 ```
 
 Legacy RFP/security compatibility benchmark smoke:
@@ -167,6 +173,7 @@ npm run build
 - unsupported claims should be surfaced as missing context or insufficient evidence.
 - human-in-the-loop recommendation review does not equal ERP action execution.
 - human-in-the-loop approval control remains required before any future irreversible ERP action.
+- action proposals are always `executable=false` in the current phase.
 - retrieval remains replaceable through the knowledge-layer strategy interface.
 - `HarnessRuntime` remains the lifecycle owner.
 - future ERP write actions must be idempotent, auditable, and guarded by explicit HITL.
@@ -180,7 +187,7 @@ This repository does not currently claim to:
 - provide production-ready ERP automation.
 - benchmark-prove ERP approval accuracy.
 
-Current ERP work includes a graph skeleton, mock read-only context, and durable recommendation review HITL. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
+Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, and proposed-only action drafts. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 

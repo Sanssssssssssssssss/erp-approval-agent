@@ -100,20 +100,24 @@ Done when:
 
 Status: complete for recommendation review. Broader action cards remain Phase 4+ work.
 
-## Phase 4: Guarded ERP Write Actions
+## Phase 4: Guarded ERP Action Proposal Skeleton
 
 Scope:
 
-- comments and request-more-info actions first.
-- final approve/reject only after strict HITL.
-- idempotency and audit trace required.
-- no irreversible action without explicit approval.
+- proposed-only action drafts.
+- request-more-info, internal comment, route-to-manager/finance/procurement/legal, and manual-review proposal types.
+- deterministic idempotency key and fingerprint.
+- validation against unsupported citations, invalid action types, and execution-like payloads.
+- no ERP write action execution.
 
 Done when:
 
 - action proposals are separated from action execution.
-- idempotency keys and audit events exist for every guarded write.
-- final approve/reject actions require strict human confirmation.
+- final answers show proposal id, action type, status, idempotency key, and `executable=false`.
+- validation warnings are visible.
+- no proposal is wired to `capability_invoke`.
+
+Status: complete for proposed-only skeleton. Real guarded write execution remains future work.
 
 ## Phase 5: Management Efficiency Analytics
 

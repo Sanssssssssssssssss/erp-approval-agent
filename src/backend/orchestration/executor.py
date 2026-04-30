@@ -22,16 +22,21 @@ from src.backend.context.models import ContextAssembly, ContextModelCallSnapshot
 from src.backend.context.store import context_store
 from src.backend.decision.skill_gate import SkillDecision, skill_instruction
 from src.backend.domains.erp_approval import (
+    ApprovalActionProposalBundle,
+    ApprovalActionValidationResult,
     ApprovalContextBundle,
     ApprovalGuardResult,
     ApprovalRecommendation,
     ApprovalRequest,
     ErpContextQuery,
     MockErpContextAdapter,
+    build_action_proposals,
     guard_recommendation,
     parse_approval_request,
     parse_recommendation,
+    render_action_proposals,
     render_recommendation,
+    validate_action_proposals,
 )
 from src.backend.domains.erp_approval.prompts import ERP_INTAKE_SYSTEM_PROMPT, ERP_REASONING_SYSTEM_PROMPT
 from src.backend.observability.otel_spans import set_span_attributes, with_observation
@@ -972,6 +977,45 @@ class HarnessLangGraphOrchestrator:
         )
         return {**result, **updates}
 
+    async def erp_action_proposal_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_action_proposal")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        recommendation = self._erp_recommendation_from_state(state)
+        recommendation, guard = self._erp_guard_from_state(state, request, context, recommendation)
+        review_status = self._erp_review_status_from_state(state, recommendation, guard)
+        if review_status == "rejected_by_human":
+            bundle = ApprovalActionProposalBundle(
+                request_id=request.approval_id,
+                review_status=review_status,
+                proposals=[],
+            )
+            validation = ApprovalActionValidationResult(
+                passed=False,
+                warnings=["Human reviewer rejected the agent recommendation; no action proposals were generated."],
+            )
+        else:
+            bundle = build_action_proposals(request, context, recommendation, guard, review_status)
+            bundle, validation = validate_action_proposals(request, context, bundle)
+
+        turn_id = self._current_turn_id(state)
+        call_ids = self._context_call_ids(state)
+        result = {
+            "erp_action_proposals": self._model_dump(bundle),
+            "erp_action_validation_result": self._model_dump(validation),
+            "path_kind": "erp_approval",
+            "turn_id": turn_id,
+            "context_call_ids": call_ids,
+        }
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=turn_id,
+            call_ids=call_ids,
+        )
+        return {**result, **updates}
+
     async def erp_finalize_node(self, state: GraphState) -> dict[str, Any]:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_finalize")
         request = self._erp_request_from_state(state)
@@ -979,7 +1023,23 @@ class HarnessLangGraphOrchestrator:
         recommendation = self._erp_recommendation_from_state(state)
         recommendation, guard = self._erp_guard_from_state(state, request, context, recommendation)
         review_status = self._erp_review_status_from_state(state, recommendation, guard)
-        answer = self._render_erp_final_answer(request, context, recommendation, guard, review_status)
+        action_bundle, action_validation = self._erp_action_proposals_from_state(
+            state,
+            request=request,
+            context=context,
+            recommendation=recommendation,
+            guard=guard,
+            review_status=review_status,
+        )
+        answer = self._render_erp_final_answer(
+            request,
+            context,
+            recommendation,
+            guard,
+            review_status,
+            action_bundle,
+            action_validation,
+        )
         await self._emit_final_answer(answer, usage=state.get("answer_usage"))
         turn_id = self._current_turn_id(state)
         call_ids = self._context_call_ids(state)
@@ -992,6 +1052,8 @@ class HarnessLangGraphOrchestrator:
             "erp_recommendation": self._model_dump(recommendation),
             "erp_guard_result": self._model_dump(guard),
             "erp_review_status": review_status,
+            "erp_action_proposals": self._model_dump(action_bundle),
+            "erp_action_validation_result": self._model_dump(action_validation),
             "path_kind": "erp_approval",
             "turn_id": turn_id,
             "context_call_ids": call_ids,
@@ -1768,6 +1830,37 @@ class HarnessLangGraphOrchestrator:
         except Exception:
             return parse_recommendation("")
 
+    def _erp_action_proposals_from_state(
+        self,
+        state: GraphState,
+        *,
+        request: ApprovalRequest,
+        context: ApprovalContextBundle,
+        recommendation: ApprovalRecommendation,
+        guard: ApprovalGuardResult,
+        review_status: str,
+    ) -> tuple[ApprovalActionProposalBundle, ApprovalActionValidationResult]:
+        bundle_payload = state.get("erp_action_proposals")
+        validation_payload = state.get("erp_action_validation_result")
+        try:
+            if bundle_payload and validation_payload:
+                return (
+                    ApprovalActionProposalBundle.model_validate(bundle_payload),
+                    ApprovalActionValidationResult.model_validate(validation_payload),
+                )
+        except Exception:
+            pass
+        if review_status == "rejected_by_human":
+            return (
+                ApprovalActionProposalBundle(request_id=request.approval_id, review_status=review_status, proposals=[]),
+                ApprovalActionValidationResult(
+                    passed=False,
+                    warnings=["Human reviewer rejected the agent recommendation; no action proposals were generated."],
+                ),
+            )
+        bundle = build_action_proposals(request, context, recommendation, guard, review_status)
+        return validate_action_proposals(request, context, bundle)
+
     def _erp_guard_from_state(
         self,
         state: GraphState,
@@ -1945,7 +2038,10 @@ class HarnessLangGraphOrchestrator:
         recommendation: ApprovalRecommendation,
         guard: ApprovalGuardResult,
         review_status: str,
+        action_bundle: ApprovalActionProposalBundle,
+        action_validation: ApprovalActionValidationResult,
     ) -> str:
+        rendered_actions = render_action_proposals(action_bundle, action_validation)
         if review_status == "rejected_by_human":
             return "\n".join(
                 [
@@ -1956,10 +2052,12 @@ class HarnessLangGraphOrchestrator:
                     "",
                     f"Approval request: {request.approval_type} / {request.approval_id or 'unidentified'}",
                     ERP_NO_ACTION_EXECUTED_STATEMENT,
+                    "",
+                    rendered_actions,
                 ]
             ).strip()
         answer = render_recommendation(request, context, recommendation, guard)
-        return f"{answer}\n\nHuman review status: {review_status}".strip()
+        return f"{answer}\n\nHuman review status: {review_status}\n\n{rendered_actions}".strip()
 
     def _format_erp_reasoning_input(self, request: ApprovalRequest, context: ApprovalContextBundle) -> str:
         erp_records = [record.model_dump() for record in context.records if record.record_type != "policy"]

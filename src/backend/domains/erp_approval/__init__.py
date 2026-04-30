@@ -6,6 +6,12 @@ from src.backend.domains.erp_approval.context_adapter import (
     build_context_bundle_from_records,
 )
 from src.backend.domains.erp_approval.schemas import (
+    ACTION_PROPOSAL_NON_ACTION_STATEMENT,
+    ApprovalActionProposal,
+    ApprovalActionProposalBundle,
+    ApprovalActionProposalStatus,
+    ApprovalActionType,
+    ApprovalActionValidationResult,
     ApprovalContextBundle,
     ApprovalContextRecord,
     ApprovalGuardResult,
@@ -14,6 +20,11 @@ from src.backend.domains.erp_approval.schemas import (
     ApprovalRequest,
     ApprovalStatus,
     ApprovalType,
+)
+from src.backend.domains.erp_approval.action_proposals import (
+    build_action_proposals,
+    render_action_proposals,
+    validate_action_proposals,
 )
 from src.backend.domains.erp_approval.service import (
     extract_json_object,
@@ -25,6 +36,12 @@ from src.backend.domains.erp_approval.service import (
 )
 
 __all__ = [
+    "ACTION_PROPOSAL_NON_ACTION_STATEMENT",
+    "ApprovalActionProposal",
+    "ApprovalActionProposalBundle",
+    "ApprovalActionProposalStatus",
+    "ApprovalActionType",
+    "ApprovalActionValidationResult",
     "ApprovalContextBundle",
     "ApprovalContextRecord",
     "ApprovalGuardResult",
@@ -38,10 +55,13 @@ __all__ = [
     "MockErpContextAdapter",
     "build_context_bundle_from_records",
     "build_mock_context",
+    "build_action_proposals",
     "extract_json_object",
     "guard_recommendation",
     "parse_approval_request",
     "parse_recommendation",
+    "render_action_proposals",
     "render_recommendation",
+    "validate_action_proposals",
     "validate_approval_recommendation",
 ]

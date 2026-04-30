@@ -33,6 +33,25 @@ ApprovalNextAction = Literal[
     "manual_review",
 ]
 
+ApprovalActionType = Literal[
+    "none",
+    "request_more_info",
+    "add_internal_comment",
+    "route_to_manager",
+    "route_to_finance",
+    "route_to_procurement",
+    "route_to_legal",
+    "manual_review",
+]
+
+ApprovalActionProposalStatus = Literal[
+    "proposed_only",
+    "blocked",
+    "rejected_by_validation",
+]
+
+ACTION_PROPOSAL_NON_ACTION_STATEMENT = "This is a proposed action only. No ERP write action was executed."
+
 
 class ApprovalRequest(BaseModel):
     approval_type: ApprovalType = "unknown"
@@ -79,3 +98,36 @@ class ApprovalGuardResult(BaseModel):
     final_status: str = ""
     warnings: list[str] = Field(default_factory=list)
     human_review_required: bool = True
+
+
+class ApprovalActionProposal(BaseModel):
+    proposal_id: str = ""
+    action_type: ApprovalActionType = "none"
+    status: ApprovalActionProposalStatus = "proposed_only"
+    title: str = ""
+    summary: str = ""
+    target: str = ""
+    payload_preview: dict[str, Any] = Field(default_factory=dict)
+    citations: list[str] = Field(default_factory=list)
+    idempotency_key: str = ""
+    idempotency_scope: str = ""
+    idempotency_fingerprint: str = ""
+    risk_level: str = "low"
+    requires_human_review: bool = True
+    executable: bool = False
+    non_action_statement: str = ACTION_PROPOSAL_NON_ACTION_STATEMENT
+
+
+class ApprovalActionProposalBundle(BaseModel):
+    request_id: str = ""
+    review_status: str = ""
+    proposals: list[ApprovalActionProposal] = Field(default_factory=list)
+    non_action_statement: str = ACTION_PROPOSAL_NON_ACTION_STATEMENT
+
+
+class ApprovalActionValidationResult(BaseModel):
+    passed: bool = True
+    warnings: list[str] = Field(default_factory=list)
+    blocked_proposal_ids: list[str] = Field(default_factory=list)
+    rejected_proposal_ids: list[str] = Field(default_factory=list)
+    non_action_statement: str = ACTION_PROPOSAL_NON_ACTION_STATEMENT

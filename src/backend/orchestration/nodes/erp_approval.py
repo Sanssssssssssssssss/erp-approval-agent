@@ -46,6 +46,15 @@ def build_erp_hitl_gate_node(orchestrator):
     return _node
 
 
+def build_erp_action_proposal_node(orchestrator):
+    async def _node(state, config=None):
+        orchestrator.ensure_graph_bindings(state, config=config)
+        with orchestrator.observe_graph_node(state, node_name="erp_action_proposal"):
+            return await orchestrator.erp_action_proposal_node(state)
+
+    return _node
+
+
 def build_erp_finalize_node(orchestrator):
     async def _node(state, config=None):
         orchestrator.ensure_graph_bindings(state, config=config)
