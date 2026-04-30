@@ -8,7 +8,7 @@ from src.backend.decision.lightweight_router import RoutingDecision
 from src.backend.decision.skill_gate import SkillDecision
 
 
-GraphPathKind = Literal["direct_answer", "knowledge_qa", "capability_path"]
+GraphPathKind = Literal["direct_answer", "knowledge_qa", "capability_path", "erp_approval"]
 
 
 class GraphState(TypedDict, total=False):
@@ -27,6 +27,10 @@ class GraphState(TypedDict, total=False):
     execution_strategy: ExecutionStrategy | None
     memory_retrieval: list[dict[str, Any]]
     knowledge_retrieval: Any | None
+    erp_request: dict[str, Any] | None
+    erp_context: dict[str, Any] | None
+    erp_recommendation: dict[str, Any] | None
+    erp_guard_result: dict[str, Any] | None
     selected_capabilities: list[str]
     capability_results: list[dict[str, Any]]
     answer_segments: list[str]
@@ -83,6 +87,10 @@ def create_initial_graph_state(
         execution_strategy=None,
         memory_retrieval=[],
         knowledge_retrieval=None,
+        erp_request=None,
+        erp_context=None,
+        erp_recommendation=None,
+        erp_guard_result=None,
         selected_capabilities=[],
         capability_results=[],
         answer_segments=[],

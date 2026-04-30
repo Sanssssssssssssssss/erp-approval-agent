@@ -11,6 +11,7 @@ from src.backend.runtime.token_utils import count_tokens
 
 ROUTER_INTENTS = {
     "direct_answer",
+    "erp_approval",
     "knowledge_qa",
     "workspace_file_ops",
     "computation_or_transformation",
@@ -34,6 +35,7 @@ ALL_SUBTYPES = WORKSPACE_SUBTYPES | COMPUTE_SUBTYPES
 
 ROUTER_CAPABILITY_GUIDE = """Intent guide:
 - direct_answer: explanation, summarization, translation, rewriting, or simple arithmetic that does not need external state.
+- erp_approval: ERP business approval review, such as purchase requisition, expense approval, invoice/payment review, supplier onboarding, contract exception, or budget exception reasoning.
 - knowledge_qa: indexed knowledge-base questions, report/source lookup, grounded report comparison, or requests that explicitly depend on retrieval evidence.
 - workspace_file_ops: local repo or workspace files, path search, reading a known file, or modifying/running something in the workspace.
 - computation_or_transformation: structured calculation, parsing, code execution, or file-backed analysis.
@@ -41,6 +43,7 @@ ROUTER_CAPABILITY_GUIDE = """Intent guide:
 
 Decision hints:
 - Prefer knowledge_qa when the user asks for a report, source path, cited evidence, or grounded comparison.
+- Prefer erp_approval when the user asks for an ERP approval recommendation, unless they explicitly ask to inspect workspace files or live web content.
 - Prefer workspace_file_ops only when there is a clear local/workspace anchor.
 - Prefer direct_answer when no external state is needed.
 - Prefer web_lookup only for live/current online facts or weather.
@@ -123,6 +126,13 @@ KNOWLEDGE_PATTERNS = (
     re.compile(r"(哪份|哪个|哪张|那个|那份).{0,30}(文档|文件|报告|财报|路径|来源)"),
     re.compile(r"(给出|返回).{0,12}(路径|来源)"),
     re.compile(r"\b(which|what)\b.{0,24}\b(file|document|report|path|source)\b", re.IGNORECASE),
+)
+
+ERP_APPROVAL_PATTERNS = (
+    re.compile(r"(审批|审批流|采购申请|费用报销|报销|发票付款|付款申请|供应商准入|合同例外|预算例外)"),
+    re.compile(r"\b(invoice approval|expense approval|purchase requisition|vendor onboarding)\b", re.IGNORECASE),
+    re.compile(r"\b(PR|PO)\b.{0,40}\b(approval|approve|request|review)\b", re.IGNORECASE),
+    re.compile(r"\b(approval|approve|review)\b.{0,40}\b(PR|PO)\b", re.IGNORECASE),
 )
 
 AMBIGUOUS_PATTERNS = (
@@ -225,7 +235,7 @@ def _intent_tools(intent: str, subtype: str, message: str, allowed_tool_names: s
             selected = tuple(tool for tool in preferred if tool in allowed_tool_names)
             if selected:
                 return selected
-    if intent in {"direct_answer", "knowledge_qa"}:
+    if intent in {"direct_answer", "erp_approval", "knowledge_qa"}:
         return ()
     if intent == "web_lookup":
         return tuple(tool for tool in ("fetch_url",) if tool in allowed_tool_names)
@@ -308,6 +318,11 @@ def _has_explicit_workspace_anchor(message: str) -> bool:
 def _is_knowledge_request(message: str) -> bool:
     normalized = str(message or "").strip()
     return any(pattern.search(normalized) for pattern in KNOWLEDGE_PATTERNS)
+
+
+def _is_erp_approval_request(message: str) -> bool:
+    normalized = str(message or "").strip()
+    return any(pattern.search(normalized) for pattern in ERP_APPROVAL_PATTERNS)
 
 
 def _has_explicit_doc_seek(message: str) -> bool:
@@ -446,6 +461,22 @@ def deterministic_route(
             allowed_tools=allowed_tools,
             confidence=0.9,
             reason_short="clear web request",
+            source="rules",
+        )
+
+    if (
+        strategy.allow_retrieval
+        and _is_erp_approval_request(normalized)
+        and not _has_explicit_workspace_anchor(normalized)
+        and not any(pattern.search(normalized) for pattern in WEB_LOOKUP_PATTERNS)
+    ):
+        return RoutingDecision(
+            intent="erp_approval",
+            needs_tools=False,
+            needs_retrieval=True,
+            allowed_tools=(),
+            confidence=0.9,
+            reason_short="clear ERP approval request",
             source="rules",
         )
 
@@ -588,7 +619,7 @@ class LightweightLLMRouter:
         system = (
             "You are a request routing model for a grounded harness runtime. "
             "Return JSON only. "
-            "Use intent from: direct_answer, knowledge_qa, workspace_file_ops, computation_or_transformation, web_lookup. "
+            "Use intent from: direct_answer, erp_approval, knowledge_qa, workspace_file_ops, computation_or_transformation, web_lookup. "
             "Use subtype when relevant from: read_existing_file, search_workspace_file, modify_or_run_in_workspace, pure_calculation, file_backed_calculation, pure_text_transformation, code_execution_request. "
             f"Allowed tools must be from: {', '.join(tool_names)}."
         )
@@ -612,7 +643,9 @@ class LightweightLLMRouter:
         lowered = str(raw or "").strip().lower()
         if not lowered:
             raise ValueError("router returned empty content")
-        if any(term in lowered for term in ("knowledge", "document", "source path", "knowledge base", "report", "faq")):
+        if any(term in lowered for term in ("erp approval", "approval recommendation", "purchase requisition", "expense approval", "invoice approval")):
+            intent = "erp_approval"
+        elif any(term in lowered for term in ("knowledge", "document", "source path", "knowledge base", "report", "faq")):
             intent = "knowledge_qa"
         elif any(term in lowered for term in ("python_repl", "calculate", "count")):
             intent = "computation_or_transformation"
@@ -627,7 +660,7 @@ class LightweightLLMRouter:
             "intent": intent,
             "subtype": "",
             "needs_tools": intent in {"workspace_file_ops", "computation_or_transformation", "web_lookup"},
-            "needs_retrieval": intent == "knowledge_qa",
+            "needs_retrieval": intent in {"erp_approval", "knowledge_qa"},
             "allowed_tools": allowed_tools,
             "confidence": 0.55,
             "reason_short": "parsed non-json router output",
@@ -670,6 +703,11 @@ class LightweightLLMRouter:
             merged_tools = ()
             subtype = ""
         if intent == "knowledge_qa":
+            needs_tools = False
+            needs_retrieval = True
+            merged_tools = ()
+            subtype = ""
+        if intent == "erp_approval":
             needs_tools = False
             needs_retrieval = True
             merged_tools = ()

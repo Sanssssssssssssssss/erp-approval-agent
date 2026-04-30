@@ -9,6 +9,8 @@ def branch_after_memory(state: GraphState) -> str:
     if route_decision is None or execution_strategy is None:
         return "direct_answer"
 
+    if route_decision.intent == "erp_approval":
+        return "erp_intake"
     if route_decision.intent == "knowledge_qa" and execution_strategy.allow_knowledge and execution_strategy.allow_retrieval:
         return "knowledge_retrieval"
     if route_decision.intent == "direct_answer" or (

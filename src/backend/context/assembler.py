@@ -493,6 +493,8 @@ class ContextAssembler:
             return 2 if kind == "semantic" else 2
         if path_kind == "capability_path":
             return 3 if kind == "semantic" else 3
+        if path_kind == "erp_approval":
+            return 3
         if path_kind == "resumed_hitl":
             return 3
         if path_kind == "recovery_path":
@@ -500,7 +502,7 @@ class ContextAssembler:
         return 2 if kind == "semantic" else 2
 
     def _conversation_limit(self, path_kind: ContextPathKind) -> int:
-        if path_kind in {"resumed_hitl", "recovery_path"}:
+        if path_kind in {"erp_approval", "resumed_hitl", "recovery_path"}:
             return 3
         return 2
 
@@ -511,6 +513,16 @@ class ContextAssembler:
                 "latest_user_intent",
                 "active_constraints",
                 "active_entities",
+                "latest_retrieval_summary",
+                "unresolved_items",
+            )
+        if path_kind == "erp_approval":
+            return (
+                "current_goal",
+                "latest_user_intent",
+                "active_constraints",
+                "active_entities",
+                "active_artifacts",
                 "latest_retrieval_summary",
                 "unresolved_items",
             )
@@ -547,6 +559,8 @@ class ContextAssembler:
     def _system_block(self, path_kind: ContextPathKind) -> str:
         if path_kind == "knowledge_qa":
             return "[Context policy]\nPrefer retrieval evidence first, then governed semantic memory. Do not inject retrieval-only memory or unsupported codebase facts."
+        if path_kind == "erp_approval":
+            return "[Context policy]\nThis is an ERP approval reasoning path. Prefer approval request details, ERP/policy context, missing-information checks, and human-review boundaries. Do not execute irreversible approval actions."
         if path_kind == "capability_path":
             return "[Context policy]\nPrefer active constraints, approved workflow rules, and grounded capability outputs. Exclude raw audit, raw trace, and noisy tool output."
         if path_kind == "resumed_hitl":

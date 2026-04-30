@@ -21,6 +21,18 @@ from src.backend.context import ContextAssembler, ContextWriter
 from src.backend.context.models import ContextAssembly, ContextModelCallSnapshot, ContextTurnSnapshot
 from src.backend.context.store import context_store
 from src.backend.decision.skill_gate import SkillDecision, skill_instruction
+from src.backend.domains.erp_approval import (
+    ApprovalContextBundle,
+    ApprovalGuardResult,
+    ApprovalRecommendation,
+    ApprovalRequest,
+    build_mock_context,
+    guard_recommendation,
+    parse_approval_request,
+    parse_recommendation,
+    render_recommendation,
+)
+from src.backend.domains.erp_approval.prompts import ERP_INTAKE_SYSTEM_PROMPT, ERP_REASONING_SYSTEM_PROMPT
 from src.backend.observability.otel_spans import set_span_attributes, with_observation
 from src.backend.observability.types import AnswerRecord, RetrievalRecord, RouteDecisionRecord, SkillDecisionRecord, ToolCallRecord
 from src.backend.orchestration.checkpointing import PendingHitlRequest, checkpoint_store
@@ -734,6 +746,189 @@ class HarnessLangGraphOrchestrator:
         )
         return {**result_payload, **updates}
 
+    async def erp_intake_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_intake")
+        turn_id = self._current_turn_id(state)
+        call_id = self._record_model_call_snapshot(
+            state=state,
+            assembly=assembly,
+            call_site="erp_intake",
+            call_type="erp_intake_call",
+            turn_id=turn_id,
+        )
+        call_ids = self._context_call_ids(state, call_id)
+        messages = list(assembly.history_messages)
+        messages = self._append_user_message(messages, self._user_message(state))
+        try:
+            raw_request, _usage = await self._stream_model_answer(
+                messages,
+                extra_instructions=list(assembly.extra_instructions) or None,
+                system_prompt_override=ERP_INTAKE_SYSTEM_PROMPT,
+                stream_deltas=False,
+                path_type=assembly.path_kind,
+            )
+        except Exception:
+            raw_request = ""
+        request = parse_approval_request(raw_request, self._user_message(state))
+        result = {
+            "erp_request": self._model_dump(request),
+            "path_kind": "erp_approval",
+            "turn_id": turn_id,
+            "context_call_ids": call_ids,
+        }
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=turn_id,
+            call_ids=call_ids,
+        )
+        return {**result, **updates}
+
+    async def erp_context_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_context")
+        request = self._erp_request_from_state(state)
+        context = build_mock_context(request)
+        result = {
+            "erp_request": self._model_dump(request),
+            "erp_context": self._model_dump(context),
+            "path_kind": "erp_approval",
+            "turn_id": self._current_turn_id(state),
+            "context_call_ids": self._context_call_ids(state),
+        }
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_reasoning_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_reasoning")
+        turn_id = self._current_turn_id(state)
+        call_id = self._record_model_call_snapshot(
+            state=state,
+            assembly=assembly,
+            call_site="erp_reasoning",
+            call_type="erp_reasoning_call",
+            turn_id=turn_id,
+        )
+        call_ids = self._context_call_ids(state, call_id)
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        messages = list(assembly.history_messages)
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    "approval_request_json:\n"
+                    + json.dumps(self._model_dump(request), ensure_ascii=False)
+                    + "\n\ncontext_json:\n"
+                    + json.dumps(self._model_dump(context), ensure_ascii=False)
+                    + "\n\nReturn the ERP approval recommendation JSON only."
+                ),
+            }
+        )
+        try:
+            raw_recommendation, usage = await self._stream_model_answer(
+                messages,
+                extra_instructions=list(assembly.extra_instructions) or None,
+                system_prompt_override=ERP_REASONING_SYSTEM_PROMPT,
+                stream_deltas=False,
+                path_type=assembly.path_kind,
+            )
+        except Exception:
+            raw_recommendation = ""
+            usage = None
+        recommendation = parse_recommendation(raw_recommendation)
+        result = {
+            "erp_request": self._model_dump(request),
+            "erp_context": self._model_dump(context),
+            "erp_recommendation": self._model_dump(recommendation),
+            "answer_usage": usage,
+            "path_kind": "erp_approval",
+            "turn_id": turn_id,
+            "context_call_ids": call_ids,
+        }
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=turn_id,
+            call_ids=call_ids,
+        )
+        return {**result, **updates}
+
+    async def erp_guard_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_guard")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        recommendation = self._erp_recommendation_from_state(state)
+        guarded, guard = guard_recommendation(request, context, recommendation)
+        result = {
+            "erp_recommendation": self._model_dump(guarded),
+            "erp_guard_result": self._model_dump(guard),
+            "path_kind": "erp_approval",
+            "turn_id": self._current_turn_id(state),
+            "context_call_ids": self._context_call_ids(state),
+        }
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_finalize_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_finalize")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        recommendation = self._erp_recommendation_from_state(state)
+        guard_payload = state.get("erp_guard_result")
+        try:
+            if not guard_payload:
+                raise ValueError("missing ERP guard result")
+            guard = ApprovalGuardResult.model_validate(guard_payload)
+        except Exception:
+            recommendation, guard = guard_recommendation(request, context, recommendation)
+        answer = render_recommendation(request, context, recommendation, guard)
+        await self._emit_final_answer(answer, usage=state.get("answer_usage"))
+        turn_id = self._current_turn_id(state)
+        call_ids = self._context_call_ids(state)
+        result = {
+            "final_answer": answer,
+            "answer_segments": [answer] if answer else [],
+            "answer_finalized": True,
+            "erp_request": self._model_dump(request),
+            "erp_context": self._model_dump(context),
+            "erp_recommendation": self._model_dump(recommendation),
+            "erp_guard_result": self._model_dump(guard),
+            "path_kind": "erp_approval",
+            "turn_id": turn_id,
+            "context_call_ids": call_ids,
+        }
+        final_state, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=turn_id,
+            call_ids=call_ids,
+        )
+        self._record_post_turn_snapshot(
+            state=final_state,
+            assembly=assembly,
+            call_site="erp_finalize",
+            model_invoked=True,
+            updates=updates,
+            turn_id=turn_id,
+            call_ids=call_ids,
+        )
+        return {**result, **updates}
+
     async def capability_selection_node(self, state: GraphState) -> dict[str, Any]:
         bindings = self._bindings_or_raise()
         strategy = state.get("execution_strategy")
@@ -1446,11 +1641,47 @@ class HarnessLangGraphOrchestrator:
             )
 
     def _path_kind_from_decision(self, decision: "RoutingDecision") -> str:
+        if decision.intent == "erp_approval":
+            return "erp_approval"
         if decision.intent == "knowledge_qa":
             return "knowledge_qa"
         if decision.intent == "direct_answer" or (not decision.needs_tools and not decision.needs_retrieval):
             return "direct_answer"
         return "capability_path"
+
+    def _model_dump(self, model: Any) -> dict[str, Any]:
+        dump = getattr(model, "model_dump", None)
+        if callable(dump):
+            return dict(dump())
+        return dict(model or {})
+
+    def _erp_request_from_state(self, state: GraphState) -> ApprovalRequest:
+        payload = state.get("erp_request")
+        if not payload:
+            return parse_approval_request("", self._user_message(state))
+        try:
+            return ApprovalRequest.model_validate(payload or {})
+        except Exception:
+            return parse_approval_request("", self._user_message(state))
+
+    def _erp_context_from_state(self, state: GraphState, *, request: ApprovalRequest) -> ApprovalContextBundle:
+        payload = state.get("erp_context")
+        if not payload:
+            return build_mock_context(request)
+        try:
+            context = ApprovalContextBundle.model_validate(payload or {})
+            return context if context.records else build_mock_context(request)
+        except Exception:
+            return build_mock_context(request)
+
+    def _erp_recommendation_from_state(self, state: GraphState) -> ApprovalRecommendation:
+        payload = state.get("erp_recommendation")
+        if not payload:
+            return parse_recommendation("")
+        try:
+            return ApprovalRecommendation.model_validate(payload or {})
+        except Exception:
+            return parse_recommendation("")
 
     async def _activate_skill_capability(self, *, message: str, routing_decision: "RoutingDecision", skill_decision: SkillDecision) -> None:
         skill_key = skill_decision.skill_name.replace("-", "_")

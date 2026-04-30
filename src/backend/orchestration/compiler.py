@@ -13,6 +13,11 @@ from src.backend.orchestration.nodes import (
     build_capability_selection_node,
     build_capability_synthesis_node,
     build_direct_answer_node,
+    build_erp_context_node,
+    build_erp_finalize_node,
+    build_erp_guard_node,
+    build_erp_intake_node,
+    build_erp_reasoning_node,
     build_finalize_node,
     build_knowledge_guard_node,
     build_knowledge_retrieval_node,
@@ -31,6 +36,11 @@ def compile_harness_orchestration_graph(orchestrator, *, include_checkpointer: b
     graph.add_node("skill", build_skill_node(orchestrator))
     graph.add_node("memory_retrieval", build_memory_retrieval_node(orchestrator))
     graph.add_node("direct_answer", build_direct_answer_node(orchestrator))
+    graph.add_node("erp_intake", build_erp_intake_node(orchestrator))
+    graph.add_node("erp_context", build_erp_context_node(orchestrator))
+    graph.add_node("erp_reasoning", build_erp_reasoning_node(orchestrator))
+    graph.add_node("erp_guard", build_erp_guard_node(orchestrator))
+    graph.add_node("erp_finalize", build_erp_finalize_node(orchestrator))
     graph.add_node("knowledge_retrieval", build_knowledge_retrieval_node(orchestrator))
     graph.add_node("knowledge_synthesis", build_knowledge_synthesis_node(orchestrator))
     graph.add_node("knowledge_guard", build_knowledge_guard_node(orchestrator))
@@ -51,10 +61,16 @@ def compile_harness_orchestration_graph(orchestrator, *, include_checkpointer: b
         branch_after_memory,
         {
             "direct_answer": "direct_answer",
+            "erp_intake": "erp_intake",
             "knowledge_retrieval": "knowledge_retrieval",
             "capability_selection": "capability_selection",
         },
     )
+    graph.add_edge("erp_intake", "erp_context")
+    graph.add_edge("erp_context", "erp_reasoning")
+    graph.add_edge("erp_reasoning", "erp_guard")
+    graph.add_edge("erp_guard", "erp_finalize")
+    graph.add_edge("erp_finalize", "finalize")
     graph.add_edge("knowledge_retrieval", "knowledge_synthesis")
     graph.add_edge("knowledge_synthesis", "knowledge_guard")
     graph.add_edge("knowledge_guard", "finalize")

@@ -4,7 +4,14 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
 
-ContextPathKind = Literal["direct_answer", "capability_path", "knowledge_qa", "resumed_hitl", "recovery_path"]
+ContextPathKind = Literal[
+    "direct_answer",
+    "capability_path",
+    "knowledge_qa",
+    "erp_approval",
+    "resumed_hitl",
+    "recovery_path",
+]
 MemoryKind = Literal["semantic", "procedural", "episodic"]
 MemoryType = Literal[
     "user_profile",

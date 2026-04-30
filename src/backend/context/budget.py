@@ -44,6 +44,19 @@ def budget_for_path(path_kind: ContextPathKind) -> SlotBudget:
             retrieval_evidence=350,
             answer_reserve=700,
         )
+    if path_kind == "erp_approval":
+        return SlotBudget(
+            system=1800,
+            recent_history=750,
+            working_memory=650,
+            episodic_summary=500,
+            semantic_memory=650,
+            procedural_memory=650,
+            conversation_recall=450,
+            artifacts=650,
+            retrieval_evidence=1200,
+            answer_reserve=800,
+        )
     if path_kind == "resumed_hitl":
         return SlotBudget(
             system=1800,
