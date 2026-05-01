@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 7: ERP Action Proposal Ledger + Read-only Audit Package.
+Phase 8: Local Audit Package Workspace + Reviewer Notes.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, and Phase 7 adds a proposed-only action proposal ledger plus read-only audit packages:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, and Phase 8 adds saved audit package manifests plus append-only reviewer notes:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 7: after finalization, the graph writes both a local ERP approval trace record and local action proposal records from structured state. Read-only audit packages combine traces, proposals, and completeness checks for internal review. They do not parse final answer text, do not call ERP systems, and do not execute mock or real actions.
+The current active capability is Phase 8: reviewers can save local audit package manifests from trace/proposal records and append local reviewer notes. These local POST endpoints write only audit workspace JSONL files. They do not parse final answer text, do not call ERP systems, and do not execute mock or real actions.
 
 ## Active Product Direction
 
@@ -28,6 +28,7 @@ Current positioning:
 - read-only ERP approval analytics API.
 - frontend management Insights panel with trace filtering and drill-down.
 - action proposal ledger and read-only audit package.
+- local saved audit package workspace and reviewer notes.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -95,6 +96,14 @@ Current positioning:
 - temporary read-only audit package endpoint with completeness checks.
 - frontend trace detail displays action proposal records and can download an audit package JSON.
 
+## Completed Phase 8 Capabilities
+
+- saved audit package manifest model with package snapshot and stable hash.
+- local package repository at `backend/storage/erp_approval/audit_packages.jsonl`.
+- append-only reviewer notes at `backend/storage/erp_approval/reviewer_notes.jsonl`.
+- local-only POST endpoints for saving audit packages and notes.
+- frontend workspace for saving packages, listing saved packages, adding local notes, and exporting saved package JSON.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -142,11 +151,12 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 - current benchmark evidence is legacy RFP/security compatibility evidence, not ERP approval accuracy evidence.
 - trace analytics are operational summaries only, not process mining, benchmark accuracy, or production ERP action audit.
 - action proposal ledger is proposed-only storage, not an action execution ledger.
+- reviewer notes are local artifacts, not ERP comments.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 8 read-only audit package refinement: saved package manifests, export metadata, and trace bundle pages.
-2. keep analytics and audit packages grounded in structured trace/proposal records.
+1. start Phase 9 read-only audit workspace refinement: package detail pages, saved filters, and local note search.
+2. keep audit workspace artifacts grounded in structured trace/proposal records.
 3. keep all real and mock ERP writes out of scope until a separate guarded execution phase.

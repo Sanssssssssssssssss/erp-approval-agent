@@ -14,6 +14,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from src.backend.api import erp_approval as erp_approval_api
+from src.backend.domains.erp_approval.audit_workspace import ReviewerNoteRepository, SavedAuditPackageRepository
 from src.backend.domains.erp_approval.proposal_ledger import (
     ApprovalActionProposalRepository,
     build_proposal_records_from_state,
@@ -57,7 +58,7 @@ class ErpApprovalApiTests(unittest.TestCase):
         self.assertEqual(summary_response.status_code, 200)
         self.assertEqual(summary_response.json()["total_traces"], 1)
 
-    def test_trace_filters_trends_and_exports_are_get_only(self) -> None:
+    def test_trace_filters_trends_and_exports_do_not_add_destructive_methods(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             repository = ApprovalTraceRepository(Path(temp_dir) / "approval_traces.jsonl")
             proposal_repository = ApprovalActionProposalRepository(Path(temp_dir) / "action_proposals.jsonl")
@@ -103,7 +104,67 @@ class ErpApprovalApiTests(unittest.TestCase):
 
         for route in app.routes:
             if getattr(route, "path", "").startswith("/api/erp-approval"):
-                self.assertEqual(getattr(route, "methods", set()), {"GET"})
+                methods = getattr(route, "methods", set())
+                self.assertFalse(methods.intersection({"PUT", "PATCH", "DELETE"}))
+                if "POST" in methods:
+                    self.assertIn("/audit-packages", getattr(route, "path", ""))
+
+    def test_local_audit_workspace_endpoints_save_notes_and_export(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repository = ApprovalTraceRepository(Path(temp_dir) / "approval_traces.jsonl")
+            proposal_repository = ApprovalActionProposalRepository(Path(temp_dir) / "action_proposals.jsonl")
+            saved_repository = SavedAuditPackageRepository(Path(temp_dir) / "audit_packages.jsonl")
+            note_repository = ReviewerNoteRepository(Path(temp_dir) / "reviewer_notes.jsonl")
+            record = build_trace_record_from_state(sample_trace_state(), "2026-05-01T00:00:00+00:00")
+            repository.upsert(record)
+            proposal_repository.upsert_many(build_proposal_records_from_state(sample_proposal_state(), record.trace_id, "2026-05-01T00:00:00+00:00"))
+            app = FastAPI()
+            app.include_router(erp_approval_api.router, prefix="/api")
+            with (
+                patch.object(erp_approval_api, "_repository", return_value=repository),
+                patch.object(erp_approval_api, "_proposal_repository", return_value=proposal_repository),
+                patch.object(erp_approval_api, "_saved_package_repository", return_value=saved_repository),
+                patch.object(erp_approval_api, "_note_repository", return_value=note_repository),
+            ):
+                client = TestClient(app)
+                save_response = client.post(
+                    "/api/erp-approval/audit-packages",
+                    json={
+                        "title": "May approval review",
+                        "description": "Local internal review package",
+                        "created_by": "Ava",
+                        "trace_ids": [record.trace_id],
+                        "filters": {"high_risk_only": False},
+                    },
+                )
+                package_id = save_response.json()["package_id"]
+                list_response = client.get("/api/erp-approval/audit-packages")
+                detail_response = client.get(f"/api/erp-approval/audit-packages/{package_id}")
+                empty_note_response = client.post(f"/api/erp-approval/audit-packages/{package_id}/notes", json={"author": "Ava", "body": ""})
+                missing_package_response = client.post("/api/erp-approval/audit-packages/missing-package/notes", json={"author": "Ava", "body": "note"})
+                note_response = client.post(
+                    f"/api/erp-approval/audit-packages/{package_id}/notes",
+                    json={"author": "Ava", "note_type": "risk", "body": "Check budget context.", "trace_id": record.trace_id},
+                )
+                notes_response = client.get(f"/api/erp-approval/audit-packages/{package_id}/notes")
+                export_response = client.get(f"/api/erp-approval/audit-packages/{package_id}/export.json")
+
+        self.assertEqual(save_response.status_code, 200)
+        self.assertEqual(save_response.json()["title"], "May approval review")
+        self.assertIn("package_snapshot", save_response.json())
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.json()), 1)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(empty_note_response.status_code, 400)
+        self.assertEqual(missing_package_response.status_code, 404)
+        self.assertEqual(note_response.status_code, 200)
+        self.assertIn("No ERP write action was executed", note_response.json()["non_action_statement"])
+        self.assertEqual(notes_response.status_code, 200)
+        self.assertEqual(len(notes_response.json()), 1)
+        self.assertEqual(export_response.status_code, 200)
+        self.assertEqual(export_response.json()["manifest"]["package_id"], package_id)
+        self.assertEqual(len(export_response.json()["notes"]), 1)
+        self.assertFalse(any("execute" in getattr(route, "path", "").lower() for route in app.routes))
 
     def test_empty_summary_returns_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

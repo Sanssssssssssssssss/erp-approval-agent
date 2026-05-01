@@ -1,20 +1,44 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Response
+from pydantic import BaseModel, Field
 
 from src.backend.domains.erp_approval import (
     ApprovalActionProposalQuery,
     ApprovalActionProposalRepository,
+    ReviewerNoteRepository,
+    SavedAuditPackageQuery,
+    SavedAuditPackageRepository,
     ApprovalTraceQuery,
     ApprovalTraceRepository,
+    append_reviewer_note,
     build_audit_package,
+    build_saved_audit_package_manifest,
     default_proposal_ledger_path,
+    default_reviewer_notes_path,
+    default_saved_audit_package_path,
     default_trace_path,
 )
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
 
 router = APIRouter()
+
+
+class SaveAuditPackageRequest(BaseModel):
+    title: str = ""
+    description: str = ""
+    created_by: str = ""
+    trace_ids: list[str] = Field(default_factory=list)
+    filters: dict = Field(default_factory=dict)
+
+
+class CreateReviewerNoteRequest(BaseModel):
+    author: str = ""
+    note_type: str = "general"
+    body: str = ""
+    trace_id: str = ""
+    proposal_record_id: str = ""
 
 
 def _repository() -> ApprovalTraceRepository:
@@ -25,6 +49,16 @@ def _repository() -> ApprovalTraceRepository:
 def _proposal_repository() -> ApprovalActionProposalRepository:
     base_dir = agent_manager.base_dir or get_settings().backend_dir
     return ApprovalActionProposalRepository(default_proposal_ledger_path(base_dir))
+
+
+def _saved_package_repository() -> SavedAuditPackageRepository:
+    base_dir = agent_manager.base_dir or get_settings().backend_dir
+    return SavedAuditPackageRepository(default_saved_audit_package_path(base_dir))
+
+
+def _note_repository() -> ReviewerNoteRepository:
+    base_dir = agent_manager.base_dir or get_settings().backend_dir
+    return ReviewerNoteRepository(default_reviewer_notes_path(base_dir))
 
 
 @router.get("/erp-approval/traces")
@@ -149,6 +183,92 @@ async def get_erp_approval_audit_package(
     for trace in traces:
         proposals.extend(proposal_repository.by_trace_id(trace.trace_id))
     return build_audit_package(traces, proposals, _now()).model_dump()
+
+
+@router.get("/erp-approval/audit-packages")
+async def list_saved_erp_approval_audit_packages(
+    limit: int = Query(default=100, ge=0, le=1000),
+    created_by: str | None = None,
+    trace_id: str | None = None,
+    text_query: str = "",
+) -> list[dict]:
+    query = SavedAuditPackageQuery(
+        limit=limit,
+        created_by=_clean_optional(created_by),
+        trace_id=_clean_optional(trace_id),
+        text_query=text_query.strip(),
+    )
+    return [record.model_dump() for record in _saved_package_repository().list_recent(query)]
+
+
+@router.post("/erp-approval/audit-packages")
+async def save_erp_approval_audit_package(request: SaveAuditPackageRequest) -> dict:
+    filters = dict(request.filters or {})
+    package = _build_audit_package_from_inputs(trace_ids=request.trace_ids, filters=filters, limit=100)
+    now = _now()
+    manifest = build_saved_audit_package_manifest(
+        package,
+        title=request.title,
+        description=request.description,
+        created_by=request.created_by,
+        source_filters=filters,
+        now=now,
+    )
+    repository = _saved_package_repository()
+    result = repository.upsert(manifest)
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error or "Failed to save audit package")
+    return (repository.get(manifest.package_id) or manifest).model_dump()
+
+
+@router.get("/erp-approval/audit-packages/{package_id}")
+async def get_saved_erp_approval_audit_package(package_id: str) -> dict:
+    manifest = _saved_package_repository().get(package_id)
+    if manifest is None:
+        raise HTTPException(status_code=404, detail="Saved ERP approval audit package not found")
+    return manifest.model_dump()
+
+
+@router.get("/erp-approval/audit-packages/{package_id}/export.json")
+async def export_saved_erp_approval_audit_package(package_id: str) -> dict:
+    manifest_repository = _saved_package_repository()
+    export = manifest_repository.export_package(package_id)
+    if export is None:
+        raise HTTPException(status_code=404, detail="Saved ERP approval audit package not found")
+    notes = _note_repository().list_for_package(package_id)
+    return export.model_copy(update={"notes": notes}).model_dump()
+
+
+@router.get("/erp-approval/audit-packages/{package_id}/notes")
+async def list_saved_erp_approval_audit_package_notes(package_id: str) -> list[dict]:
+    if _saved_package_repository().get(package_id) is None:
+        raise HTTPException(status_code=404, detail="Saved ERP approval audit package not found")
+    return [note.model_dump() for note in _note_repository().list_for_package(package_id)]
+
+
+@router.post("/erp-approval/audit-packages/{package_id}/notes")
+async def append_saved_erp_approval_audit_package_note(package_id: str, request: CreateReviewerNoteRequest) -> dict:
+    package_repository = _saved_package_repository()
+    if package_repository.get(package_id) is None:
+        raise HTTPException(status_code=404, detail="Saved ERP approval audit package not found")
+    if not request.body.strip():
+        raise HTTPException(status_code=400, detail="Reviewer note body is required")
+    now = _now()
+    note = append_reviewer_note(
+        package_id=package_id,
+        author=request.author,
+        note_type=request.note_type,
+        body=request.body,
+        trace_id=request.trace_id,
+        proposal_record_id=request.proposal_record_id,
+        now=now,
+    )
+    note_repository = _note_repository()
+    result = note_repository.append(note)
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error or "Failed to save reviewer note")
+    package_repository.update_note_count(package_id, len(note_repository.list_for_package(package_id)), now)
+    return note.model_dump()
 
 
 @router.get("/erp-approval/analytics/trends")
@@ -308,3 +428,33 @@ def _now() -> str:
     from datetime import datetime, timezone
 
     return datetime.now(timezone.utc).isoformat()
+
+
+def _build_audit_package_from_inputs(*, trace_ids: list[str], filters: dict, limit: int):
+    trace_repository = _repository()
+    proposal_repository = _proposal_repository()
+    cleaned_ids = [str(item).strip() for item in trace_ids if str(item).strip()]
+    if cleaned_ids:
+        traces = [record for trace_id in cleaned_ids if (record := trace_repository.get(trace_id)) is not None]
+    else:
+        traces = trace_repository.query(_trace_query_from_filter_dict(filters, limit=limit))
+    proposals = []
+    for trace in traces:
+        proposals.extend(proposal_repository.by_trace_id(trace.trace_id))
+    return build_audit_package(traces, proposals, _now())
+
+
+def _trace_query_from_filter_dict(filters: dict, *, limit: int) -> ApprovalTraceQuery:
+    return _trace_query(
+        limit=int(filters.get("limit") or limit),
+        approval_type=filters.get("approval_type"),
+        recommendation_status=filters.get("recommendation_status"),
+        review_status=filters.get("review_status"),
+        proposal_action_type=filters.get("proposal_action_type"),
+        human_review_required=filters.get("human_review_required"),
+        guard_downgraded=filters.get("guard_downgraded"),
+        high_risk_only=bool(filters.get("high_risk_only", False)),
+        text_query=str(filters.get("text_query", "") or ""),
+        date_from=str(filters.get("date_from", "") or ""),
+        date_to=str(filters.get("date_to", "") or ""),
+    )

@@ -225,6 +225,42 @@ export type ErpApprovalAuditPackage = {
   non_action_statement: string;
 };
 
+export type SavedErpApprovalAuditPackageManifest = {
+  package_id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  trace_ids: string[];
+  proposal_record_ids: string[];
+  source_filters: Record<string, unknown>;
+  package_hash: string;
+  package_snapshot: Record<string, unknown>;
+  completeness_summary: Record<string, unknown>;
+  note_count: number;
+  non_action_statement: string;
+};
+
+export type ErpApprovalReviewerNote = {
+  note_id: string;
+  package_id: string;
+  trace_id: string;
+  proposal_record_id: string;
+  author: string;
+  note_type: string;
+  body: string;
+  created_at: string;
+  non_action_statement: string;
+};
+
+export type SavedErpApprovalAuditPackageExport = {
+  manifest: SavedErpApprovalAuditPackageManifest;
+  package_snapshot: Record<string, unknown>;
+  notes: ErpApprovalReviewerNote[];
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -802,6 +838,53 @@ export async function getErpApprovalAuditPackage(traceIds: string[]) {
   }
   const serialized = search.toString();
   return request<ErpApprovalAuditPackage>(`/erp-approval/audit-package${serialized ? `?${serialized}` : ""}`);
+}
+
+export async function saveErpApprovalAuditPackage(payload: {
+  title: string;
+  description?: string;
+  created_by?: string;
+  trace_ids?: string[];
+  filters?: Record<string, unknown>;
+}) {
+  return request<SavedErpApprovalAuditPackageManifest>("/erp-approval/audit-packages", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function listSavedErpApprovalAuditPackages(limit = 100) {
+  return request<SavedErpApprovalAuditPackageManifest[]>(`/erp-approval/audit-packages?limit=${limit}`);
+}
+
+export async function getSavedErpApprovalAuditPackage(packageId: string) {
+  return request<SavedErpApprovalAuditPackageManifest>(`/erp-approval/audit-packages/${encodeURIComponent(packageId)}`);
+}
+
+export async function exportSavedErpApprovalAuditPackage(packageId: string) {
+  return request<SavedErpApprovalAuditPackageExport>(
+    `/erp-approval/audit-packages/${encodeURIComponent(packageId)}/export.json`
+  );
+}
+
+export async function listSavedErpApprovalAuditPackageNotes(packageId: string) {
+  return request<ErpApprovalReviewerNote[]>(`/erp-approval/audit-packages/${encodeURIComponent(packageId)}/notes`);
+}
+
+export async function appendSavedErpApprovalAuditPackageNote(
+  packageId: string,
+  payload: {
+    author: string;
+    note_type: string;
+    body: string;
+    trace_id?: string;
+    proposal_record_id?: string;
+  }
+) {
+  return request<ErpApprovalReviewerNote>(`/erp-approval/audit-packages/${encodeURIComponent(packageId)}/notes`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function listMcpCapabilities() {

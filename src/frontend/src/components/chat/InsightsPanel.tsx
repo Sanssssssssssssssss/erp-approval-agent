@@ -4,21 +4,29 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ApiConnectionError,
+  appendSavedErpApprovalAuditPackageNote,
   exportErpApprovalTracesCsv,
   exportErpApprovalTracesJson,
+  exportSavedErpApprovalAuditPackage,
   getErpApprovalAnalyticsSummary,
   getErpApprovalAuditPackage,
   getErpApprovalTrace,
   getErpApprovalTrendSummary,
+  getSavedErpApprovalAuditPackage,
+  listSavedErpApprovalAuditPackageNotes,
+  listSavedErpApprovalAuditPackages,
   listErpApprovalTraceProposals,
-  listErpApprovalTraces
+  listErpApprovalTraces,
+  saveErpApprovalAuditPackage
 } from "@/lib/api";
 import type {
+  ErpApprovalReviewerNote,
   ErpApprovalActionProposalRecord,
   ErpApprovalAnalyticsSummary,
   ErpApprovalTraceQuery,
   ErpApprovalTraceRecord,
-  ErpApprovalTrendSummary
+  ErpApprovalTrendSummary,
+  SavedErpApprovalAuditPackageManifest
 } from "@/lib/api";
 
 type TraceFilters = {
@@ -271,17 +279,199 @@ function TraceDetail({
   );
 }
 
+function AuditWorkspace({
+  createdBy,
+  description,
+  noteAuthor,
+  noteBody,
+  noteType,
+  packages,
+  selectedPackage,
+  notes,
+  saving,
+  title,
+  onAppendNote,
+  onCreatedByChange,
+  onDescriptionChange,
+  onDownloadPackage,
+  onLoadPackage,
+  onNoteAuthorChange,
+  onNoteBodyChange,
+  onNoteTypeChange,
+  onSaveFiltered,
+  onSaveSelected,
+  onTitleChange
+}: {
+  createdBy: string;
+  description: string;
+  noteAuthor: string;
+  noteBody: string;
+  noteType: string;
+  packages: SavedErpApprovalAuditPackageManifest[];
+  selectedPackage: SavedErpApprovalAuditPackageManifest | null;
+  notes: ErpApprovalReviewerNote[];
+  saving: boolean;
+  title: string;
+  onAppendNote: () => void;
+  onCreatedByChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onDownloadPackage: () => void;
+  onLoadPackage: (manifest: SavedErpApprovalAuditPackageManifest) => void;
+  onNoteAuthorChange: (value: string) => void;
+  onNoteBodyChange: (value: string) => void;
+  onNoteTypeChange: (value: string) => void;
+  onSaveFiltered: () => void;
+  onSaveSelected: () => void;
+  onTitleChange: (value: string) => void;
+}) {
+  return (
+    <section className="pixel-card p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="pixel-label">local audit workspace</p>
+          <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">Saved audit packages</h3>
+          <p className="mt-2 max-w-3xl text-sm text-[var(--color-ink-soft)]">
+            Saved audit packages and reviewer notes are local review artifacts. They do not execute ERP actions.
+          </p>
+        </div>
+        <button className="ui-button" disabled={!selectedPackage || saving} onClick={onDownloadPackage} type="button">
+          Download saved package
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <label className="text-sm">
+          <span className="pixel-label">title</span>
+          <input className="pixel-field mt-2 px-3 py-2" onChange={(event) => onTitleChange(event.target.value)} value={title} />
+        </label>
+        <label className="text-sm">
+          <span className="pixel-label">created by</span>
+          <input className="pixel-field mt-2 px-3 py-2" onChange={(event) => onCreatedByChange(event.target.value)} value={createdBy} />
+        </label>
+        <label className="text-sm">
+          <span className="pixel-label">description</span>
+          <input className="pixel-field mt-2 px-3 py-2" onChange={(event) => onDescriptionChange(event.target.value)} value={description} />
+        </label>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className="ui-button" disabled={saving} onClick={onSaveSelected} type="button">
+          Save selected trace package
+        </button>
+        <button className="ui-button" disabled={saving} onClick={onSaveFiltered} type="button">
+          Save filtered package
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(280px,0.8fr)_minmax(420px,1.2fr)]">
+        <div>
+          <p className="pixel-label">saved packages</p>
+          <div className="mt-3 space-y-2">
+            {packages.length ? (
+              packages.map((item) => (
+                <button
+                  className={
+                    selectedPackage?.package_id === item.package_id
+                      ? "w-full border-t border-[var(--color-accent-line)] py-3 text-left"
+                      : "w-full border-t border-[var(--color-line)] py-3 text-left"
+                  }
+                  key={item.package_id}
+                  onClick={() => onLoadPackage(item)}
+                  type="button"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-[var(--color-ink)]">{item.title || item.package_id}</p>
+                      <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{item.created_at || "unknown date"}</p>
+                    </div>
+                    <span className="pixel-tag">{item.note_count} notes</span>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <p className="pixel-note">No saved audit packages yet.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="pixel-card-soft p-4">
+          {selectedPackage ? (
+            <>
+              <p className="pixel-label">package detail</p>
+              <h4 className="pixel-title mt-2 text-[0.95rem]">{selectedPackage.title}</h4>
+              <p className="mt-2 break-all text-xs text-[var(--color-ink-muted)]">{selectedPackage.package_id}</p>
+              <p className="mt-3 text-sm text-[var(--color-ink-soft)]">{selectedPackage.description || "No description."}</p>
+              <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
+                <p className="text-[var(--color-ink-soft)]">traces {selectedPackage.trace_ids.length}</p>
+                <p className="text-[var(--color-ink-soft)]">proposals {selectedPackage.proposal_record_ids.length}</p>
+                <p className="break-all text-[var(--color-ink-soft)] md:col-span-2">hash {selectedPackage.package_hash}</p>
+              </div>
+
+              <div className="mt-5">
+                <p className="pixel-label">reviewer notes</p>
+                <div className="mt-3 space-y-2">
+                  {notes.length ? (
+                    notes.map((note) => (
+                      <div className="border-t border-[var(--color-line)] pt-3 text-sm" key={note.note_id}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-[var(--color-ink)]">{note.author || "local_reviewer"}</span>
+                          <span className="pixel-tag">{note.note_type}</span>
+                        </div>
+                        <p className="mt-2 text-[var(--color-ink-soft)]">{note.body}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="pixel-note">No reviewer notes yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-[minmax(120px,0.4fr)_minmax(120px,0.4fr)_minmax(220px,1fr)]">
+                <input className="pixel-field px-3 py-2" onChange={(event) => onNoteAuthorChange(event.target.value)} placeholder="Author" value={noteAuthor} />
+                <select className="pixel-field px-3 py-2" onChange={(event) => onNoteTypeChange(event.target.value)} value={noteType}>
+                  <option value="general">general</option>
+                  <option value="risk">risk</option>
+                  <option value="missing_info">missing_info</option>
+                  <option value="policy_friction">policy_friction</option>
+                  <option value="reviewer_decision">reviewer_decision</option>
+                  <option value="follow_up">follow_up</option>
+                </select>
+                <input className="pixel-field px-3 py-2" onChange={(event) => onNoteBodyChange(event.target.value)} placeholder="Local reviewer note" value={noteBody} />
+              </div>
+              <button className="ui-button mt-3" disabled={saving || !noteBody.trim()} onClick={onAppendNote} type="button">
+                Add local note
+              </button>
+            </>
+          ) : (
+            <p className="pixel-note">Select a saved package to review notes and export the saved snapshot.</p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function InsightsPanel() {
   const [summary, setSummary] = useState<ErpApprovalAnalyticsSummary | null>(null);
   const [trends, setTrends] = useState<ErpApprovalTrendSummary | null>(null);
   const [traces, setTraces] = useState<ErpApprovalTraceRecord[]>([]);
   const [selectedTrace, setSelectedTrace] = useState<ErpApprovalTraceRecord | null>(null);
   const [selectedProposals, setSelectedProposals] = useState<ErpApprovalActionProposalRecord[]>([]);
+  const [savedPackages, setSavedPackages] = useState<SavedErpApprovalAuditPackageManifest[]>([]);
+  const [selectedPackage, setSelectedPackage] = useState<SavedErpApprovalAuditPackageManifest | null>(null);
+  const [packageNotes, setPackageNotes] = useState<ErpApprovalReviewerNote[]>([]);
+  const [packageTitle, setPackageTitle] = useState("ERP approval audit package");
+  const [packageDescription, setPackageDescription] = useState("");
+  const [packageCreatedBy, setPackageCreatedBy] = useState("local_reviewer");
+  const [noteAuthor, setNoteAuthor] = useState("local_reviewer");
+  const [noteType, setNoteType] = useState("general");
+  const [noteBody, setNoteBody] = useState("");
   const [filters, setFilters] = useState<TraceFilters>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const [error, setError] = useState("");
 
   const query = useMemo(() => queryFromFilters(filters), [filters]);
@@ -323,6 +513,17 @@ export function InsightsPanel() {
   }, [query]);
 
   useEffect(() => loadDashboard(), [loadDashboard]);
+
+  const loadSavedPackages = useCallback(() => {
+    void listSavedErpApprovalAuditPackages()
+      .then((payload) => {
+        setSavedPackages(payload);
+        setSelectedPackage((current) => payload.find((item) => item.package_id === current?.package_id) ?? current);
+      })
+      .catch((caught) => setError(isApiError(caught, "Unable to load saved ERP approval audit packages.")));
+  }, []);
+
+  useEffect(() => loadSavedPackages(), [loadSavedPackages]);
 
   const updateFilter = <Key extends keyof TraceFilters>(key: Key, value: TraceFilters[Key]) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -390,6 +591,83 @@ export function InsightsPanel() {
       .then((payload) => downloadText(`${selectedTrace.approval_id || "erp-approval"}-audit-package.json`, JSON.stringify(payload, null, 2), "application/json"))
       .catch((caught) => setError(isApiError(caught, "Unable to download ERP approval audit package.")))
       .finally(() => setAuditLoading(false));
+  };
+
+  const loadSavedPackage = (manifest: SavedErpApprovalAuditPackageManifest) => {
+    setSelectedPackage(manifest);
+    setWorkspaceSaving(true);
+    void Promise.all([getSavedErpApprovalAuditPackage(manifest.package_id), listSavedErpApprovalAuditPackageNotes(manifest.package_id)])
+      .then(([packagePayload, notesPayload]) => {
+        setSelectedPackage(packagePayload);
+        setPackageNotes(notesPayload);
+      })
+      .catch((caught) => setError(isApiError(caught, "Unable to load saved audit package.")))
+      .finally(() => setWorkspaceSaving(false));
+  };
+
+  const saveAuditWorkspacePackage = (traceIds: string[]) => {
+    if (!traceIds.length) {
+      setError("No ERP approval traces are selected for the local audit package.");
+      return;
+    }
+    setWorkspaceSaving(true);
+    setError("");
+    void saveErpApprovalAuditPackage({
+      title: packageTitle,
+      description: packageDescription,
+      created_by: packageCreatedBy,
+      trace_ids: traceIds,
+      filters: query
+    })
+      .then((manifest) => {
+        setSelectedPackage(manifest);
+        setPackageNotes([]);
+        loadSavedPackages();
+      })
+      .catch((caught) => setError(isApiError(caught, "Unable to save local audit package.")))
+      .finally(() => setWorkspaceSaving(false));
+  };
+
+  const saveSelectedTracePackage = () => saveAuditWorkspacePackage(selectedTrace?.trace_id ? [selectedTrace.trace_id] : []);
+
+  const saveFilteredTracePackage = () => saveAuditWorkspacePackage(traces.map((trace) => trace.trace_id));
+
+  const appendReviewerNote = () => {
+    if (!selectedPackage?.package_id || !noteBody.trim()) {
+      return;
+    }
+    const packageId = selectedPackage.package_id;
+    setWorkspaceSaving(true);
+    setError("");
+    void appendSavedErpApprovalAuditPackageNote(packageId, {
+      author: noteAuthor,
+      note_type: noteType,
+      body: noteBody,
+      trace_id: selectedTrace?.trace_id ?? ""
+    })
+      .then(() => Promise.all([listSavedErpApprovalAuditPackageNotes(packageId), listSavedErpApprovalAuditPackages()]))
+      .then(([notesPayload, packagePayload]) => {
+        setPackageNotes(notesPayload);
+        setSavedPackages(packagePayload);
+        setSelectedPackage((current) => packagePayload.find((item) => item.package_id === current?.package_id) ?? current);
+        setNoteBody("");
+      })
+      .catch((caught) => setError(isApiError(caught, "Unable to save local reviewer note.")))
+      .finally(() => setWorkspaceSaving(false));
+  };
+
+  const downloadSavedAuditPackage = () => {
+    if (!selectedPackage?.package_id) {
+      return;
+    }
+    const packageId = selectedPackage.package_id;
+    const filename = selectedPackage.title || "erp-approval";
+    setWorkspaceSaving(true);
+    setError("");
+    void exportSavedErpApprovalAuditPackage(packageId)
+      .then((payload) => downloadText(`${filename}-saved-audit-package.json`, JSON.stringify(payload, null, 2), "application/json"))
+      .catch((caught) => setError(isApiError(caught, "Unable to download saved audit package.")))
+      .finally(() => setWorkspaceSaving(false));
   };
 
   return (
@@ -604,6 +882,30 @@ export function InsightsPanel() {
                 />
               </div>
             </section>
+
+            <AuditWorkspace
+              createdBy={packageCreatedBy}
+              description={packageDescription}
+              noteAuthor={noteAuthor}
+              noteBody={noteBody}
+              noteType={noteType}
+              notes={packageNotes}
+              onAppendNote={appendReviewerNote}
+              onCreatedByChange={setPackageCreatedBy}
+              onDescriptionChange={setPackageDescription}
+              onDownloadPackage={downloadSavedAuditPackage}
+              onLoadPackage={loadSavedPackage}
+              onNoteAuthorChange={setNoteAuthor}
+              onNoteBodyChange={setNoteBody}
+              onNoteTypeChange={setNoteType}
+              onSaveFiltered={saveFilteredTracePackage}
+              onSaveSelected={saveSelectedTracePackage}
+              onTitleChange={setPackageTitle}
+              packages={savedPackages}
+              saving={workspaceSaving}
+              selectedPackage={selectedPackage}
+              title={packageTitle}
+            />
           </>
         )}
       </div>

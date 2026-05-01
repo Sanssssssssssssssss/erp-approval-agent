@@ -2,7 +2,7 @@
 
 Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
 
-Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics/read-only-audit boundaries.
+Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Phase 8 added a local audit package workspace with saved manifests and append-only reviewer notes. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics/local-audit boundaries.
 
 ## First Read
 
@@ -62,7 +62,7 @@ bootstrap
 -> finalize
 ```
 
-It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. Phase 4 added proposed-only action drafts with validation and idempotency fields. Phase 5 writes local trace records from structured graph state and exposes read-only analytics summaries. Phase 6 turns those records into a read-only trace explorer. Phase 7 persists action proposal records and builds temporary audit packages for internal review. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
+It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. Phase 4 added proposed-only action drafts with validation and idempotency fields. Phase 5 writes local trace records from structured graph state and exposes read-only analytics summaries. Phase 6 turns those records into a read-only trace explorer. Phase 7 persists action proposal records and builds temporary audit packages for internal review. Phase 8 lets reviewers save local package manifests and append local reviewer notes. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
 
 Current capabilities:
 
@@ -74,8 +74,9 @@ Current capabilities:
 - guarded action proposals that are always `executable=false`.
 - local JSONL trace ledger at `backend/storage/erp_approval/approval_traces.jsonl`.
 - local JSONL action proposal ledger at `backend/storage/erp_approval/action_proposals.jsonl`.
-- read-only APIs under `/api/erp-approval/*`.
-- frontend `Insights` tab for trace-based summary counts, filters, drill-down, proposal records, audit package download, export, and trend buckets.
+- local JSONL saved audit packages and reviewer notes.
+- read-only trace/proposal/audit APIs plus local audit workspace POST endpoints under `/api/erp-approval/*`.
+- frontend `Insights` tab for trace-based summary counts, filters, drill-down, proposal records, audit package download, saved package workspace, reviewer notes, export, and trend buckets.
 
 Still absent:
 
@@ -94,6 +95,8 @@ Trace analytics rules:
 - do not add write endpoints under the ERP approval analytics router.
 - action proposal ledger is not an execution ledger.
 - audit package completeness checks judge structured-record completeness only, not approval correctness.
+- reviewer notes are local notes, not ERP comments.
+- local audit workspace POST endpoints must not be reused for ERP writes.
 
 ## Legacy Compatibility
 
@@ -133,7 +136,8 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_analytics `
   backend.tests.test_erp_approval_api `
   backend.tests.test_erp_approval_proposal_ledger `
-  backend.tests.test_erp_approval_audit_package
+  backend.tests.test_erp_approval_audit_package `
+  backend.tests.test_erp_approval_audit_workspace
 ```
 
 Legacy RFP/security compatibility smoke benchmark:

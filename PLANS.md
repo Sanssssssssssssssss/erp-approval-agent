@@ -176,14 +176,14 @@ Done when:
 
 Status: complete for proposal ledger, per-trace proposal records, audit package endpoint, completeness checks, and frontend audit package download.
 
-## Phase 8: Read-Only Audit Package Refinement
+## Phase 8: Local Audit Package Workspace + Reviewer Notes
 
 Scope:
 
-- saved audit package manifests.
+- saved audit package manifests with package snapshots and stable hashes.
+- append-only reviewer notes stored locally.
 - package metadata and reviewer notes stored locally without ERP writes.
 - package export views for internal review meetings.
-- richer completeness check grouping.
 - no action execution.
 
 Done when:
@@ -191,6 +191,24 @@ Done when:
 - reviewers can save and revisit read-only audit packages.
 - saved packages remain local filesystem artifacts.
 - no ERP connector or action API is introduced.
+
+Status: complete for saved package manifests, package snapshot export, append-only reviewer notes, local workspace APIs, and frontend workspace.
+
+## Phase 9: Local Audit Workspace Refinement
+
+Scope:
+
+- package detail pages.
+- saved filter presets.
+- local reviewer note search.
+- package comparison by hash and completeness summary.
+- no ERP write execution.
+
+Done when:
+
+- reviewers can organize local packages without touching ERP systems.
+- reviewer notes remain local artifacts, not ERP comments.
+- no action execution ledger is introduced.
 
 ## Historical Infrastructure Notes
 
