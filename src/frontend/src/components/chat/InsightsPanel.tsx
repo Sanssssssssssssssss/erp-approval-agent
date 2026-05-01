@@ -30,6 +30,7 @@ import type {
   ErpApprovalTrendSummary,
   SavedErpApprovalAuditPackageManifest
 } from "@/lib/api";
+import { ConnectorDiagnosticsPanel } from "@/components/chat/ConnectorDiagnosticsPanel";
 
 type TraceFilters = {
   approval_type: string;
@@ -892,6 +893,8 @@ export function InsightsPanel() {
             Clear filters
           </button>
         </section>
+
+        <ConnectorDiagnosticsPanel />
 
         {!summary || loading ? (
           <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">

@@ -261,8 +261,8 @@ Status: complete for typed env loading, explicit opt-in gates, redacted config s
 
 Scope:
 
-- optional local fixture replay harness for connector mapping confidence.
-- optional frontend or API surface for inspecting connector profiles and diagnostics.
+- local fixture replay harness for connector mapping confidence.
+- frontend and API surface for inspecting connector profiles and diagnostics.
 - fake transports and fixture payloads only.
 - no real ERP network access by default.
 - no ERP action execution.
@@ -272,6 +272,24 @@ Done when:
 - reviewers can inspect connector readiness and mapping behavior locally.
 - all diagnostics remain redacted.
 - connector work still produces context records only.
+
+Status: complete for local fixture replay models/service, GET-only replay API, redaction of sensitive query params, frontend connector diagnostics panel, and replay validation.
+
+## Phase 13: Read-Only Connector Mapping Expansion
+
+Scope:
+
+- add more representative fixture payloads for read-only operations beyond purchase requisition.
+- keep all mapping examples local and non-production.
+- optionally add a local-only profile editor or mapping coverage view.
+- no live ERP network access.
+- no ERP action execution.
+
+Done when:
+
+- more connector operation shapes can be inspected locally.
+- mapper coverage remains explicit and conservative.
+- no connector is treated as an action executor.
 
 ## Historical Infrastructure Notes
 

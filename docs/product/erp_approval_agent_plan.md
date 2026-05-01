@@ -21,6 +21,7 @@ Current implementation:
 - Phase 9 local action simulation sandbox and simulation ledger exist.
 - Phase 10 read-only ERP connector interface and registry exist.
 - Phase 11 read-only connector configuration hardening, redacted diagnostics, health/profile APIs, and provider mapping fixtures exist.
+- Phase 12 read-only connector fixture replay and diagnostics UX exist.
 - no live ERP connector is enabled by default.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.
@@ -68,7 +69,7 @@ bootstrap
 -> finalize
 ```
 
-Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Phase 12 adds local fixture replay diagnostics for provider profile and mapper readiness without network access. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
@@ -278,12 +279,24 @@ Early phases can use mock records with normalized context fields:
   - auth_env_var_present
   - forbidden_methods
   - non_action_statement
+- erp_connector_replay_record
+  - replay_id
+  - provider
+  - operation
+  - fixture_name
+  - status
+  - records
+  - source_ids
+  - validation
+  - network_accessed
+  - non_action_statement
 
 ## Non-Goals For Early Phases
 
 - no live SAP, Dynamics, Oracle, or custom ERP connector enabled by default in early phases.
 - no connector diagnostics/API/logs may expose secret values.
 - no non-mock connector should be selected without explicit read-only opt-in plus explicit network allowance.
+- no fixture replay should be described as a live ERP test.
 - no production ERP write actions in early graph skeleton and HITL review work.
 - no action proposal is a tool call or ERP connector call.
 - no autonomous approve/reject behavior.
@@ -303,4 +316,4 @@ Early phases can use mock records with normalized context fields:
 
 LangGraph should remain the graph layer because ERP approval reasoning benefits from explicit stages: intake, retrieval, policy context, reasoning, self-check, HITL gate, action proposal, and audit finalization.
 
-The existing knowledge retrieval and context abstractions should remain because ERP approvals need policy and business context retrieval without coupling the runtime to a specific connector or index. Phase 2 introduced read-only adapter interfaces first, with mock context records only. Phase 10 adds a connector registry around that boundary while keeping mock as the default and live network access disabled. Phase 11 keeps the same boundary but makes connector selection safer and more inspectable through local redacted diagnostics; it is still not a live SAP, Dynamics, Oracle, or custom ERP integration.
+The existing knowledge retrieval and context abstractions should remain because ERP approvals need policy and business context retrieval without coupling the runtime to a specific connector or index. Phase 2 introduced read-only adapter interfaces first, with mock context records only. Phase 10 adds a connector registry around that boundary while keeping mock as the default and live network access disabled. Phase 11 keeps the same boundary but makes connector selection safer and more inspectable through local redacted diagnostics. Phase 12 adds local fixture replay so provider payload examples can be mapped into `ApprovalContextRecord` records without any ERP network call. This is still not a live SAP, Dynamics, Oracle, or custom ERP integration.

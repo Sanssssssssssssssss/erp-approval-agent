@@ -284,6 +284,83 @@ export type ErpApprovalActionSimulationRecord = {
   non_action_statement: string;
 };
 
+export type ErpConnectorConfigResponse = {
+  config: Record<string, unknown>;
+  selection: Record<string, unknown>;
+  non_action_statement: string;
+};
+
+export type ErpConnectorDiagnostic = {
+  provider: string;
+  enabled: boolean;
+  allow_network: boolean;
+  mode: string;
+  selected_as_default: boolean;
+  status: string;
+  warnings: string[];
+  redacted_config: Record<string, unknown>;
+  auth_env_var_present: boolean;
+  forbidden_methods: string[];
+  non_action_statement: string;
+};
+
+export type ErpConnectorHealthSummary = {
+  selected_provider: string;
+  diagnostics: ErpConnectorDiagnostic[];
+  warnings: string[];
+  non_action_statement: string;
+};
+
+export type ErpConnectorProviderProfileSummary = {
+  provider: string;
+  display_name: string;
+  supported_read_operations: string[];
+  default_source_id_prefix: string;
+  endpoint_templates: Record<string, string>;
+  read_only_notes: string;
+  forbidden_methods: string[];
+  documentation_notes: string;
+  non_action_statement: string;
+};
+
+export type ErpConnectorReplayFixtureInfo = {
+  provider: string;
+  operation: string;
+  fixture_name: string;
+  display_name: string;
+  source_id_prefix: string;
+  non_action_statement: string;
+};
+
+export type ErpConnectorReplayRecord = {
+  replay_id: string;
+  provider: string;
+  operation: string;
+  fixture_name: string;
+  status: string;
+  records: Array<{
+    source_id: string;
+    title: string;
+    record_type: string;
+    content: string;
+    metadata: Record<string, unknown>;
+  }>;
+  record_count: number;
+  source_ids: string[];
+  warnings: string[];
+  validation: {
+    passed: boolean;
+    warnings: string[];
+    failed_checks: string[];
+    checked_fields: string[];
+    non_action_statement: string;
+  };
+  created_at: string;
+  dry_run: boolean;
+  network_accessed: boolean;
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -928,6 +1005,39 @@ export async function listErpApprovalProposalSimulations(proposalRecordId: strin
   return request<ErpApprovalActionSimulationRecord[]>(
     `/erp-approval/proposals/${encodeURIComponent(proposalRecordId)}/simulations`
   );
+}
+
+export async function getErpApprovalConnectorConfig() {
+  return request<ErpConnectorConfigResponse>("/erp-approval/connectors/config");
+}
+
+export async function getErpApprovalConnectorHealth() {
+  return request<ErpConnectorHealthSummary>("/erp-approval/connectors/health");
+}
+
+export async function listErpApprovalConnectorProfiles() {
+  return request<ErpConnectorProviderProfileSummary[]>("/erp-approval/connectors/profiles");
+}
+
+export async function listErpApprovalConnectorReplayFixtures() {
+  return request<ErpConnectorReplayFixtureInfo[]>("/erp-approval/connectors/replay/fixtures");
+}
+
+export async function replayErpApprovalConnectorFixture(params: {
+  provider: string;
+  operation: string;
+  fixture_name: string;
+  approval_id?: string;
+  correlation_id?: string;
+}) {
+  const search = new URLSearchParams({
+    provider: params.provider,
+    operation: params.operation,
+    fixture_name: params.fixture_name,
+    ...(params.approval_id ? { approval_id: params.approval_id } : {}),
+    ...(params.correlation_id ? { correlation_id: params.correlation_id } : {})
+  });
+  return request<ErpConnectorReplayRecord>(`/erp-approval/connectors/replay?${search.toString()}`);
 }
 
 export async function listMcpCapabilities() {

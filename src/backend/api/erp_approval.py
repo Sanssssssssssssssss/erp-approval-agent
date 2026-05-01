@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from src.backend.domains.erp_approval import (
     ApprovalActionProposalQuery,
@@ -12,6 +12,7 @@ from src.backend.domains.erp_approval import (
     ERP_CONNECTOR_NON_ACTION_STATEMENT,
     PROVIDER_PROFILES,
     ErpConnectorProviderProfileSummary,
+    ErpConnectorReplayRequest,
     ReviewerNoteRepository,
     SavedAuditPackageQuery,
     SavedAuditPackageRepository,
@@ -29,7 +30,9 @@ from src.backend.domains.erp_approval import (
     default_saved_audit_package_path,
     default_trace_path,
     load_erp_connector_config_from_env,
+    list_provider_fixtures,
     redacted_connector_config,
+    replay_provider_fixture,
     validate_simulation_request,
 )
 from src.backend.runtime.agent_manager import agent_manager
@@ -84,6 +87,10 @@ def _connector_registry():
     return build_connector_registry_from_env(base_dir)
 
 
+def _connector_base_dir():
+    return agent_manager.base_dir or get_settings().backend_dir
+
+
 @router.get("/erp-approval/connectors/config")
 async def get_erp_approval_connector_config() -> dict:
     config = load_erp_connector_config_from_env()
@@ -110,6 +117,37 @@ async def get_erp_approval_connector_profile(provider: str) -> dict:
     if profile is None:
         raise HTTPException(status_code=404, detail="ERP connector provider profile not found")
     return _profile_summary(provider, profile).model_dump()
+
+
+@router.get("/erp-approval/connectors/replay/fixtures")
+async def list_erp_approval_connector_replay_fixtures() -> list[dict]:
+    return [fixture.model_dump() for fixture in list_provider_fixtures(_connector_base_dir())]
+
+
+@router.get("/erp-approval/connectors/replay")
+async def replay_erp_approval_connector_fixture(
+    provider: str,
+    operation: str,
+    fixture_name: str,
+    approval_id: str = "PR-1001",
+    correlation_id: str = "connector-replay",
+) -> dict:
+    fixtures = list_provider_fixtures(_connector_base_dir())
+    if not any(fixture.fixture_name == fixture_name for fixture in fixtures):
+        raise HTTPException(status_code=404, detail="ERP connector replay fixture not found")
+    try:
+        request = ErpConnectorReplayRequest(
+            provider=provider,
+            operation=operation,
+            fixture_name=fixture_name,
+            approval_id=approval_id,
+            correlation_id=correlation_id,
+            dry_run=True,
+            confirm_no_network=True,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return replay_provider_fixture(_connector_base_dir(), request, _now()).model_dump()
 
 
 @router.get("/erp-approval/traces")

@@ -29,9 +29,24 @@ from src.backend.domains.erp_approval.connectors.provider_profiles import (
     profile_for,
     supported_operations_for,
 )
+from src.backend.domains.erp_approval.connectors.replay import (
+    list_provider_fixtures,
+    load_provider_fixture,
+    replay_provider_fixture,
+    validate_replay_record,
+)
+from src.backend.domains.erp_approval.connectors.replay_models import (
+    ERP_CONNECTOR_REPLAY_NON_ACTION_STATEMENT,
+    ErpConnectorReplayFixtureInfo,
+    ErpConnectorReplayRecord,
+    ErpConnectorReplayRequest,
+    ErpConnectorReplaySummary,
+    ErpConnectorReplayValidation,
+)
 
 __all__ = [
     "ERP_CONNECTOR_NON_ACTION_STATEMENT",
+    "ERP_CONNECTOR_REPLAY_NON_ACTION_STATEMENT",
     "FORBIDDEN_WRITE_METHODS",
     "PROVIDER_PROFILES",
     "ErpConnectorConfig",
@@ -39,6 +54,11 @@ __all__ = [
     "ErpConnectorHealthSummary",
     "ErpConnectorProvider",
     "ErpConnectorProviderProfileSummary",
+    "ErpConnectorReplayFixtureInfo",
+    "ErpConnectorReplayRecord",
+    "ErpConnectorReplayRequest",
+    "ErpConnectorReplaySummary",
+    "ErpConnectorReplayValidation",
     "ErpReadOnlyConnector",
     "ErpReadOperation",
     "ErpReadRequest",
@@ -46,10 +66,14 @@ __all__ = [
     "HttpReadOnlyErpConnector",
     "connector_selection_summary",
     "load_erp_connector_config_from_env",
+    "list_provider_fixtures",
+    "load_provider_fixture",
     "map_provider_payload_to_records",
     "normalize_provider_payload",
     "profile_for",
     "redacted_connector_config",
+    "replay_provider_fixture",
     "source_id_for_provider",
     "supported_operations_for",
+    "validate_replay_record",
 ]

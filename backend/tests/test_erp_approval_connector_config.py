@@ -85,7 +85,7 @@ class ErpApprovalConnectorConfigTests(unittest.TestCase):
             {
                 "ERP_CONNECTOR_PROVIDER": "custom_http_json",
                 "ERP_CONNECTOR_EXPLICIT_READ_ONLY_OPT_IN": "true",
-                "ERP_CONNECTOR_BASE_URL": "https://user:password@example.test",
+                "ERP_CONNECTOR_BASE_URL": "https://user:password@example.test/path?token=abc&company=100&api_key=xyz&password=pw&secret=s&signature=sig",
                 "ERP_CONNECTOR_AUTH_TYPE": "bearer",
                 "ERP_CONNECTOR_AUTH_ENV_VAR": "ERP_SECRET_FOR_TEST",
                 "ERP_SECRET_FOR_TEST": "dummy-token-not-for-output",
@@ -96,8 +96,15 @@ class ErpApprovalConnectorConfigTests(unittest.TestCase):
         self.assertTrue(redacted["auth_env_var_present"])
         self.assertEqual(redacted["auth_env_var"], "ERP_SECRET_FOR_TEST")
         self.assertNotIn("dummy-token-not-for-output", str(redacted))
-        self.assertNotIn("password", str(redacted))
+        self.assertNotIn("password=pw", str(redacted))
+        self.assertNotIn("abc", str(redacted))
+        self.assertNotIn("xyz", str(redacted))
         self.assertIn("<redacted>@example.test", redacted["base_url"])
+        self.assertIn("token=<redacted>", redacted["base_url"])
+        self.assertIn("company=100", redacted["base_url"])
+        self.assertIn("api_key=<redacted>", redacted["base_url"])
+        self.assertIn("secret=<redacted>", redacted["base_url"])
+        self.assertIn("signature=<redacted>", redacted["base_url"])
 
     def test_registry_from_env_default_remains_mock(self) -> None:
         registry = build_connector_registry_from_env(

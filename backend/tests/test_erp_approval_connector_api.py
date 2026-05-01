@@ -90,6 +90,60 @@ class ErpApprovalConnectorApiTests(unittest.TestCase):
         self.assertIn("Metadata only", detail_response.json()["read_only_notes"])
         self.assertEqual(missing_response.status_code, 404)
 
+    def test_replay_api_lists_fixtures_and_replays_without_network(self) -> None:
+        app = FastAPI()
+        app.include_router(erp_approval_api.router, prefix="/api")
+        client = TestClient(app)
+
+        with patch("urllib.request.urlopen", side_effect=AssertionError("network should not be accessed")):
+            fixtures_response = client.get("/api/erp-approval/connectors/replay/fixtures")
+            replay_response = client.get(
+                "/api/erp-approval/connectors/replay",
+                params={
+                    "provider": "sap_s4_odata",
+                    "operation": "approval_request",
+                    "fixture_name": "sap_s4_odata_purchase_requisition.json",
+                    "approval_id": "PR-1001",
+                    "correlation_id": "api-replay",
+                },
+            )
+            missing_response = client.get(
+                "/api/erp-approval/connectors/replay",
+                params={
+                    "provider": "sap_s4_odata",
+                    "operation": "approval_request",
+                    "fixture_name": "missing.json",
+                },
+            )
+
+        self.assertEqual(fixtures_response.status_code, 200)
+        self.assertEqual(len(fixtures_response.json()), 4)
+        self.assertEqual(replay_response.status_code, 200)
+        replay_payload = replay_response.json()
+        self.assertEqual(replay_payload["status"], "success")
+        self.assertFalse(replay_payload["network_accessed"])
+        self.assertTrue(replay_payload["validation"]["passed"])
+        self.assertIn("No ERP network or write action was executed", replay_payload["non_action_statement"])
+        self.assertTrue(replay_payload["source_ids"][0].startswith("sap_s4_odata://approval_request/"))
+        self.assertEqual(missing_response.status_code, 404)
+
+    def test_replay_api_rejects_invalid_provider_without_secret_exposure(self) -> None:
+        app = FastAPI()
+        app.include_router(erp_approval_api.router, prefix="/api")
+        client = TestClient(app)
+
+        response = client.get(
+            "/api/erp-approval/connectors/replay",
+            params={
+                "provider": "not_a_provider",
+                "operation": "approval_request",
+                "fixture_name": "sap_s4_odata_purchase_requisition.json",
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("secret", response.text.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
