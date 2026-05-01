@@ -1,0 +1,12 @@
+{
+  "value": [
+    {
+      "PurchaseRequisitionNumber": "PR-1001",
+      "title": "Dynamics 365 FO purchase requisition PR-1001",
+      "description": "Representative read-only purchase requisition payload for mapping tests.",
+      "TotalAmount": 12500,
+      "CurrencyCode": "USD",
+      "VendorName": "Acme Supplies"
+    }
+  ]
+}

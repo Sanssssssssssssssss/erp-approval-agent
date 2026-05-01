@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,9 @@ from src.backend.domains.erp_approval import (
     ErpReadRequest,
     HttpReadOnlyErpConnector,
     build_default_connector_registry,
+    map_provider_payload_to_records,
+    normalize_provider_payload,
+    source_id_for_provider,
 )
 from src.backend.domains.erp_approval.connectors.provider_profiles import FORBIDDEN_WRITE_METHODS, PROVIDER_PROFILES
 from src.backend.orchestration.executor import HarnessLangGraphOrchestrator
@@ -48,7 +52,7 @@ class ErpApprovalConnectorTests(unittest.IsolatedAsyncioTestCase):
             profile = PROVIDER_PROFILES[provider]
             self.assertTrue(profile["supported_read_operations"])
             self.assertTrue(str(profile["default_source_id_prefix"]).startswith(f"{provider}://"))
-            for method in ("POST", "PUT", "PATCH", "DELETE"):
+            for method in ("POST", "PUT", "PATCH", "DELETE", "MERGE"):
                 self.assertIn(method, profile["forbidden_methods"])
 
     def test_http_connector_blocks_when_disabled_or_network_disabled(self) -> None:
@@ -111,6 +115,42 @@ class ErpApprovalConnectorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.records[0].source_id, "custom_http_json://approval_request/PR-1001")
         self.assertEqual(result.records[0].record_type, "approval_request")
         self.assertEqual(result.records[0].metadata["correlation_id"], "corr-1")
+        self.assertEqual(result.records[0].metadata["operation"], "approval_request")
+
+    def test_provider_payload_mapper_handles_supported_shapes(self) -> None:
+        request = ErpReadRequest(approval_id="PR-1001", correlation_id="corr-map")
+        payloads = [
+            {"records": [{"id": "PR-1001", "content": "records shape"}]},
+            {"value": [{"id": "PR-1001", "content": "value shape"}]},
+            {"d": {"results": [{"PurchaseRequisition": "PR-1001", "content": "odata shape"}]}},
+            {"id": "PR-1001", "content": "single object shape"},
+        ]
+
+        for payload in payloads:
+            self.assertTrue(normalize_provider_payload(payload))
+            records = map_provider_payload_to_records("custom_http_json", "approval_request", payload, request)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0].source_id, "custom_http_json://approval_request/PR-1001")
+            self.assertEqual(records[0].metadata["provider"], "custom_http_json")
+            self.assertTrue(records[0].metadata["read_only"])
+            self.assertEqual(records[0].metadata["operation"], "approval_request")
+            self.assertEqual(records[0].metadata["correlation_id"], "corr-map")
+
+    def test_provider_payload_fixtures_map_to_read_only_records(self) -> None:
+        request = ErpReadRequest(approval_id="PR-1001", correlation_id="corr-fixture")
+        fixtures = {
+            "sap_s4_odata": "sap_s4_odata_purchase_requisition.json",
+            "dynamics_fo_odata": "dynamics_fo_odata_purchase_requisition.json",
+            "oracle_fusion_rest": "oracle_fusion_rest_purchase_requisition.json",
+            "custom_http_json": "custom_http_json_purchase_requisition.json",
+        }
+
+        for provider, filename in fixtures.items():
+            payload = json.loads((BACKEND_DIR / "fixtures" / "erp_approval" / "provider_payloads" / filename).read_text(encoding="utf-8"))
+            records = map_provider_payload_to_records(provider, "approval_request", payload, request)
+            self.assertTrue(records)
+            self.assertTrue(records[0].source_id.startswith(f"{provider}://approval_request/"))
+            self.assertEqual(source_id_for_provider(provider, "approval_request", "PR-1001"), f"{provider}://approval_request/PR-1001")
 
     def test_http_connector_missing_auth_env_var_blocks_without_secret(self) -> None:
         connector = HttpReadOnlyErpConnector(
@@ -131,6 +171,32 @@ class ErpApprovalConnectorTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("environment variable is not set", warning_text)
         self.assertNotIn("Bearer", warning_text)
         self.assertNotIn("secret", warning_text.lower())
+
+    def test_http_connector_redacts_auth_header_for_fake_transport(self) -> None:
+        seen_headers: list[dict[str, str]] = []
+
+        def fake_transport(method: str, url: str, headers: dict[str, str], timeout: float) -> dict:
+            del method, url, timeout
+            seen_headers.append(headers)
+            return {"id": "PR-1001", "content": "Read-only response."}
+
+        connector = HttpReadOnlyErpConnector(
+            ErpConnectorConfig(
+                provider="custom_http_json",
+                enabled=True,
+                allow_network=True,
+                base_url="https://erp.example",
+                auth_type="bearer",
+                auth_env_var="ERP_CONNECTOR_TEST_TOKEN",
+                metadata={"auth_env_var_present": True},
+            ),
+            transport=fake_transport,
+        )
+
+        result = connector.fetch_context(ErpReadRequest(approval_id="PR-1001", requested_operations=["approval_request"]))
+
+        self.assertEqual(result.status, "success")
+        self.assertEqual(seen_headers[0]["Authorization"], "Bearer <redacted>")
 
     async def test_erp_context_node_defaults_to_mock_connector(self) -> None:
         orchestrator = HarnessLangGraphOrchestrator.__new__(HarnessLangGraphOrchestrator)

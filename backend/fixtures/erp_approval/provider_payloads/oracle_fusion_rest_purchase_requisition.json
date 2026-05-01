@@ -1,0 +1,12 @@
+{
+  "records": [
+    {
+      "id": "PR-1001",
+      "title": "Oracle Fusion purchase requisition PR-1001",
+      "summary": "Representative read-only purchase requisition payload for mapping tests.",
+      "amount": 12500,
+      "currency": "USD",
+      "supplier": "Acme Supplies"
+    }
+  ]
+}

@@ -9,6 +9,9 @@ from src.backend.domains.erp_approval import (
     ApprovalActionSimulationQuery,
     ApprovalActionSimulationRepository,
     ApprovalActionSimulationRequest,
+    ERP_CONNECTOR_NON_ACTION_STATEMENT,
+    PROVIDER_PROFILES,
+    ErpConnectorProviderProfileSummary,
     ReviewerNoteRepository,
     SavedAuditPackageQuery,
     SavedAuditPackageRepository,
@@ -16,13 +19,17 @@ from src.backend.domains.erp_approval import (
     ApprovalTraceRepository,
     append_reviewer_note,
     build_audit_package,
+    build_connector_registry_from_env,
     build_saved_audit_package_manifest,
     build_simulation_record,
+    connector_selection_summary,
     default_action_simulation_path,
     default_proposal_ledger_path,
     default_reviewer_notes_path,
     default_saved_audit_package_path,
     default_trace_path,
+    load_erp_connector_config_from_env,
+    redacted_connector_config,
     validate_simulation_request,
 )
 from src.backend.runtime.agent_manager import agent_manager
@@ -70,6 +77,39 @@ def _note_repository() -> ReviewerNoteRepository:
 def _simulation_repository() -> ApprovalActionSimulationRepository:
     base_dir = agent_manager.base_dir or get_settings().backend_dir
     return ApprovalActionSimulationRepository(default_action_simulation_path(base_dir))
+
+
+def _connector_registry():
+    base_dir = agent_manager.base_dir or get_settings().backend_dir
+    return build_connector_registry_from_env(base_dir)
+
+
+@router.get("/erp-approval/connectors/config")
+async def get_erp_approval_connector_config() -> dict:
+    config = load_erp_connector_config_from_env()
+    return {
+        "config": redacted_connector_config(config),
+        "selection": connector_selection_summary(config),
+        "non_action_statement": ERP_CONNECTOR_NON_ACTION_STATEMENT,
+    }
+
+
+@router.get("/erp-approval/connectors/health")
+async def get_erp_approval_connector_health() -> dict:
+    return _connector_registry().diagnostic_summary().model_dump()
+
+
+@router.get("/erp-approval/connectors/profiles")
+async def list_erp_approval_connector_profiles() -> list[dict]:
+    return [_profile_summary(provider, profile).model_dump() for provider, profile in PROVIDER_PROFILES.items()]
+
+
+@router.get("/erp-approval/connectors/profiles/{provider}")
+async def get_erp_approval_connector_profile(provider: str) -> dict:
+    profile = PROVIDER_PROFILES.get(provider)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="ERP connector provider profile not found")
+    return _profile_summary(provider, profile).model_dump()
 
 
 @router.get("/erp-approval/traces")
@@ -497,6 +537,20 @@ def _now() -> str:
     from datetime import datetime, timezone
 
     return datetime.now(timezone.utc).isoformat()
+
+
+def _profile_summary(provider: str, profile: dict) -> ErpConnectorProviderProfileSummary:
+    return ErpConnectorProviderProfileSummary(
+        provider=provider,
+        display_name=str(profile.get("display_name") or ""),
+        supported_read_operations=list(profile.get("supported_read_operations", []) or []),
+        default_source_id_prefix=str(profile.get("default_source_id_prefix") or ""),
+        endpoint_templates=dict(profile.get("endpoint_templates", {}) or {}),
+        read_only_notes=str(profile.get("read_only_notes") or ""),
+        forbidden_methods=list(profile.get("forbidden_methods", []) or []),
+        documentation_notes=str(profile.get("documentation_notes") or ""),
+        non_action_statement=ERP_CONNECTOR_NON_ACTION_STATEMENT,
+    )
 
 
 def _build_audit_package_from_inputs(*, trace_ids: list[str], filters: dict, limit: int):

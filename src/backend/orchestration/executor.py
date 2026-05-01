@@ -35,8 +35,8 @@ from src.backend.domains.erp_approval import (
     ErpContextQuery,
     ErpReadResult,
     build_action_proposals,
+    build_connector_registry_from_env,
     build_context_bundle_from_records,
-    build_default_connector_registry,
     build_proposal_records_from_state,
     build_trace_record_from_state,
     default_proposal_ledger_path,
@@ -138,7 +138,7 @@ class HarnessLangGraphOrchestrator:
         self._graph = compile_harness_orchestration_graph(self, include_checkpointer=include_checkpointer)
         self._context_assembler = ContextAssembler(base_dir=self._agent.base_dir)
         self._context_writer = ContextWriter(base_dir=self._agent.base_dir)
-        self._erp_connector_registry = build_default_connector_registry(self._agent.base_dir)
+        self._erp_connector_registry = build_connector_registry_from_env(self._agent.base_dir)
         self._erp_trace_repository = ApprovalTraceRepository(default_trace_path(self._agent.base_dir))
         self._erp_proposal_repository = ApprovalActionProposalRepository(default_proposal_ledger_path(self._agent.base_dir))
         self._resume_checkpoint_id = str(resume_checkpoint_id or "")
@@ -1849,7 +1849,7 @@ class HarnessLangGraphOrchestrator:
             return context, connector_result
         if registry is None:
             base_dir = getattr(getattr(self, "_agent", None), "base_dir", None)
-            registry = build_default_connector_registry(base_dir)
+            registry = build_connector_registry_from_env(base_dir)
             self._erp_connector_registry = registry
         connector_result = registry.default().fetch_context(read_request_from_context_query(query))
         context = build_context_bundle_from_records(

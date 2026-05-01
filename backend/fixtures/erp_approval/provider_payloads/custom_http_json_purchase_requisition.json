@@ -1,0 +1,8 @@
+{
+  "id": "PR-1001",
+  "title": "Custom HTTP JSON purchase requisition PR-1001",
+  "content": "Representative read-only purchase requisition payload for mapping tests.",
+  "amount": 12500,
+  "currency": "USD",
+  "vendor": "Acme Supplies"
+}

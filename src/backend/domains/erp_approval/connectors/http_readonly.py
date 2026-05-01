@@ -12,6 +12,7 @@ from src.backend.domains.erp_approval.connectors.models import (
     ErpReadRequest,
     ErpReadResult,
 )
+from src.backend.domains.erp_approval.connectors.mappers import map_provider_payload_to_records
 from src.backend.domains.erp_approval.connectors.provider_profiles import FORBIDDEN_WRITE_METHODS, profile_for
 from src.backend.domains.erp_approval.schemas import ApprovalContextRecord
 
@@ -36,6 +37,7 @@ class HttpReadOnlyErpConnector:
             "allow_network": self.config.allow_network,
             "mode": self.config.mode,
             "read_only": True,
+            "forbidden_methods": FORBIDDEN_WRITE_METHODS,
             "non_action_statement": ERP_CONNECTOR_NON_ACTION_STATEMENT,
         }
 
@@ -55,7 +57,7 @@ class HttpReadOnlyErpConnector:
                 non_action_statement=ERP_CONNECTOR_NON_ACTION_STATEMENT,
             )
 
-        records: list[ApprovalContextRecord] = []
+        records = []
         diagnostics: dict[str, Any] = {"requested_operations": list(request.requested_operations)}
         operations = request.requested_operations or ["approval_request", "vendor", "budget", "purchase_order", "invoice", "goods_receipt", "contract", "policy"]
         for operation in operations:
@@ -89,7 +91,7 @@ class HttpReadOnlyErpConnector:
         if self.config.auth_type != "none":
             if not self.config.auth_env_var:
                 warnings.append("Connector auth_env_var is required for non-none auth.")
-            elif not os.environ.get(self.config.auth_env_var):
+            elif not self._auth_env_var_present():
                 warnings.append("Connector auth environment variable is not set.")
         if not self.config.base_url.strip():
             warnings.append("Connector base_url is required for HTTP reads.")
@@ -97,13 +99,19 @@ class HttpReadOnlyErpConnector:
 
     def _headers(self) -> dict[str, str]:
         headers = {"Accept": "application/json"}
-        if self.config.auth_type == "bearer" and self.config.auth_env_var and os.environ.get(self.config.auth_env_var):
+        if self.config.auth_type == "bearer" and self.config.auth_env_var and self._auth_env_var_present():
             headers["Authorization"] = "Bearer <redacted>"
-        elif self.config.auth_type == "api_key" and self.config.auth_env_var and os.environ.get(self.config.auth_env_var):
+        elif self.config.auth_type == "api_key" and self.config.auth_env_var and self._auth_env_var_present():
             headers["X-API-Key"] = "<redacted>"
-        elif self.config.auth_type == "basic" and self.config.auth_env_var and os.environ.get(self.config.auth_env_var):
+        elif self.config.auth_type == "basic" and self.config.auth_env_var and self._auth_env_var_present():
             headers["Authorization"] = "Basic <redacted>"
         return headers
+
+    def _auth_env_var_present(self) -> bool:
+        metadata = dict(self.config.metadata or {})
+        if "auth_env_var_present" in metadata:
+            return bool(metadata.get("auth_env_var_present"))
+        return bool(self.config.auth_env_var and os.environ.get(self.config.auth_env_var))
 
     def _get(self, url: str) -> dict[str, Any]:
         if not self.is_method_allowed("GET"):
@@ -142,33 +150,7 @@ class HttpReadOnlyErpConnector:
         return f"{base}{path}"
 
     def _records_from_payload(self, operation: str, payload: dict[str, Any], request: ErpReadRequest) -> list[ApprovalContextRecord]:
-        if not isinstance(payload, dict):
-            return []
-        raw_records = payload.get("records")
-        if isinstance(raw_records, list):
-            records = []
-            for item in raw_records:
-                if isinstance(item, dict):
-                    records.append(self._record_from_dict(operation, item, request))
-            return records
-        return [self._record_from_dict(operation, payload, request)]
-
-    def _record_from_dict(self, operation: str, payload: dict[str, Any], request: ErpReadRequest) -> ApprovalContextRecord:
-        entity_id = self._entity_id_for(operation, request) or str(payload.get("id", "") or payload.get("name", "") or "unknown")
-        prefix = str(self._profile.get("default_source_id_prefix") or f"{self.provider}://")
-        content = payload.get("content") or payload.get("summary") or payload.get("description") or payload
-        return ApprovalContextRecord(
-            source_id=str(payload.get("source_id") or f"{prefix}{operation}/{entity_id}"),
-            title=str(payload.get("title") or f"{self.provider} {operation} {entity_id}"),
-            record_type=operation,
-            content=content if isinstance(content, str) else str(content),
-            metadata={
-                "provider": self.provider,
-                "read_only": True,
-                "correlation_id": request.correlation_id,
-                **dict(payload.get("metadata", {}) or {}),
-            },
-        )
+        return map_provider_payload_to_records(self.provider, operation, payload, request)
 
     def _entity_id_for(self, operation: str, request: ErpReadRequest) -> str:
         mapping: dict[str, str] = {

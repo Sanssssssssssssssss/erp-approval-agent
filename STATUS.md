@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 10: Read-only ERP Connector Interface + Connector Registry.
+Phase 11: Read-only Connector Configuration Hardening.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, and Phase 10 adds a read-only ERP connector interface plus connector registry:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, and Phase 11 hardens connector configuration:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 10: ERP context retrieval goes through a read-only connector interface and registry. The default connector remains mock. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only. Phase 10 does not call production ERP systems, does not invoke capabilities, and does not execute mock or real actions.
+The current active capability is Phase 11: ERP context retrieval goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, and representative provider payload mapping fixtures. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only. Phase 11 does not call production ERP systems, does not invoke capabilities, and does not execute mock or real actions.
 
 ## Active Product Direction
 
@@ -31,6 +31,7 @@ Current positioning:
 - local saved audit package workspace and reviewer notes.
 - local action simulation sandbox and simulation ledger.
 - read-only ERP connector registry with mock default.
+- hardened connector env loading, redaction, diagnostics, provider profiles, and mapping fixtures.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -126,6 +127,20 @@ Current positioning:
 - `erp_context_node` now fetches context through the default connector registry.
 - state captures `erp_connector_result` and `erp_connector_warnings`.
 
+## Completed Phase 11 Capabilities
+
+- typed connector environment loader with safe defaults: `provider=mock`, `enabled=false`, and `allow_network=false`.
+- explicit read-only opt-in and use-as-default gates for non-mock connector candidates.
+- redacted connector config summaries that expose only auth env var names and presence booleans.
+- connector diagnostics and read-only health/profile APIs:
+  - `GET /api/erp-approval/connectors/config`
+  - `GET /api/erp-approval/connectors/health`
+  - `GET /api/erp-approval/connectors/profiles`
+  - `GET /api/erp-approval/connectors/profiles/{provider}`
+- provider payload mapping fixtures for SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON.
+- HTTP read-only connector now maps provider payload shapes through a shared mapper.
+- `GRAPH_VERSION` is updated to `phase11`.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -176,11 +191,12 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 - reviewer notes are local artifacts, not ERP comments.
 - action simulation ledger is local dry-run storage, not an action execution ledger.
 - connector profiles are read-only interface metadata, not production ERP integrations.
+- connector diagnostics and APIs must never expose secret values.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 11 read-only connector configuration hardening: typed environment loading, explicit connector selection tests, and redacted diagnostics.
+1. start Phase 12 with a read-only connector fixture replay harness or connector configuration UI, still using fake transports only.
 2. keep connector outputs normalized into `ApprovalContextRecord` and never add write operations.
 3. keep all real and mock ERP writes out of scope until a separate guarded execution phase.

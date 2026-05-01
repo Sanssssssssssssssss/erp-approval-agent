@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, Phase 9 added a local mock action simulation sandbox, and Phase 10 adds a read-only ERP connector interface and registry.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface and registry, and Phase 11 hardens connector configuration, diagnostics, healthcheck, provider mapping fixtures, and redaction.
 
 ## Product Direction
 
@@ -61,6 +61,7 @@ Completed:
 - Phase 8 saved audit package manifests and append-only reviewer notes.
 - Phase 9 local action simulation sandbox and simulation ledger.
 - Phase 10 read-only ERP connector interface, provider profiles, and connector registry.
+- Phase 11 typed connector environment loading, redacted diagnostics, healthcheck/profile APIs, and provider payload mapping fixtures.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
@@ -96,7 +97,7 @@ It produces a structured approval recommendation with confidence, missing inform
 
 Action proposals are proposed-only drafts. They include idempotency fields and validation warnings, but they are not tool calls, capability invocations, connector calls, or ERP writes.
 
-Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 persists action proposals separately at `backend/storage/erp_approval/action_proposals.jsonl` and can build temporary read-only audit packages. Phase 8 saves local audit package manifests at `backend/storage/erp_approval/audit_packages.jsonl` and append-only reviewer notes at `backend/storage/erp_approval/reviewer_notes.jsonl`. Phase 9 records local dry-run simulation results at `backend/storage/erp_approval/action_simulations.jsonl`. Phase 10 introduces a connector registry that defaults to the mock read-only connector. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON provider profiles are metadata/skeletons only and are disabled by default. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
+Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 persists action proposals separately at `backend/storage/erp_approval/action_proposals.jsonl` and can build temporary read-only audit packages. Phase 8 saves local audit package manifests at `backend/storage/erp_approval/audit_packages.jsonl` and append-only reviewer notes at `backend/storage/erp_approval/reviewer_notes.jsonl`. Phase 9 records local dry-run simulation results at `backend/storage/erp_approval/action_simulations.jsonl`. Phase 10 introduces a connector registry that defaults to the mock read-only connector. Phase 11 adds typed env loading, explicit read-only opt-in gates, redacted connector config, read-only connector health/profile APIs, and representative provider payload mapping fixtures. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON provider profiles remain metadata/skeletons only and are disabled by default. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
 
 ERP approval APIs include read-only trace/proposal/audit lookups plus local audit workspace writes:
 
@@ -117,6 +118,10 @@ ERP approval APIs include read-only trace/proposal/audit lookups plus local audi
 - `GET /api/erp-approval/audit-packages/{package_id}`
 - `GET /api/erp-approval/audit-packages/{package_id}/export.json`
 - `GET /api/erp-approval/audit-packages/{package_id}/notes`
+- `GET /api/erp-approval/connectors/config`
+- `GET /api/erp-approval/connectors/health`
+- `GET /api/erp-approval/connectors/profiles`
+- `GET /api/erp-approval/connectors/profiles/{provider}`
 - `POST /api/erp-approval/action-simulations`
 - `POST /api/erp-approval/audit-packages`
 - `POST /api/erp-approval/audit-packages/{package_id}/notes`
@@ -127,13 +132,19 @@ Optional connector environment variables are documented in `backend/.env.example
 
 ```text
 ERP_CONNECTOR_PROVIDER=mock
+ERP_CONNECTOR_ENABLED=false
 ERP_CONNECTOR_ALLOW_NETWORK=false
 ERP_CONNECTOR_BASE_URL=
+ERP_CONNECTOR_TENANT_ID=
+ERP_CONNECTOR_COMPANY_ID=
+ERP_CONNECTOR_TIMEOUT_SECONDS=10
 ERP_CONNECTOR_AUTH_TYPE=none
 ERP_CONNECTOR_AUTH_ENV_VAR=
+ERP_CONNECTOR_EXPLICIT_READ_ONLY_OPT_IN=false
+ERP_CONNECTOR_USE_AS_DEFAULT=false
 ```
 
-Phase 10 does not require or enable production ERP credentials. Do not store production ERP secrets in the repository.
+Phase 11 does not require or enable production ERP credentials. Non-mock providers require explicit read-only opt-in and separate network opt-in; even then they are connector skeletons unless a deployment supplies a safe read-only transport. Do not store production ERP secrets in the repository.
 
 ## Quick Start
 
@@ -203,7 +214,9 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_audit_package `
   backend.tests.test_erp_approval_audit_workspace `
   backend.tests.test_erp_approval_action_simulation `
-  backend.tests.test_erp_approval_connectors
+  backend.tests.test_erp_approval_connectors `
+  backend.tests.test_erp_approval_connector_config `
+  backend.tests.test_erp_approval_connector_api
 ```
 
 Legacy RFP/security compatibility benchmark smoke:
@@ -238,7 +251,7 @@ npm run build
 - audit packages are completeness review artifacts, not model-quality benchmarks.
 - saved audit packages and reviewer notes are local review artifacts, not ERP comments or ERP writes.
 - local action simulations are dry-run records only; they do not send, post, route, approve, reject, pay, update, or execute anything.
-- ERP connectors are context providers only; Phase 10 defaults to mock and keeps live network access disabled.
+- ERP connectors are context providers only; Phase 11 defaults to mock, disabled, no network, and redacted diagnostics.
 
 ## Non-Claims
 
@@ -250,7 +263,7 @@ This repository does not currently claim to:
 - benchmark-prove ERP approval accuracy.
 - provide production process mining or execution audit.
 
-Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, a local trace explorer/analytics foundation, read-only audit packages, a local audit package workspace, a local dry-run simulation sandbox, and a read-only connector interface that defaults to mock. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
+Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, a local trace explorer/analytics foundation, read-only audit packages, a local audit package workspace, a local dry-run simulation sandbox, and a read-only connector interface with hardened local configuration and diagnostics. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 

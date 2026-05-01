@@ -9,6 +9,7 @@ from src.backend.decision.skill_gate import SkillDecision
 
 
 GraphPathKind = Literal["direct_answer", "knowledge_qa", "capability_path", "erp_approval"]
+GRAPH_VERSION = "phase11"
 
 
 class GraphState(TypedDict, total=False):
@@ -129,7 +130,7 @@ def create_initial_graph_state(
             "thread_id": resolved_thread_id,
             "checkpoint_namespace": "harness_langgraph_orchestration_v1",
             "checkpoint_enabled": True,
-            "graph_version": "phase7",
+            "graph_version": GRAPH_VERSION,
             "run_status": "fresh",
             "resume_source": "",
             "updated_at": "",

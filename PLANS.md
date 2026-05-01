@@ -244,12 +244,34 @@ Scope:
 - redacted diagnostics and healthcheck UI/API.
 - fixture-driven schema mapping examples for provider profiles.
 - no ERP write execution.
+- default provider remains mock.
+- non-mock provider profiles require explicit read-only opt-in and separate network opt-in.
 
 Done when:
 
 - connector configuration can be inspected locally without exposing secrets.
 - non-mock connectors remain disabled unless explicitly configured.
+- connector health/profile APIs are GET-only and do not trigger live ERP calls.
+- SAP/Dynamics/Oracle/custom payload examples map into `ApprovalContextRecord` without claiming production schema coverage.
 - no write operation or action execution path exists.
+
+Status: complete for typed env loading, explicit opt-in gates, redacted config summaries, connector diagnostics, GET-only health/profile APIs, provider mapping fixtures, HTTP connector mapper integration, and `GRAPH_VERSION=phase11`.
+
+## Phase 12: Read-Only Connector Fixture Replay / Configuration UX
+
+Scope:
+
+- optional local fixture replay harness for connector mapping confidence.
+- optional frontend or API surface for inspecting connector profiles and diagnostics.
+- fake transports and fixture payloads only.
+- no real ERP network access by default.
+- no ERP action execution.
+
+Done when:
+
+- reviewers can inspect connector readiness and mapping behavior locally.
+- all diagnostics remain redacted.
+- connector work still produces context records only.
 
 ## Historical Infrastructure Notes
 

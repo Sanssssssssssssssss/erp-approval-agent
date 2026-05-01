@@ -1,0 +1,14 @@
+{
+  "d": {
+    "results": [
+      {
+        "PurchaseRequisition": "PR-1001",
+        "title": "SAP S/4HANA purchase requisition PR-1001",
+        "Description": "Representative read-only purchase requisition payload for mapping tests.",
+        "Amount": 12500,
+        "Currency": "USD",
+        "Supplier": "Acme Supplies"
+      }
+    ]
+  }
+}
