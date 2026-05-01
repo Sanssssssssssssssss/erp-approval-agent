@@ -9,7 +9,7 @@ from src.backend.decision.skill_gate import SkillDecision
 
 
 GraphPathKind = Literal["direct_answer", "knowledge_qa", "capability_path", "erp_approval"]
-GRAPH_VERSION = "phase11"
+GRAPH_VERSION = "phase14"
 
 
 class GraphState(TypedDict, total=False):

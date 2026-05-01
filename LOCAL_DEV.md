@@ -9,7 +9,7 @@
 
 ## Product Context
 
-The local app is ERP Approval Agent Workbench. Phase 0 is a product-semantic migration, so the workbench can run while legacy RFP/security compatibility tests remain in place.
+The local app is ERP Approval Agent Workbench. Phase 14 is the MVP closure point: keep the workbench local-first, keep legacy RFP/security compatibility tests in place, and do not add live ERP or ERP write-action scope during final validation.
 
 ## Backend Setup
 
@@ -62,6 +62,18 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\dev\start-frontend-de
 ```
 
 ## Core Validation Commands
+
+Final Phase 14 MVP validation:
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1
+```
+
+Backend-only final validation:
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1 -SkipFrontend
+```
 
 Focused backend compatibility tests:
 
@@ -122,3 +134,4 @@ npm run verify:chat-ui
 - [knowledge/ERP Approval](knowledge/ERP%20Approval) is the future ERP approval context placeholder
 - [knowledge/RFP Security](knowledge/RFP%20Security) remains for legacy compatibility
 - keep this repo local-first by default; external infra and observability are optional
+- Phase 14 STOP rule: no connector, simulation, audit workspace, mapper diagnostics, profile notes, benchmark, live ERP, or ERP write-action expansion without a new explicit phase

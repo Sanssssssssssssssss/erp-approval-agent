@@ -23,6 +23,7 @@ Current implementation:
 - Phase 11 read-only connector configuration hardening, redacted diagnostics, health/profile APIs, and provider mapping fixtures exist.
 - Phase 12 read-only connector fixture replay and diagnostics UX exist.
 - Phase 13 read-only connector mapping coverage expansion and local replay coverage matrix exist.
+- Phase 14 final MVP closure, acceptance checklist, release boundary tests, final validation script, final report, and STOP rules exist.
 - no live ERP connector is enabled by default.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.
@@ -70,7 +71,7 @@ bootstrap
 -> finalize
 ```
 
-Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Phase 12 adds local fixture replay diagnostics for provider profile and mapper readiness without network access. Phase 13 expands those local fixtures across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy operations, then summarizes mapper readiness in a replay coverage matrix. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Phase 12 adds local fixture replay diagnostics for provider profile and mapper readiness without network access. Phase 13 expands those local fixtures across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy operations, then summarizes mapper readiness in a replay coverage matrix. Phase 14 closes the MVP boundary and adds no new connector, simulation, audit workspace, mapper diagnostic, profile note, benchmark, live ERP, or ERP write-action scope.
 
 ## Prompt-Engineering Direction
 
@@ -318,6 +319,25 @@ Early phases can use mock records with normalized context fields:
 - no reviewer note should be treated as an ERP comment.
 - no action simulation should be treated as action execution or ERP dry-run against a live system.
 - no connector profile should be described as a completed live ERP integration until explicit read-only live validation exists.
+
+## Phase 14 STOP Rules
+
+Phase 14 is the MVP acceptance point. Stop scope expansion here unless a future task explicitly opens a new phase.
+
+Do not add to this MVP closure:
+
+- connector expansion
+- simulation expansion
+- audit workspace expansion
+- mapper diagnostics expansion
+- connector profile notes
+- ERP benchmark suites
+- live ERP connections
+- ERP write actions
+- action execution APIs
+- action execution ledgers
+- new `approval.*` Harness events
+- a second runtime or agent framework
 
 ## Why HarnessRuntime And LangGraph Remain
 

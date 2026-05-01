@@ -1,6 +1,6 @@
 # QUICKSTART
 
-This is the fastest path to a working local ERP Approval Agent Workbench. Phase 0 updates product identity and direction while keeping the existing runnable architecture.
+This is the fastest path to a working local ERP Approval Agent Workbench. Phase 14 is the MVP closure point: the local workbench runs with ERP approval graph, trace, audit, simulation, and connector diagnostics features, while still keeping legacy RFP/security compatibility checks.
 
 ## 1. Create the backend venv
 
@@ -27,7 +27,19 @@ npm install
 cd ..\..
 ```
 
-## 4. Run focused backend compatibility tests
+## 4. Run final MVP validation
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1
+```
+
+For backend-only validation:
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1 -SkipFrontend
+```
+
+## 5. Run focused backend compatibility tests
 
 These tests still exercise the legacy RFP/security compatibility path until ERP-specific tests are added.
 
@@ -39,7 +51,7 @@ These tests still exercise the legacy RFP/security compatibility path until ERP-
   backend.tests.test_benchmark_evaluator
 ```
 
-## 5. Run a legacy compatibility smoke benchmark
+## 6. Run a legacy compatibility smoke benchmark
 
 This command validates the existing benchmark harness and retrieval path. It is not an ERP approval benchmark.
 
@@ -50,7 +62,7 @@ This command validates the existing benchmark harness and retrieval path. It is 
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
 ```
 
-## 6. Start the local workbench
+## 7. Start the local workbench
 
 ```powershell
 .\backend\scripts\dev\start-dev.ps1 -InstallIfMissing
@@ -68,4 +80,5 @@ Default URLs:
 - local run guide: [LOCAL_DEV.md](LOCAL_DEV.md)
 - operator runbook: [RUNBOOK.md](RUNBOOK.md)
 - future product plan: [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
+- MVP acceptance checklist: [docs/product/mvp_acceptance_checklist.md](docs/product/mvp_acceptance_checklist.md)
 - architecture handoff: [CODEX_HANDOFF.md](CODEX_HANDOFF.md)

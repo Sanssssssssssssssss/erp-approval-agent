@@ -255,7 +255,7 @@ Done when:
 - SAP/Dynamics/Oracle/custom payload examples map into `ApprovalContextRecord` without claiming production schema coverage.
 - no write operation or action execution path exists.
 
-Status: complete for typed env loading, explicit opt-in gates, redacted config summaries, connector diagnostics, GET-only health/profile APIs, provider mapping fixtures, HTTP connector mapper integration, and `GRAPH_VERSION=phase11`.
+Status: complete for typed env loading, explicit opt-in gates, redacted config summaries, connector diagnostics, GET-only health/profile APIs, provider mapping fixtures, and HTTP connector mapper integration. `GRAPH_VERSION` is now finalized as `phase14`.
 
 ## Phase 12: Read-Only Connector Fixture Replay / Configuration UX
 
@@ -294,21 +294,34 @@ Done when:
 
 Status: complete for four-provider by eight-operation fixture coverage, operation-specific entity id extraction, GET-only replay coverage API, tests, and frontend coverage diagnostics.
 
-## Phase 14: Local Connector Profile Editing Or Deeper Mapper Diagnostics
+## Phase 14: Final MVP Closure
 
 Scope:
 
-- consider local-only profile notes or richer fixture diagnostics.
-- keep all profile edits local review artifacts, not live connector changes by default.
-- continue using fixtures and fake transports only.
-- no live ERP network access.
-- no ERP action execution.
+- documentation consistency pass.
+- MVP acceptance checklist.
+- final validation command/script.
+- release boundary tests.
+- final MVP report.
+- `GRAPH_VERSION=phase14`.
+- explicit STOP rules.
+- no connector expansion.
+- no simulation expansion.
+- no audit workspace expansion.
+- no mapper diagnostics or profile notes.
+- no benchmark.
+- no live ERP connection.
+- no ERP write action.
 
 Done when:
 
-- reviewers can better understand mapper readiness without creating a production connector claim.
-- all config and diagnostics remain redacted.
-- no write operation or capability invocation is introduced.
+- `docs/product/mvp_acceptance_checklist.md` states accepted MVP scope and boundaries.
+- `backend/scripts/dev/validate-phase14-mvp.ps1` runs the final validation suite.
+- release boundary tests guard graph version, ERP API methods, connector GET-only surface, no execution/live-test routes, and no `approval.*` event namespace.
+- final MVP report records validation results.
+- STOP rules are documented for future Codex agents.
+
+Status: complete for final MVP closure.
 
 ## Historical Infrastructure Notes
 

@@ -49,6 +49,12 @@ Run focused backend compatibility tests:
   backend.tests.test_benchmark_evaluator
 ```
 
+Run final Phase 14 MVP validation:
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1
+```
+
 Run the legacy RFP/security compatibility suite:
 
 ```powershell
@@ -99,8 +105,9 @@ Do not commit real keys.
 
 - legacy compatibility benchmark commands and methodology: [docs/ops/benchmarking.md](docs/ops/benchmarking.md)
 - future ERP approval product plan: [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
+- MVP acceptance checklist: [docs/product/mvp_acceptance_checklist.md](docs/product/mvp_acceptance_checklist.md)
 - historical RFP/security reports remain under [reports](reports)
 
 ## Operating Posture
 
-ERP Approval Agent Workbench should provide approval recommendation, not autonomous final execution. Future ERP write actions must be guarded by explicit HITL, idempotency, and auditable approval trace requirements.
+ERP Approval Agent Workbench should provide approval recommendation, not autonomous final execution. Phase 14 is the MVP closure boundary: do not add connector expansion, simulation expansion, audit workspace expansion, mapper diagnostics, profile notes, benchmarks, live ERP connections, or ERP write actions inside this closed MVP. Future ERP write actions must be guarded by explicit HITL, idempotency, and auditable approval trace requirements in a new explicit phase.

@@ -2,12 +2,13 @@
 
 Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
 
-Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Phase 8 added a local audit package workspace with saved manifests and append-only reviewer notes. Phase 9 added a local mock action simulation sandbox and simulation ledger. Phase 10 added a read-only ERP connector interface and registry that defaults to mock. Phase 11 hardened connector env loading, opt-in gates, diagnostics, redaction, health/profile APIs, and representative provider payload mapping fixtures. Phase 12 added local connector fixture replay and frontend diagnostics UX. Phase 13 expanded mapping fixtures across read-only ERP context operations and added a local replay coverage matrix. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics/local-audit/local-simulation/connector-interface-only boundaries.
+Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Phase 8 added a local audit package workspace with saved manifests and append-only reviewer notes. Phase 9 added a local mock action simulation sandbox and simulation ledger. Phase 10 added a read-only ERP connector interface and registry that defaults to mock. Phase 11 hardened connector env loading, opt-in gates, diagnostics, redaction, health/profile APIs, and representative provider payload mapping fixtures. Phase 12 added local connector fixture replay and frontend diagnostics UX. Phase 13 expanded mapping fixtures across read-only ERP context operations and added a local replay coverage matrix. Phase 14 closes the MVP boundary with documentation consistency, acceptance checklist, release boundary tests, final validation script, final report, and `GRAPH_VERSION=phase14`. Future work should treat `erp_approval` as an implemented backend graph path, while preserving mock-only/read-only/proposed-only/read-only-analytics/local-audit/local-simulation/connector-interface-only boundaries.
 
 ## First Read
 
 - [README.md](README.md)
 - [docs/product/erp_approval_agent_plan.md](docs/product/erp_approval_agent_plan.md)
+- [docs/product/mvp_acceptance_checklist.md](docs/product/mvp_acceptance_checklist.md)
 - [RUNBOOK.md](RUNBOOK.md)
 - [LOCAL_DEV.md](LOCAL_DEV.md)
 - [src/backend/runtime/runtime.py](src/backend/runtime/runtime.py)
@@ -111,6 +112,12 @@ Trace analytics rules:
 - connector fixture replay must stay local-only and must not call HTTP connector network methods.
 - connector replay coverage is a mapper readiness diagnostic, not a benchmark or live ERP integration proof.
 
+## Phase 14 STOP Rules
+
+This MVP is closed at Phase 14. Do not extend this closure by adding connector expansion, simulation expansion, audit workspace expansion, mapper diagnostics, profile notes, benchmarks, live ERP connections, ERP writes, action execution APIs, action execution ledgers, new `approval.*` Harness events, or another runtime/framework.
+
+If a future user asks for more product work, open a new phase with an explicit scope, tests, report, and boundary review. Keep Phase 14 as the stable MVP acceptance point.
+
 ## Legacy Compatibility
 
 Do not remove or aggressively rename these:
@@ -156,7 +163,14 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_connector_config `
   backend.tests.test_erp_approval_connector_api `
   backend.tests.test_erp_approval_connector_replay `
-  backend.tests.test_erp_approval_connector_coverage
+  backend.tests.test_erp_approval_connector_coverage `
+  backend.tests.test_erp_approval_release_boundary
+```
+
+Full Phase 14 MVP validation:
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1
 ```
 
 Legacy RFP/security compatibility smoke benchmark:

@@ -136,11 +136,11 @@ class ErpApprovalConnectorConfigTests(unittest.TestCase):
         self.assertEqual(registry.default().provider, "custom_http_json")
         self.assertEqual(registry.diagnostic_summary().selected_provider, "custom_http_json")
 
-    def test_graph_version_is_phase11(self) -> None:
+    def test_graph_version_is_phase14(self) -> None:
         state = create_initial_graph_state(run_id="run", session_id="session", thread_id="thread", user_message="", history=[])
 
-        self.assertEqual(GRAPH_VERSION, "phase11")
-        self.assertEqual(state["checkpoint_meta"]["graph_version"], "phase11")
+        self.assertEqual(GRAPH_VERSION, "phase14")
+        self.assertEqual(state["checkpoint_meta"]["graph_version"], "phase14")
         self.assertNotEqual(state["checkpoint_meta"]["graph_version"], "phase7")
 
 

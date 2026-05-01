@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface and registry, Phase 11 hardened connector configuration, diagnostics, healthcheck, provider mapping fixtures, and redaction, Phase 12 added local fixture replay plus connector diagnostics UX, and Phase 13 expanded read-only connector mapping fixtures with a local replay coverage matrix.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface and registry, Phase 11 hardened connector configuration, diagnostics, healthcheck, provider mapping fixtures, and redaction, Phase 12 added local fixture replay plus connector diagnostics UX, Phase 13 expanded read-only connector mapping fixtures with a local replay coverage matrix, and Phase 14 closes the MVP boundary with documentation, acceptance checks, release boundary tests, and final validation.
 
 ## Product Direction
 
@@ -64,6 +64,7 @@ Completed:
 - Phase 11 typed connector environment loading, redacted diagnostics, healthcheck/profile APIs, and provider payload mapping fixtures.
 - Phase 12 local connector fixture replay harness, replay API, and frontend connector diagnostics panel.
 - Phase 13 expanded connector mapping fixtures across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy operations, plus a replay coverage matrix.
+- Phase 14 final MVP closure, acceptance checklist, STOP rules, release boundary tests, final validation script, and `GRAPH_VERSION=phase14`.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
@@ -151,6 +152,22 @@ ERP_CONNECTOR_USE_AS_DEFAULT=false
 
 Phase 13 does not require or enable production ERP credentials. Non-mock providers require explicit read-only opt-in and separate network opt-in; even then they are connector skeletons unless a deployment supplies a safe read-only transport. Fixture replay and coverage matrix generation read local JSON payloads only. Do not store production ERP secrets in the repository.
 
+## Phase 14 MVP Closure
+
+Phase 14 is a final MVP closure pass. It does not add connector capabilities, simulations, audit workspace features, mapper diagnostics, profile notes, benchmarks, live ERP integration, or ERP write actions.
+
+Acceptance checklist:
+
+- [docs/product/mvp_acceptance_checklist.md](docs/product/mvp_acceptance_checklist.md)
+
+Final validation script:
+
+```powershell
+.\backend\scripts\dev\validate-phase14-mvp.ps1
+```
+
+STOP rule: this MVP is closed at Phase 14 unless a future task explicitly opens a new phase with its own scope, tests, report, and boundary review.
+
 ## Quick Start
 
 1. Create the backend environment.
@@ -223,7 +240,8 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_connector_config `
   backend.tests.test_erp_approval_connector_api `
   backend.tests.test_erp_approval_connector_replay `
-  backend.tests.test_erp_approval_connector_coverage
+  backend.tests.test_erp_approval_connector_coverage `
+  backend.tests.test_erp_approval_release_boundary
 ```
 
 Legacy RFP/security compatibility benchmark smoke:

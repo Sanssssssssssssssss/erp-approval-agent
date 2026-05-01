@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 13: Read-only Connector Mapping Coverage Expansion + Replay Coverage Matrix.
+Phase 14: Final MVP Closure.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, Phase 11 hardened connector configuration, Phase 12 added local connector replay diagnostics, and Phase 13 added multi-entity replay coverage:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, Phase 11 hardened connector configuration, Phase 12 added local connector replay diagnostics, Phase 13 added multi-entity replay coverage, and Phase 14 closes the MVP boundary:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 13: ERP connector diagnostics now include local fixture replay coverage across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy mapping examples. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, and representative provider payload fixtures. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only. Phase 13 does not call production ERP systems, does not invoke capabilities, and does not execute mock or real actions.
+The current active capability is Phase 14: final MVP closure. No connector, simulation, audit workspace, mapper diagnostic, profile note, benchmark, live ERP, or ERP write-action scope is added. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, representative provider payload fixtures, local fixture replay, and local replay coverage. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only.
 
 ## Active Product Direction
 
@@ -34,6 +34,8 @@ Current positioning:
 - hardened connector env loading, redaction, diagnostics, provider profiles, and mapping fixtures.
 - local connector fixture replay harness and frontend diagnostics UX.
 - local connector replay coverage matrix.
+- final MVP acceptance checklist and release boundary tests.
+- `GRAPH_VERSION=phase14`.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -141,7 +143,7 @@ Current positioning:
   - `GET /api/erp-approval/connectors/profiles/{provider}`
 - provider payload mapping fixtures for SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON.
 - HTTP read-only connector now maps provider payload shapes through a shared mapper.
-- `GRAPH_VERSION` is updated to `phase11`.
+- `GRAPH_VERSION` was first centralized in Phase 11; current MVP graph version is `phase14`.
 
 ## Completed Phase 12 Capabilities
 
@@ -163,6 +165,19 @@ Current positioning:
   - `GET /api/erp-approval/connectors/replay/coverage`
 - frontend `Connector diagnostics` panel shows the coverage summary, grouped counts, warnings, and failed checks.
 - coverage remains local fixture replay only, not a benchmark and not a live ERP integration test.
+
+## Completed Phase 14 Capabilities
+
+- final MVP acceptance checklist:
+  - `docs/product/mvp_acceptance_checklist.md`
+- final validation script:
+  - `backend/scripts/dev/validate-phase14-mvp.ps1`
+- release boundary tests:
+  - `backend/tests/test_erp_approval_release_boundary.py`
+- final MVP report:
+  - `reports/phase14_final_mvp_closure.md`
+- graph version updated to `phase14`.
+- STOP rules documented: no further connector, simulation, audit workspace, mapper diagnostics, profile notes, benchmark, live ERP, or ERP write-action expansion in this MVP closure.
 
 ## Historical Infrastructure Context
 
@@ -221,6 +236,6 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 
 ## Recommended Next Steps
 
-1. start Phase 14 with a local connector profile editor or richer read-only mapper diagnostics, still using fixtures/fake transports only.
+1. stop MVP expansion at Phase 14 unless a future task explicitly opens a new phase.
 2. keep connector outputs normalized into `ApprovalContextRecord` and never add write operations.
 3. keep all real and mock ERP writes out of scope until a separate guarded execution phase.
