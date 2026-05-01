@@ -97,6 +97,7 @@ class ErpApprovalConnectorApiTests(unittest.TestCase):
 
         with patch("urllib.request.urlopen", side_effect=AssertionError("network should not be accessed")):
             fixtures_response = client.get("/api/erp-approval/connectors/replay/fixtures")
+            coverage_response = client.get("/api/erp-approval/connectors/replay/coverage")
             replay_response = client.get(
                 "/api/erp-approval/connectors/replay",
                 params={
@@ -117,7 +118,12 @@ class ErpApprovalConnectorApiTests(unittest.TestCase):
             )
 
         self.assertEqual(fixtures_response.status_code, 200)
-        self.assertEqual(len(fixtures_response.json()), 4)
+        self.assertEqual(len(fixtures_response.json()), 32)
+        self.assertEqual(coverage_response.status_code, 200)
+        coverage_payload = coverage_response.json()
+        self.assertEqual(coverage_payload["total_items"], 32)
+        self.assertEqual(coverage_payload["failed_items"], 0)
+        self.assertIn("No ERP network or write action was executed", coverage_payload["non_action_statement"])
         self.assertEqual(replay_response.status_code, 200)
         replay_payload = replay_response.json()
         self.assertEqual(replay_payload["status"], "success")
@@ -143,6 +149,21 @@ class ErpApprovalConnectorApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertNotIn("secret", response.text.lower())
+
+    def test_connector_api_has_no_live_connect_or_execute_routes(self) -> None:
+        app = FastAPI()
+        app.include_router(erp_approval_api.router, prefix="/api")
+
+        connector_routes = [
+            getattr(route, "path", "")
+            for route in app.routes
+            if getattr(route, "path", "").startswith("/api/erp-approval/connectors")
+        ]
+
+        self.assertTrue(any(path.endswith("/replay/coverage") for path in connector_routes))
+        self.assertFalse(any("/execute" in path for path in connector_routes))
+        self.assertFalse(any("/test-live" in path for path in connector_routes))
+        self.assertFalse(any(path.endswith("/connect") for path in connector_routes))
 
 
 if __name__ == "__main__":

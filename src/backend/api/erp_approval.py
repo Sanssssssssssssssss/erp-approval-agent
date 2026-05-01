@@ -21,6 +21,7 @@ from src.backend.domains.erp_approval import (
     append_reviewer_note,
     build_audit_package,
     build_connector_registry_from_env,
+    build_replay_coverage_matrix,
     build_saved_audit_package_manifest,
     build_simulation_record,
     connector_selection_summary,
@@ -122,6 +123,11 @@ async def get_erp_approval_connector_profile(provider: str) -> dict:
 @router.get("/erp-approval/connectors/replay/fixtures")
 async def list_erp_approval_connector_replay_fixtures() -> list[dict]:
     return [fixture.model_dump() for fixture in list_provider_fixtures(_connector_base_dir())]
+
+
+@router.get("/erp-approval/connectors/replay/coverage")
+async def get_erp_approval_connector_replay_coverage() -> dict:
+    return build_replay_coverage_matrix(_connector_base_dir(), _now()).model_dump()
 
 
 @router.get("/erp-approval/connectors/replay")

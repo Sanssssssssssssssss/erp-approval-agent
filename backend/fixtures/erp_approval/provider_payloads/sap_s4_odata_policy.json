@@ -1,0 +1,1 @@
+{"d":{"results":[{"PolicyId":"POL-DEMO-APPROVAL","title":"SAP S/4HANA approval policy POL-DEMO-APPROVAL","Description":"Representative read-only approval policy context for mapping coverage.","PolicyName":"Demo approval matrix policy","Threshold":"manager_review"}]}}

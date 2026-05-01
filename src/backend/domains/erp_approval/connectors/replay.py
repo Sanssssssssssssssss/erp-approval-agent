@@ -18,7 +18,19 @@ from src.backend.domains.erp_approval.connectors.replay_models import (
 
 
 _KNOWN_PROVIDERS = sorted(PROVIDER_PROFILES.keys(), key=len, reverse=True)
-_FIXTURE_OPERATION_ALIASES = {"purchase_requisition": "approval_request"}
+_FIXTURE_OPERATION_ALIASES = {
+    "purchase_requisition": "approval_request",
+    "approval_request": "approval_request",
+    "vendor": "vendor",
+    "budget": "budget",
+    "purchase_order": "purchase_order",
+    "po": "purchase_order",
+    "invoice": "invoice",
+    "goods_receipt": "goods_receipt",
+    "grn": "goods_receipt",
+    "contract": "contract",
+    "policy": "policy",
+}
 
 
 def list_provider_fixtures(base_dir) -> list[ErpConnectorReplayFixtureInfo]:
@@ -45,9 +57,13 @@ def load_provider_fixture(base_dir, fixture_name: str) -> dict:
 
 def replay_provider_fixture(base_dir, request: ErpConnectorReplayRequest, now: str) -> ErpConnectorReplayRecord:
     warnings: list[str] = []
-    fixture_name = Path(str(request.fixture_name or "")).name
+    requested_fixture_name = str(request.fixture_name or "")
+    fixture_name = Path(requested_fixture_name).name
     records = []
     status = "success"
+    if not fixture_name or fixture_name != requested_fixture_name:
+        warnings.append("Fixture name must be a local fixture filename.")
+        status = "failed"
     if not request.dry_run:
         warnings.append("Fixture replay requires dry_run=true.")
         status = "blocked"

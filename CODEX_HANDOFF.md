@@ -2,7 +2,7 @@
 
 Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
 
-Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Phase 8 added a local audit package workspace with saved manifests and append-only reviewer notes. Phase 9 added a local mock action simulation sandbox and simulation ledger. Phase 10 added a read-only ERP connector interface and registry that defaults to mock. Phase 11 hardened connector env loading, opt-in gates, diagnostics, redaction, health/profile APIs, and representative provider payload mapping fixtures. Phase 12 added local connector fixture replay and frontend diagnostics UX. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics/local-audit/local-simulation/connector-interface-only boundaries.
+Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Phase 8 added a local audit package workspace with saved manifests and append-only reviewer notes. Phase 9 added a local mock action simulation sandbox and simulation ledger. Phase 10 added a read-only ERP connector interface and registry that defaults to mock. Phase 11 hardened connector env loading, opt-in gates, diagnostics, redaction, health/profile APIs, and representative provider payload mapping fixtures. Phase 12 added local connector fixture replay and frontend diagnostics UX. Phase 13 expanded mapping fixtures across read-only ERP context operations and added a local replay coverage matrix. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics/local-audit/local-simulation/connector-interface-only boundaries.
 
 ## First Read
 
@@ -62,7 +62,7 @@ bootstrap
 -> finalize
 ```
 
-It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. Phase 4 added proposed-only action drafts with validation and idempotency fields. Phase 5 writes local trace records from structured graph state and exposes read-only analytics summaries. Phase 6 turns those records into a read-only trace explorer. Phase 7 persists action proposal records and builds temporary audit packages for internal review. Phase 8 lets reviewers save local package manifests and append local reviewer notes. Phase 9 lets reviewers run local dry-run simulations of proposed future action paths. Phase 10 routes ERP context through a read-only connector registry; the default connector remains mock. Phase 11 adds explicit read-only opt-in and no-network defaults for connector configuration plus redacted diagnostics. Phase 12 adds local fixture replay for mapping diagnostics without live ERP network access. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
+It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. Phase 4 added proposed-only action drafts with validation and idempotency fields. Phase 5 writes local trace records from structured graph state and exposes read-only analytics summaries. Phase 6 turns those records into a read-only trace explorer. Phase 7 persists action proposal records and builds temporary audit packages for internal review. Phase 8 lets reviewers save local package manifests and append local reviewer notes. Phase 9 lets reviewers run local dry-run simulations of proposed future action paths. Phase 10 routes ERP context through a read-only connector registry; the default connector remains mock. Phase 11 adds explicit read-only opt-in and no-network defaults for connector configuration plus redacted diagnostics. Phase 12 adds local fixture replay for mapping diagnostics without live ERP network access. Phase 13 adds multi-operation fixture replay coverage, still local-only and not a live ERP integration test. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
 
 Current capabilities:
 
@@ -81,6 +81,7 @@ Current capabilities:
 - read-only connector config, health, and profile APIs.
 - representative provider payload mapping fixtures for SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON.
 - local fixture replay API and frontend diagnostics panel for connector profile/mapper readiness.
+- local replay coverage matrix across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy fixtures.
 - read-only trace/proposal/audit APIs plus local audit workspace and simulation POST endpoints under `/api/erp-approval/*`.
 - frontend `Insights` tab for trace-based summary counts, filters, drill-down, proposal records, audit package download, saved package workspace, reviewer notes, local simulation, export, and trend buckets.
 
@@ -108,6 +109,7 @@ Trace analytics rules:
 - never commit production ERP credentials; connector diagnostics must show only variable names and presence booleans, never secret values.
 - non-mock connectors require explicit read-only opt-in, and opt-in still does not enable network access by itself.
 - connector fixture replay must stay local-only and must not call HTTP connector network methods.
+- connector replay coverage is a mapper readiness diagnostic, not a benchmark or live ERP integration proof.
 
 ## Legacy Compatibility
 
@@ -153,7 +155,8 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_connectors `
   backend.tests.test_erp_approval_connector_config `
   backend.tests.test_erp_approval_connector_api `
-  backend.tests.test_erp_approval_connector_replay
+  backend.tests.test_erp_approval_connector_replay `
+  backend.tests.test_erp_approval_connector_coverage
 ```
 
 Legacy RFP/security compatibility smoke benchmark:

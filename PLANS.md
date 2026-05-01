@@ -275,13 +275,14 @@ Done when:
 
 Status: complete for local fixture replay models/service, GET-only replay API, redaction of sensitive query params, frontend connector diagnostics panel, and replay validation.
 
-## Phase 13: Read-Only Connector Mapping Expansion
+## Phase 13: Read-Only Connector Mapping Coverage Expansion + Replay Coverage Matrix
 
 Scope:
 
 - add more representative fixture payloads for read-only operations beyond purchase requisition.
 - keep all mapping examples local and non-production.
-- optionally add a local-only profile editor or mapping coverage view.
+- add a local replay coverage matrix for provider, operation, fixture, and mapper output completeness.
+- expose a GET-only coverage API and frontend diagnostics view.
 - no live ERP network access.
 - no ERP action execution.
 
@@ -290,6 +291,24 @@ Done when:
 - more connector operation shapes can be inspected locally.
 - mapper coverage remains explicit and conservative.
 - no connector is treated as an action executor.
+
+Status: complete for four-provider by eight-operation fixture coverage, operation-specific entity id extraction, GET-only replay coverage API, tests, and frontend coverage diagnostics.
+
+## Phase 14: Local Connector Profile Editing Or Deeper Mapper Diagnostics
+
+Scope:
+
+- consider local-only profile notes or richer fixture diagnostics.
+- keep all profile edits local review artifacts, not live connector changes by default.
+- continue using fixtures and fake transports only.
+- no live ERP network access.
+- no ERP action execution.
+
+Done when:
+
+- reviewers can better understand mapper readiness without creating a production connector claim.
+- all config and diagnostics remain redacted.
+- no write operation or capability invocation is introduced.
 
 ## Historical Infrastructure Notes
 

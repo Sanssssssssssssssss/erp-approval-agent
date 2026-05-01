@@ -17,32 +17,42 @@ from src.backend.domains.erp_approval import (
 )
 
 
+EXPECTED_PROVIDERS = {"sap_s4_odata", "dynamics_fo_odata", "oracle_fusion_rest", "custom_http_json"}
+EXPECTED_OPERATIONS = {
+    "approval_request",
+    "vendor",
+    "budget",
+    "purchase_order",
+    "invoice",
+    "goods_receipt",
+    "contract",
+    "policy",
+}
+
+
 class ErpApprovalConnectorReplayTests(unittest.TestCase):
-    def test_list_provider_fixtures_returns_four_provider_fixtures(self) -> None:
+    def test_list_provider_fixtures_returns_provider_operation_matrix(self) -> None:
         fixtures = list_provider_fixtures(BACKEND_DIR)
 
-        self.assertEqual(len(fixtures), 4)
-        self.assertEqual(
-            {fixture.provider for fixture in fixtures},
-            {"sap_s4_odata", "dynamics_fo_odata", "oracle_fusion_rest", "custom_http_json"},
-        )
-        self.assertTrue(all(fixture.operation == "approval_request" for fixture in fixtures))
+        self.assertEqual(len(fixtures), 32)
+        self.assertEqual({fixture.provider for fixture in fixtures}, EXPECTED_PROVIDERS)
+        self.assertEqual({fixture.operation for fixture in fixtures}, EXPECTED_OPERATIONS)
+        by_provider = {
+            provider: [fixture for fixture in fixtures if fixture.provider == provider]
+            for provider in {fixture.provider for fixture in fixtures}
+        }
+        self.assertTrue(all(len(provider_fixtures) == 8 for provider_fixtures in by_provider.values()))
 
     def test_replay_provider_fixtures_output_context_records(self) -> None:
-        cases = [
-            ("sap_s4_odata", "sap_s4_odata_purchase_requisition.json"),
-            ("dynamics_fo_odata", "dynamics_fo_odata_purchase_requisition.json"),
-            ("oracle_fusion_rest", "oracle_fusion_rest_purchase_requisition.json"),
-            ("custom_http_json", "custom_http_json_purchase_requisition.json"),
-        ]
+        cases = [(fixture.provider, fixture.operation, fixture.fixture_name) for fixture in list_provider_fixtures(BACKEND_DIR)]
 
-        for provider, fixture_name in cases:
-            with self.subTest(provider=provider):
+        for provider, operation, fixture_name in cases:
+            with self.subTest(provider=provider, operation=operation):
                 record = replay_provider_fixture(
                     BACKEND_DIR,
                     ErpConnectorReplayRequest(
                         provider=provider,
-                        operation="approval_request",
+                        operation=operation,
                         fixture_name=fixture_name,
                         approval_id="PR-1001",
                         correlation_id=f"corr-{provider}",
@@ -55,17 +65,41 @@ class ErpApprovalConnectorReplayTests(unittest.TestCase):
                 self.assertTrue(record.dry_run)
                 self.assertEqual(record.record_count, 1)
                 self.assertEqual(len(record.records), 1)
-                self.assertTrue(record.source_ids[0].startswith(f"{provider}://approval_request/"))
+                self.assertTrue(record.source_ids[0].startswith(f"{provider}://{operation}/"))
                 self.assertTrue(record.validation.passed)
                 self.assertIn("No ERP network or write action was executed", record.non_action_statement)
                 context_record = record.records[0]
                 self.assertTrue(context_record.source_id)
                 self.assertTrue(context_record.title)
-                self.assertTrue(context_record.record_type)
+                self.assertEqual(context_record.record_type, operation)
                 self.assertTrue(context_record.content)
                 self.assertTrue(context_record.metadata["read_only"])
                 self.assertEqual(context_record.metadata["provider"], provider)
-                self.assertEqual(context_record.metadata["operation"], "approval_request")
+                self.assertEqual(context_record.metadata["operation"], operation)
+
+    def test_replay_succeeds_for_each_read_only_operation(self) -> None:
+        fixtures = list_provider_fixtures(BACKEND_DIR)
+
+        for operation in EXPECTED_OPERATIONS:
+            fixture = next(item for item in fixtures if item.operation == operation)
+            with self.subTest(operation=operation):
+                record = replay_provider_fixture(
+                    BACKEND_DIR,
+                    ErpConnectorReplayRequest(
+                        provider=fixture.provider,
+                        operation=fixture.operation,
+                        fixture_name=fixture.fixture_name,
+                        approval_id="PR-1001",
+                        correlation_id=f"operation-{operation}",
+                    ),
+                    "2026-05-01T00:00:00+00:00",
+                )
+
+                self.assertEqual(record.status, "success")
+                self.assertFalse(record.network_accessed)
+                self.assertTrue(record.validation.passed)
+                self.assertEqual(record.records[0].record_type, operation)
+                self.assertTrue(record.records[0].source_id.startswith(f"{fixture.provider}://{operation}/"))
 
     def test_replay_validation_detects_missing_fields_without_network(self) -> None:
         record = replay_provider_fixture(
@@ -114,6 +148,33 @@ class ErpApprovalConnectorReplayTests(unittest.TestCase):
         self.assertEqual(missing.status, "failed")
         self.assertFalse(missing.network_accessed)
         self.assertEqual(missing.non_action_statement, ERP_CONNECTOR_REPLAY_NON_ACTION_STATEMENT)
+
+    def test_operation_mismatch_and_path_traversal_do_not_crash_or_access_network(self) -> None:
+        mismatch = replay_provider_fixture(
+            BACKEND_DIR,
+            ErpConnectorReplayRequest(
+                provider="sap_s4_odata",
+                operation="vendor",
+                fixture_name="sap_s4_odata_purchase_requisition.json",
+                approval_id="PR-1001",
+            ),
+            "2026-05-01T00:00:00+00:00",
+        )
+        traversal = replay_provider_fixture(
+            BACKEND_DIR,
+            ErpConnectorReplayRequest(
+                provider="sap_s4_odata",
+                operation="vendor",
+                fixture_name="../sap_s4_odata_vendor.json",
+                approval_id="PR-1001",
+            ),
+            "2026-05-01T00:00:00+00:00",
+        )
+
+        self.assertEqual(mismatch.status, "blocked")
+        self.assertFalse(mismatch.network_accessed)
+        self.assertEqual(traversal.status, "failed")
+        self.assertFalse(traversal.network_accessed)
 
     def test_replay_requires_dry_run_and_confirm_no_network(self) -> None:
         record = replay_provider_fixture(

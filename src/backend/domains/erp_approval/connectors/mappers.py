@@ -68,22 +68,81 @@ def _entity_id_for(operation: str, payload: dict[str, Any], request: ErpReadRequ
         "contract": request.contract_id,
         "policy": request.approval_type,
     }
-    explicit = str(
-        payload.get("id")
-        or payload.get("ID")
-        or payload.get("Id")
-        or payload.get("approval_id")
-        or payload.get("ApprovalId")
-        or payload.get("PurchaseRequisition")
-        or payload.get("PurchaseRequisitionNumber")
-        or payload.get("purchaseRequisitionNumber")
-        or payload.get("Requisition")
-        or payload.get("name")
-        or ""
-    ).strip()
+    explicit = _first_payload_value(
+        payload,
+        [
+            "id",
+            "ID",
+            "Id",
+            "approval_id",
+            "ApprovalId",
+            "PurchaseRequisition",
+            "PurchaseRequisitionNumber",
+            "purchaseRequisitionNumber",
+            "Requisition",
+            *_operation_id_keys(operation),
+            "name",
+        ],
+    )
     return explicit or request_mapping.get(operation, "") or "unknown"
 
 
 def _title_for(provider: ErpConnectorProvider, operation: ErpReadOperation | str, entity_id: str, payload: dict[str, Any]) -> str:
     label = payload.get("display_name") or payload.get("name") or payload.get("Description") or payload.get("description") or entity_id
     return f"{provider} {operation} {label}".strip()
+
+
+def _first_payload_value(payload: dict[str, Any], keys: list[str]) -> str:
+    for key in keys:
+        value = payload.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    return ""
+
+
+def _operation_id_keys(operation: str) -> list[str]:
+    return {
+        "vendor": [
+            "Vendor",
+            "VendorId",
+            "Supplier",
+            "SupplierId",
+            "BusinessPartner",
+            "vendor_id",
+            "supplier_id",
+        ],
+        "budget": [
+            "CostCenter",
+            "cost_center",
+            "BudgetId",
+            "budget_id",
+        ],
+        "purchase_order": [
+            "PurchaseOrder",
+            "PurchaseOrderNumber",
+            "purchase_order_id",
+            "po_number",
+        ],
+        "invoice": [
+            "Invoice",
+            "InvoiceNumber",
+            "invoice_id",
+        ],
+        "goods_receipt": [
+            "GoodsReceipt",
+            "GoodsReceiptNumber",
+            "GRN",
+            "goods_receipt_id",
+        ],
+        "contract": [
+            "Contract",
+            "ContractNumber",
+            "contract_id",
+        ],
+        "policy": [
+            "PolicyId",
+            "policy_id",
+            "PolicyName",
+            "policy_name",
+        ],
+    }.get(operation, [])

@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 12: Read-only Connector Fixture Replay + Diagnostics UX.
+Phase 13: Read-only Connector Mapping Coverage Expansion + Replay Coverage Matrix.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, Phase 11 hardened connector configuration, and Phase 12 adds local connector replay diagnostics:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, Phase 11 hardened connector configuration, Phase 12 added local connector replay diagnostics, and Phase 13 added multi-entity replay coverage:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 12: ERP connector diagnostics now include local fixture replay for provider payload mapping. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, and representative provider payload fixtures. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only. Phase 12 does not call production ERP systems, does not invoke capabilities, and does not execute mock or real actions.
+The current active capability is Phase 13: ERP connector diagnostics now include local fixture replay coverage across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy mapping examples. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, and representative provider payload fixtures. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only. Phase 13 does not call production ERP systems, does not invoke capabilities, and does not execute mock or real actions.
 
 ## Active Product Direction
 
@@ -33,6 +33,7 @@ Current positioning:
 - read-only ERP connector registry with mock default.
 - hardened connector env loading, redaction, diagnostics, provider profiles, and mapping fixtures.
 - local connector fixture replay harness and frontend diagnostics UX.
+- local connector replay coverage matrix.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -152,6 +153,17 @@ Current positioning:
 - enhanced redaction for sensitive URL query parameters such as `token`, `api_key`, `password`, `secret`, and `signature`.
 - frontend `Connector diagnostics` panel under `Insights` with redacted config, health, provider profiles, fixture selector, local replay result, and `network_accessed=false` visibility.
 
+## Completed Phase 13 Capabilities
+
+- representative provider payload fixtures now cover four providers across eight read-only operations.
+- operation slug detection covers approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy fixtures.
+- provider payload mapper extracts operation-specific entity ids while preserving read-only metadata.
+- replay coverage matrix reports total, passed, failed, by-provider, and by-operation counts.
+- GET-only coverage API:
+  - `GET /api/erp-approval/connectors/replay/coverage`
+- frontend `Connector diagnostics` panel shows the coverage summary, grouped counts, warnings, and failed checks.
+- coverage remains local fixture replay only, not a benchmark and not a live ERP integration test.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -203,12 +215,12 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 - action simulation ledger is local dry-run storage, not an action execution ledger.
 - connector profiles are read-only interface metadata, not production ERP integrations.
 - connector diagnostics and APIs must never expose secret values.
-- fixture replay is local mapping replay only, not live ERP testing.
+- fixture replay and replay coverage are local mapping diagnostics only, not live ERP testing.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 13 with read-only connector mapping coverage expansion or a local connector profile editor, still using fixtures/fake transports only.
+1. start Phase 14 with a local connector profile editor or richer read-only mapper diagnostics, still using fixtures/fake transports only.
 2. keep connector outputs normalized into `ApprovalContextRecord` and never add write operations.
 3. keep all real and mock ERP writes out of scope until a separate guarded execution phase.

@@ -4,6 +4,11 @@ from src.backend.domains.erp_approval.connectors.config import (
     load_erp_connector_config_from_env,
     redacted_connector_config,
 )
+from src.backend.domains.erp_approval.connectors.coverage import build_replay_coverage_matrix
+from src.backend.domains.erp_approval.connectors.coverage_models import (
+    ErpConnectorReplayCoverageItem,
+    ErpConnectorReplayCoverageSummary,
+)
 from src.backend.domains.erp_approval.connectors.diagnostics import (
     ErpConnectorDiagnostic,
     ErpConnectorHealthSummary,
@@ -55,6 +60,8 @@ __all__ = [
     "ErpConnectorProvider",
     "ErpConnectorProviderProfileSummary",
     "ErpConnectorReplayFixtureInfo",
+    "ErpConnectorReplayCoverageItem",
+    "ErpConnectorReplayCoverageSummary",
     "ErpConnectorReplayRecord",
     "ErpConnectorReplayRequest",
     "ErpConnectorReplaySummary",
@@ -65,6 +72,7 @@ __all__ = [
     "ErpReadResult",
     "HttpReadOnlyErpConnector",
     "connector_selection_summary",
+    "build_replay_coverage_matrix",
     "load_erp_connector_config_from_env",
     "list_provider_fixtures",
     "load_provider_fixture",

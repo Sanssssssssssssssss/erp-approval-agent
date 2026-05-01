@@ -361,6 +361,28 @@ export type ErpConnectorReplayRecord = {
   non_action_statement: string;
 };
 
+export type ErpConnectorReplayCoverageItem = {
+  provider: string;
+  operation: string;
+  fixture_name: string;
+  replay_status: string;
+  validation_passed: boolean;
+  record_count: number;
+  source_ids: string[];
+  warnings: string[];
+  failed_checks: string[];
+};
+
+export type ErpConnectorReplayCoverageSummary = {
+  total_items: number;
+  passed_items: number;
+  failed_items: number;
+  by_provider: Record<string, number>;
+  by_operation: Record<string, number>;
+  items: ErpConnectorReplayCoverageItem[];
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -1021,6 +1043,10 @@ export async function listErpApprovalConnectorProfiles() {
 
 export async function listErpApprovalConnectorReplayFixtures() {
   return request<ErpConnectorReplayFixtureInfo[]>("/erp-approval/connectors/replay/fixtures");
+}
+
+export async function getErpApprovalConnectorReplayCoverage() {
+  return request<ErpConnectorReplayCoverageSummary>("/erp-approval/connectors/replay/coverage");
 }
 
 export async function replayErpApprovalConnectorFixture(params: {

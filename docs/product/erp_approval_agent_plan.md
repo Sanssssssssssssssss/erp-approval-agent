@@ -22,6 +22,7 @@ Current implementation:
 - Phase 10 read-only ERP connector interface and registry exist.
 - Phase 11 read-only connector configuration hardening, redacted diagnostics, health/profile APIs, and provider mapping fixtures exist.
 - Phase 12 read-only connector fixture replay and diagnostics UX exist.
+- Phase 13 read-only connector mapping coverage expansion and local replay coverage matrix exist.
 - no live ERP connector is enabled by default.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.
@@ -69,7 +70,7 @@ bootstrap
 -> finalize
 ```
 
-Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Phase 12 adds local fixture replay diagnostics for provider profile and mapper readiness without network access. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Phase 12 adds local fixture replay diagnostics for provider profile and mapper readiness without network access. Phase 13 expands those local fixtures across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy operations, then summarizes mapper readiness in a replay coverage matrix. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
@@ -123,7 +124,7 @@ Current Phase 3 HITL semantics are narrower: the reviewer accepts, rejects, or e
 
 Current Phase 4 action proposals are also non-executing. They can describe request-more-info, internal-comment, routing, or manual-review drafts, but every proposal is `executable=false` and says no ERP write action was executed.
 
-Current Phase 5 trace analytics are implemented as local structured JSONL records and read-only summary endpoints. Phase 6 adds a trace explorer over those records. Phase 7 adds a separate action proposal ledger and audit package builder. Phase 8 adds saved package manifests and local reviewer notes. Phase 9 adds local simulation records for proposed action paths. Phase 10 adds read-only connector interfaces and disabled provider profile skeletons. Analytics, audit packages, simulations, and connector context are derived from structured fields such as recommendation status, review status, missing information, risk flags, guard warnings, proposal idempotency fields, and proposal validation results. Text filters match structured fields such as approval ID, requester, vendor, cost center, and trace ID. They do not parse final answer text, call an ERP system by default, execute mock actions, or claim benchmark accuracy.
+Current Phase 5 trace analytics are implemented as local structured JSONL records and read-only summary endpoints. Phase 6 adds a trace explorer over those records. Phase 7 adds a separate action proposal ledger and audit package builder. Phase 8 adds saved package manifests and local reviewer notes. Phase 9 adds local simulation records for proposed action paths. Phase 10 adds read-only connector interfaces and disabled provider profile skeletons. Phase 13 connector coverage is also local fixture replay only; it is mapper readiness diagnostics, not ERP integration proof. Analytics, audit packages, simulations, and connector context are derived from structured fields such as recommendation status, review status, missing information, risk flags, guard warnings, proposal idempotency fields, and proposal validation results. Text filters match structured fields such as approval ID, requester, vendor, cost center, and trace ID. They do not parse final answer text, call an ERP system by default, execute mock actions, or claim benchmark accuracy.
 
 ## Minimal Future Data Model
 
@@ -290,13 +291,21 @@ Early phases can use mock records with normalized context fields:
   - validation
   - network_accessed
   - non_action_statement
+- erp_connector_replay_coverage_summary
+  - total_items
+  - passed_items
+  - failed_items
+  - by_provider
+  - by_operation
+  - items
+  - non_action_statement
 
 ## Non-Goals For Early Phases
 
 - no live SAP, Dynamics, Oracle, or custom ERP connector enabled by default in early phases.
 - no connector diagnostics/API/logs may expose secret values.
 - no non-mock connector should be selected without explicit read-only opt-in plus explicit network allowance.
-- no fixture replay should be described as a live ERP test.
+- no fixture replay or replay coverage should be described as a live ERP test, benchmark, or production integration proof.
 - no production ERP write actions in early graph skeleton and HITL review work.
 - no action proposal is a tool call or ERP connector call.
 - no autonomous approve/reject behavior.
@@ -316,4 +325,4 @@ Early phases can use mock records with normalized context fields:
 
 LangGraph should remain the graph layer because ERP approval reasoning benefits from explicit stages: intake, retrieval, policy context, reasoning, self-check, HITL gate, action proposal, and audit finalization.
 
-The existing knowledge retrieval and context abstractions should remain because ERP approvals need policy and business context retrieval without coupling the runtime to a specific connector or index. Phase 2 introduced read-only adapter interfaces first, with mock context records only. Phase 10 adds a connector registry around that boundary while keeping mock as the default and live network access disabled. Phase 11 keeps the same boundary but makes connector selection safer and more inspectable through local redacted diagnostics. Phase 12 adds local fixture replay so provider payload examples can be mapped into `ApprovalContextRecord` records without any ERP network call. This is still not a live SAP, Dynamics, Oracle, or custom ERP integration.
+The existing knowledge retrieval and context abstractions should remain because ERP approvals need policy and business context retrieval without coupling the runtime to a specific connector or index. Phase 2 introduced read-only adapter interfaces first, with mock context records only. Phase 10 adds a connector registry around that boundary while keeping mock as the default and live network access disabled. Phase 11 keeps the same boundary but makes connector selection safer and more inspectable through local redacted diagnostics. Phase 12 adds local fixture replay so provider payload examples can be mapped into `ApprovalContextRecord` records without any ERP network call. Phase 13 expands those fixtures into a coverage matrix over representative read-only operations, still using local JSON only. This is still not a live SAP, Dynamics, Oracle, or custom ERP integration.

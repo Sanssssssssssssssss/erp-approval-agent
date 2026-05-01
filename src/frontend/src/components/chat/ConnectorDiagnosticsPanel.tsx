@@ -6,6 +6,7 @@ import {
   ApiConnectionError,
   getErpApprovalConnectorConfig,
   getErpApprovalConnectorHealth,
+  getErpApprovalConnectorReplayCoverage,
   listErpApprovalConnectorProfiles,
   listErpApprovalConnectorReplayFixtures,
   replayErpApprovalConnectorFixture
@@ -14,6 +15,7 @@ import type {
   ErpConnectorConfigResponse,
   ErpConnectorHealthSummary,
   ErpConnectorProviderProfileSummary,
+  ErpConnectorReplayCoverageSummary,
   ErpConnectorReplayFixtureInfo,
   ErpConnectorReplayRecord
 } from "@/lib/api";
@@ -37,6 +39,22 @@ function MiniList({ values }: { values: string[] }) {
   );
 }
 
+function CountList({ counts }: { counts: Record<string, number> }) {
+  const entries = Object.entries(counts);
+  if (!entries.length) {
+    return <span className="text-[var(--color-ink-muted)]">none</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {entries.map(([label, count]) => (
+        <span className="pixel-tag" key={label}>
+          {label} {count}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function configValue(config: ErpConnectorConfigResponse | null, key: string) {
   const value = config?.config?.[key];
   if (value === undefined || value === null || value === "") {
@@ -50,6 +68,7 @@ export function ConnectorDiagnosticsPanel() {
   const [health, setHealth] = useState<ErpConnectorHealthSummary | null>(null);
   const [profiles, setProfiles] = useState<ErpConnectorProviderProfileSummary[]>([]);
   const [fixtures, setFixtures] = useState<ErpConnectorReplayFixtureInfo[]>([]);
+  const [coverage, setCoverage] = useState<ErpConnectorReplayCoverageSummary | null>(null);
   const [selectedFixtureName, setSelectedFixtureName] = useState("");
   const [approvalId, setApprovalId] = useState("PR-1001");
   const [correlationId, setCorrelationId] = useState("ui-connector-replay");
@@ -70,13 +89,15 @@ export function ConnectorDiagnosticsPanel() {
       getErpApprovalConnectorConfig(),
       getErpApprovalConnectorHealth(),
       listErpApprovalConnectorProfiles(),
-      listErpApprovalConnectorReplayFixtures()
+      listErpApprovalConnectorReplayFixtures(),
+      getErpApprovalConnectorReplayCoverage()
     ])
-      .then(([configPayload, healthPayload, profilePayload, fixturePayload]) => {
+      .then(([configPayload, healthPayload, profilePayload, fixturePayload, coveragePayload]) => {
         setConfig(configPayload);
         setHealth(healthPayload);
         setProfiles(profilePayload);
         setFixtures(fixturePayload);
+        setCoverage(coveragePayload);
         setSelectedFixtureName((current) =>
           fixturePayload.some((fixture) => fixture.fixture_name === current) ? current : fixturePayload[0]?.fixture_name ?? ""
         );
@@ -175,6 +196,73 @@ export function ConnectorDiagnosticsPanel() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="pixel-card-soft mt-4 p-4 text-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="pixel-label">replay coverage matrix</p>
+            <p className="mt-2 text-[var(--color-ink-soft)]">
+              Coverage is local fixture replay only. It is not a live ERP integration test.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-right">
+            <div>
+              <p className="pixel-label">total</p>
+              <p className="text-[var(--color-ink)]">{coverage?.total_items ?? 0}</p>
+            </div>
+            <div>
+              <p className="pixel-label">passed</p>
+              <p className="text-[var(--color-ink)]">{coverage?.passed_items ?? 0}</p>
+            </div>
+            <div>
+              <p className="pixel-label">failed</p>
+              <p className="text-[var(--color-ink)]">{coverage?.failed_items ?? 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <p className="pixel-label mb-2">by provider</p>
+            <CountList counts={coverage?.by_provider ?? {}} />
+          </div>
+          <div>
+            <p className="pixel-label mb-2">by operation</p>
+            <CountList counts={coverage?.by_operation ?? {}} />
+          </div>
+        </div>
+        <div className="mt-4 max-h-72 space-y-2 overflow-auto pr-2">
+          {(coverage?.items ?? []).map((item) => (
+            <div className="border-t border-[var(--color-line)] pt-3" key={`${item.provider}-${item.fixture_name}`}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[var(--color-ink)]">
+                  {item.provider} / {item.operation}
+                </span>
+                <span className="pixel-tag">
+                  {item.replay_status} / validation={String(item.validation_passed)}
+                </span>
+              </div>
+              <p className="mt-1 break-all text-xs text-[var(--color-ink-muted)]">{item.fixture_name}</p>
+              <p className="mt-2 text-[var(--color-ink-soft)]">records {item.record_count}</p>
+              {item.failed_checks.length ? (
+                <div className="mt-2">
+                  <p className="pixel-label mb-2">failed checks</p>
+                  <MiniList values={item.failed_checks} />
+                </div>
+              ) : null}
+              {item.warnings.length ? (
+                <div className="mt-2">
+                  <p className="pixel-label mb-2">warnings</p>
+                  <MiniList values={item.warnings} />
+                </div>
+              ) : null}
+            </div>
+          ))}
+          {coverage && !coverage.items.length ? <p className="pixel-note">No connector replay fixtures found.</p> : null}
+        </div>
+        {coverage?.non_action_statement ? (
+          <p className="mt-3 text-[var(--color-ink-soft)]">{coverage.non_action_statement}</p>
+        ) : null}
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(300px,0.8fr)_minmax(420px,1.2fr)]">
