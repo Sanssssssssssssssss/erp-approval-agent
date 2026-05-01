@@ -15,6 +15,16 @@ function formatTokenUsage(usage: MessageUsage) {
 
 const DOODLE_FRAMES = ["[+__+]", "[+o_+]", "[+O_+]", "[+o_+]", "[+__+]", "[+^^+]"];
 
+function runStatusLabel(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === "interrupted") return "等待复核";
+  if (normalized === "resumed") return "已恢复";
+  if (normalized === "completed" || normalized === "success") return "已完成";
+  if (normalized === "running") return "运行中";
+  if (normalized === "failed" || normalized === "error") return "失败";
+  return status;
+}
+
 function StreamingThinking() {
   const [frameIndex, setFrameIndex] = useState(0);
 
@@ -98,7 +108,7 @@ export const ChatMessage = memo(function ChatMessage({
       {!isUser && runMeta ? (
         <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-[var(--color-ink-muted)]">
           <span className="pixel-tag">
-            {runMeta.status}
+            {runStatusLabel(runMeta.status)}
           </span>
           {runMeta.orchestration_engine ? (
             <span className="pixel-tag">{runMeta.orchestration_engine}</span>

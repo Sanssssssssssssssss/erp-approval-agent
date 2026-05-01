@@ -48,11 +48,11 @@ export function ChatPanel() {
   const { currentSessionId, sessions } = useSessionStore();
   const isErpRecommendationReview =
     pendingHitl?.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID;
-  const approveButtonLabel = isErpRecommendationReview ? "接受建议" : "通过复核";
-  const approvingButtonLabel = isErpRecommendationReview ? "正在接受..." : "正在通过...";
-  const rejectButtonLabel = isErpRecommendationReview ? "拒绝建议" : "拒绝";
+  const approveButtonLabel = isErpRecommendationReview ? "采用建议并继续" : "通过复核";
+  const approvingButtonLabel = isErpRecommendationReview ? "正在生成复核回执..." : "正在通过...";
+  const rejectButtonLabel = isErpRecommendationReview ? "拒绝这条建议" : "拒绝";
   const hitlReason = isErpRecommendationReview
-    ? "请复核 Agent 的 ERP 审批建议。接受或编辑建议不会执行任何 ERP 写入。"
+    ? "请复核 Agent 的 ERP 审批建议。这里的采用、编辑或拒绝只影响本地建议回执，不会执行任何 ERP 写入。"
     : pendingHitl?.reason ?? "";
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
@@ -290,7 +290,7 @@ export function ChatPanel() {
         {pendingHitl && currentSessionId ? (
           <div className="pixel-card-soft mb-4 flex max-h-[52vh] min-h-0 shrink-0 flex-col overflow-y-auto px-4 py-4 sm:max-h-[46vh]">
             <p className="pixel-label">
-              {isErpRecommendationReview ? "需要人工复核 ERP 建议" : "需要人工复核"}
+              {isErpRecommendationReview ? "需要人工复核 ERP 建议（不会执行 ERP）" : "需要人工复核"}
             </p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
               {isErpRecommendationReview ? "ERP 审批建议复核" : pendingHitl.display_name}
@@ -307,14 +307,6 @@ export function ChatPanel() {
               <button
                 className="ui-button"
                 disabled={isStreaming}
-                onClick={handleEditAndContinue}
-                type="button"
-              >
-                {isStreaming ? "正在提交编辑..." : "编辑后继续"}
-              </button>
-              <button
-                className="ui-button"
-                disabled={isStreaming}
                 onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
                 type="button"
               >
@@ -322,6 +314,11 @@ export function ChatPanel() {
               </button>
             </div>
             <p className="pixel-note mt-4">{hitlReason}</p>
+            {isErpRecommendationReview ? (
+              <p className="pixel-note mt-2">
+                普通复核只需要采用或拒绝建议；只有想改结构化建议内容时才使用 JSON 编辑。
+              </p>
+            ) : null}
             <div className="mt-4 min-h-0 pr-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="pixel-tag">{riskLabel(pendingHitl.risk_level)}</span>
@@ -329,16 +326,27 @@ export function ChatPanel() {
                 <span className="pixel-tag">checkpoint {pendingHitl.checkpoint_id.slice(0, 8)}</span>
               </div>
               <details className="hitl-payload-details mt-4">
-                <summary>查看审查 payload</summary>
+                <summary>高级：查看或编辑结构化建议 JSON</summary>
+                <p className="pixel-note mt-3">
+                  这里编辑的是 Agent 建议 payload，不是 ERP 单据，也不会触发 ERP 写入。
+                </p>
                 <pre>{prettyJson(pendingHitl.proposed_input)}</pre>
+                <label className="pixel-label mt-4 block">编辑 JSON 后继续（可选）</label>
+                <textarea
+                  className="mt-2 min-h-[120px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
+                  onChange={(event) => setEditedInputText(event.target.value)}
+                  value={editedInputText}
+                />
+                {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
+                <button
+                  className="ui-button mt-3"
+                  disabled={isStreaming}
+                  onClick={handleEditAndContinue}
+                  type="button"
+                >
+                  {isStreaming ? "正在提交编辑..." : "保存 JSON 编辑并继续"}
+                </button>
               </details>
-              <label className="pixel-label mt-4 block">编辑建议 payload</label>
-              <textarea
-                className="mt-2 min-h-[120px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
-                onChange={(event) => setEditedInputText(event.target.value)}
-                value={editedInputText}
-              />
-              {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
             </div>
           </div>
         ) : null}

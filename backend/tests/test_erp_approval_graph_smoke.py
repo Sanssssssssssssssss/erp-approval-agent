@@ -115,10 +115,10 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(state["answer_finalized"])
         self.assertEqual(state["erp_review_status"], "not_required")
-        self.assertIn("ERP approval recommendation", state["final_answer"])
-        self.assertIn("Action proposals", state["final_answer"])
-        self.assertIn("No ERP write action was executed.", state["final_answer"])
-        self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
+        self.assertIn("ERP 审批建议", state["final_answer"])
+        self.assertIn("后续动作草案", state["final_answer"])
+        self.assertIn("未执行任何 ERP 写入动作。", state["final_answer"])
+        self.assertIn("未执行任何 ERP 通过、驳回、付款、供应商、合同或预算写入动作。", state["final_answer"])
         self.assertTrue(state["erp_trace_write_result"]["success"])
         self.assertEqual(len(state["erp_proposal_write_results"]), 1)
         self.assertTrue(state["erp_proposal_write_results"][0]["success"])
@@ -156,7 +156,7 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             state.update(await node(state))
 
         self.assertTrue(state["answer_finalized"])
-        self.assertIn("ERP approval recommendation", state["final_answer"])
+        self.assertIn("ERP 审批建议", state["final_answer"])
         self.assertIsNone(state["erp_trace_write_result"])
         self.assertEqual(emitted_answers, [state["final_answer"]])
 

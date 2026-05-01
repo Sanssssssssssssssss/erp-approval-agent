@@ -147,30 +147,90 @@ def render_action_proposals(
     validation: ApprovalActionValidationResult,
 ) -> str:
     lines = [
-        "Action proposals",
+        "## 后续动作草案",
         "",
-        ACTION_PROPOSAL_NON_ACTION_STATEMENT,
-        "No ERP write action was executed.",
+        "以下内容只是本地草案，不会触发工具调用，也不会写入 ERP。",
+        "未执行任何 ERP 写入动作。",
     ]
     if not bundle.proposals:
-        lines.extend(["", "- none"])
+        lines.extend(["", "- 无可用动作草案。"])
     for proposal in bundle.proposals:
         lines.extend(
             [
                 "",
-                f"- proposal_id: {proposal.proposal_id}",
-                f"  action_type: {proposal.action_type}",
-                f"  status: {proposal.status}",
-                f"  summary: {proposal.summary or 'No summary provided.'}",
-                f"  requires_human_review: {'true' if proposal.requires_human_review else 'false'}",
-                f"  executable: {'true' if proposal.executable else 'false'}",
-                f"  idempotency_key: {proposal.idempotency_key}",
+                f"- proposal_id：{proposal.proposal_id}",
+                f"  动作类型：{_action_type_label(str(proposal.action_type))}",
+                f"  状态：{_proposal_status_label(str(proposal.status))}",
+                f"  摘要：{_proposal_summary_cn(proposal.action_type, proposal.summary)}",
+                f"  需要人工复核：{'需要' if proposal.requires_human_review else '不需要'}",
+                f"  可执行：{'false' if not proposal.executable else 'true'}",
+                f"  幂等键：{proposal.idempotency_key}",
             ]
         )
     if validation.warnings:
-        lines.extend(["", "Action proposal validation warnings:"])
-        lines.extend(f"- {warning}" for warning in validation.warnings)
+        lines.extend(["", "### 动作草案校验提示"])
+        lines.extend(f"- {_warning_cn(warning)}" for warning in validation.warnings)
     return "\n".join(lines).strip()
+
+
+def _action_type_label(action_type: str) -> str:
+    labels = {
+        "none": "无",
+        "request_more_info": "请求补充信息草案",
+        "add_internal_comment": "内部备注草案",
+        "route_to_manager": "转交经理复核草案",
+        "route_to_finance": "转交财务复核草案",
+        "route_to_procurement": "转交采购复核草案",
+        "route_to_legal": "转交法务复核草案",
+        "manual_review": "人工复核草案",
+    }
+    return labels.get(action_type, action_type)
+
+
+def _proposal_status_label(status: str) -> str:
+    labels = {
+        "proposed_only": "仅草案",
+        "blocked": "已阻断",
+        "rejected_by_validation": "校验拒绝",
+    }
+    return labels.get(status, status)
+
+
+def _proposal_summary_cn(action_type: str, summary: str) -> str:
+    value = str(summary or "")
+    prefix_replacements = {
+        "Prepare a request for more information:": "准备一份补充信息请求草案，内容包括：",
+        "Prepare an internal comment draft:": "准备一份内部备注草案，内容包括：",
+        "Prepare a routing draft:": "准备一份转交复核草案，内容包括：",
+        "Prepare a manual review entry:": "准备一份人工复核草案，内容包括：",
+    }
+    for source, target in prefix_replacements.items():
+        if value.startswith(source):
+            return f"{target}{value.removeprefix(source).strip()}".strip()
+    if any("\u4e00" <= char <= "\u9fff" for char in str(summary or "")):
+        return value
+    labels = {
+        "request_more_info": "准备一份补充信息请求草案，但不会发送。",
+        "add_internal_comment": "准备一份内部备注草案，但不会写入 ERP。",
+        "route_to_manager": "准备一份转交经理复核草案，但不会实际转交。",
+        "route_to_finance": "准备一份转交财务复核草案，但不会实际转交。",
+        "route_to_procurement": "准备一份转交采购复核草案，但不会实际转交。",
+        "route_to_legal": "准备一份转交法务复核草案，但不会实际转交。",
+        "manual_review": "准备一份人工复核草案，但不会执行 ERP 动作。",
+    }
+    return labels.get(str(action_type), "没有可展示摘要。")
+
+
+def _warning_cn(warning: str) -> str:
+    value = str(warning or "")
+    if any("\u4e00" <= char <= "\u9fff" for char in value):
+        return value
+    return (
+        value.replace("Human reviewer rejected the agent recommendation; no action proposals were generated.", "人工复核人拒绝了 Agent 建议，因此没有生成动作草案。")
+        .replace("payload_preview contains ERP execution semantics and was blocked.", "payload_preview 包含 ERP 执行语义，已被阻断。")
+        .replace("idempotency fields are required.", "缺少必需的幂等字段。")
+        .replace("citations are outside the current context bundle", "citation 不属于当前上下文包")
+    )
 
 
 def _action_type_for_recommendation(recommendation: ApprovalRecommendation) -> str:

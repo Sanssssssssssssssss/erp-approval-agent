@@ -138,7 +138,7 @@ export function AssetsPanel() {
           <p className="pixel-label">HITL</p>
           <p className="pixel-note mt-2">
             {isErpRecommendationReview
-              ? "需要复核 ERP 建议。这里只接受或编辑 Agent 建议，不执行 ERP 审批动作。"
+              ? "需要复核 ERP 建议。这里只采用、编辑或拒绝 Agent 建议，不执行 ERP 审批动作。"
               : "待复核请求，以及最新请求和决策审计轨迹。"}
           </p>
           {pendingHitl ? (
@@ -156,7 +156,7 @@ export function AssetsPanel() {
               <p className="pixel-note mt-2">{hitlReason}</p>
               {isErpRecommendationReview ? (
                 <p className="pixel-note mt-2">
-                  这个复核只接受或编辑 Agent 建议，不会执行 ERP 通过、驳回、付款、供应商、合同或预算写入。
+                  这个复核只影响本地建议回执，不会执行 ERP 通过、驳回、付款、供应商、合同或预算写入。
                 </p>
               ) : null}
               <div className="mt-3 grid gap-2 text-sm text-[var(--color-ink-soft)] md:grid-cols-2">
@@ -164,16 +164,27 @@ export function AssetsPanel() {
                 <p>请求时间: {pendingHitl.requested_at || "-"}</p>
               </div>
               <details className="hitl-payload-details mt-4">
-                <summary>查看审查 payload</summary>
+                <summary>高级：查看或编辑结构化建议 JSON</summary>
+                <p className="pixel-note mt-3">
+                  这里编辑的是 Agent 建议 payload，不是 ERP 单据，也不会触发 ERP 写入。
+                </p>
                 <pre>{prettyJson(pendingHitl.proposed_input)}</pre>
+                <label className="pixel-label mt-4 block">编辑 JSON 后继续（可选）</label>
+                <textarea
+                  className="mt-2 min-h-[170px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
+                  onChange={(event) => setEditedInputText(event.target.value)}
+                  value={editedInputText}
+                />
+                {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
+                <button
+                  className="ui-button mt-3"
+                  disabled={isStreaming}
+                  onClick={() => void handleEditAndContinue()}
+                  type="button"
+                >
+                  保存 JSON 编辑并继续
+                </button>
               </details>
-              <label className="pixel-label mt-4 block">编辑 payload</label>
-              <textarea
-                className="mt-2 min-h-[170px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
-                onChange={(event) => setEditedInputText(event.target.value)}
-                value={editedInputText}
-              />
-              {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   className="ui-button ui-button-primary"
@@ -181,15 +192,7 @@ export function AssetsPanel() {
                   onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
                   type="button"
                 >
-                  {isErpRecommendationReview ? "接受建议" : "通过复核"}
-                </button>
-                <button
-                  className="ui-button"
-                  disabled={isStreaming}
-                  onClick={() => void handleEditAndContinue()}
-                  type="button"
-                >
-                  编辑后继续
+                  {isErpRecommendationReview ? "采用建议并继续" : "通过复核"}
                 </button>
                 <button
                   className="ui-button"
@@ -197,7 +200,7 @@ export function AssetsPanel() {
                   onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
                   type="button"
                 >
-                  {isErpRecommendationReview ? "拒绝建议" : "拒绝"}
+                  {isErpRecommendationReview ? "拒绝这条建议" : "拒绝"}
                 </button>
               </div>
             </div>

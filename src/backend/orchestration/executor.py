@@ -102,11 +102,11 @@ _FETCH_URL_PATTERNS = (
 )
 _EXPLICIT_CAPABILITY_IDS = {"mcp_filesystem_read_file", "mcp_filesystem_list_directory", "mcp_web_fetch_url"}
 ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID = "erp_approval_recommendation_review"
-ERP_RECOMMENDATION_REVIEW_DISPLAY_NAME = "ERP approval recommendation review"
+ERP_RECOMMENDATION_REVIEW_DISPLAY_NAME = "ERP 审批建议复核"
 ERP_RECOMMENDATION_REVIEW_NON_ACTION = (
-    "This HITL review does not approve, reject, pay, onboard, sign, or update any ERP object."
+    "本次 HITL 只复核 Agent 的审批建议，不会通过、驳回、付款、准入供应商、签署合同或更新任何 ERP 对象。"
 )
-ERP_NO_ACTION_EXECUTED_STATEMENT = "No ERP approval, rejection, payment, supplier, contract, or budget action was executed."
+ERP_NO_ACTION_EXECUTED_STATEMENT = "未执行任何 ERP 通过、驳回、付款、供应商、合同或预算写入动作。"
 
 
 @dataclass
@@ -1008,7 +1008,7 @@ class HarnessLangGraphOrchestrator:
             )
             validation = ApprovalActionValidationResult(
                 passed=False,
-                warnings=["Human reviewer rejected the agent recommendation; no action proposals were generated."],
+                warnings=["人工复核人拒绝了 Agent 建议，因此没有生成动作草案。"],
             )
         else:
             bundle = build_action_proposals(request, context, recommendation, guard, review_status)
@@ -1982,8 +1982,8 @@ class HarnessLangGraphOrchestrator:
             "display_name": ERP_RECOMMENDATION_REVIEW_DISPLAY_NAME,
             "risk_level": self._erp_review_risk_level(recommendation, guard),
             "reason": (
-                "Review the agent's ERP approval recommendation. Accepting this HITL request accepts "
-                "or edits the recommendation only; it does not execute an ERP action."
+                "请复核 Agent 的 ERP 审批建议。点击接受只表示采用该建议，点击编辑只表示修改该建议；"
+                "两者都不会执行任何 ERP 写入动作。"
             ),
             "proposed_input": {
                 "review_type": "erp_recommendation_review",
@@ -2130,22 +2130,65 @@ class HarnessLangGraphOrchestrator:
         action_validation: ApprovalActionValidationResult,
     ) -> str:
         rendered_actions = render_action_proposals(action_bundle, action_validation)
+        review_label = self._erp_review_status_label(review_status)
         if review_status == "rejected_by_human":
             return "\n".join(
                 [
-                    "ERP approval recommendation review",
+                    "## ERP 审批建议复核结果",
                     "",
-                    "Human review status: rejected_by_human",
-                    "Human reviewer rejected the agent recommendation.",
+                    f"- 人工复核状态：{review_label}",
+                    "- 复核人拒绝了 Agent 的审批建议。",
+                    "- 系统不会把该建议包装成可执行动作，也不会生成可执行的 ERP 后续操作。",
                     "",
-                    f"Approval request: {request.approval_type} / {request.approval_id or 'unidentified'}",
+                    f"审批单：{self._erp_approval_type_label(request.approval_type)} / {request.approval_id or '未识别'}",
                     ERP_NO_ACTION_EXECUTED_STATEMENT,
                     "",
                     rendered_actions,
                 ]
             ).strip()
         answer = render_recommendation(request, context, recommendation, guard)
-        return f"{answer}\n\nHuman review status: {review_status}\n\n{rendered_actions}".strip()
+        review_note = "\n".join(
+            [
+                "## HITL 复核回执",
+                "",
+                f"- 人工复核状态：{review_label}",
+                f"- HITL 决策含义：{self._erp_review_status_explanation(review_status)}",
+                f"- 安全边界：{ERP_NO_ACTION_EXECUTED_STATEMENT}",
+            ]
+        )
+        return f"{review_note}\n\n{answer}\n\n{rendered_actions}".strip()
+
+    def _erp_review_status_label(self, review_status: str) -> str:
+        labels = {
+            "not_required": "无需人工复核",
+            "requested": "已请求人工复核",
+            "accepted_by_human": "人工已接受 Agent 建议",
+            "rejected_by_human": "人工已拒绝 Agent 建议",
+            "edited_by_human": "人工已编辑 Agent 建议",
+        }
+        return labels.get(str(review_status or ""), str(review_status or "未知"))
+
+    def _erp_review_status_explanation(self, review_status: str) -> str:
+        explanations = {
+            "not_required": "本轮没有触发 HITL；输出仍然只是审批建议。",
+            "requested": "系统已请求人工复核，尚未把建议作为最终回执展示。",
+            "accepted_by_human": "用户接受的是 Agent 建议，不是 ERP 审批通过。",
+            "rejected_by_human": "用户拒绝的是 Agent 建议，不是 ERP 审批驳回。",
+            "edited_by_human": "用户修改的是 Agent 建议内容，不是 ERP 单据数据。",
+        }
+        return explanations.get(str(review_status or ""), "该状态只描述本地建议复核，不代表 ERP 执行。")
+
+    def _erp_approval_type_label(self, approval_type: str) -> str:
+        labels = {
+            "expense": "费用报销",
+            "purchase_requisition": "采购申请",
+            "invoice_payment": "发票付款",
+            "supplier_onboarding": "供应商准入",
+            "contract_exception": "合同例外",
+            "budget_exception": "预算例外",
+            "unknown": "未知类型",
+        }
+        return labels.get(str(approval_type or ""), str(approval_type or "未知类型"))
 
     def _format_erp_reasoning_input(self, request: ApprovalRequest, context: ApprovalContextBundle) -> str:
         erp_records = [record.model_dump() for record in context.records if record.record_type != "policy"]

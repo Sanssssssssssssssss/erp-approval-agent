@@ -50,12 +50,12 @@ async function main() {
     await ensureVisible(page.getByRole("button", { name: /审批助理/ }), "审批助理 tab");
     await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "frontend-ux-chat-desktop.png") });
 
-    const payloadToggle = page.getByText("查看审查 payload").first();
+    const payloadToggle = page.getByText("高级：查看或编辑结构化建议 JSON").first();
     if (await payloadToggle.count()) {
       await payloadToggle.click();
-      await ensureVisible(page.getByRole("button", { name: /接受建议|通过复核/ }).first(), "HITL accept button");
-      await ensureVisible(page.getByRole("button", { name: /拒绝建议|拒绝/ }).first(), "HITL reject button");
-      await ensureVisible(page.getByRole("button", { name: /编辑后继续/ }).first(), "HITL edit button");
+      await ensureVisible(page.getByRole("button", { name: /采用建议并继续|通过复核/ }).first(), "HITL accept button");
+      await ensureVisible(page.getByRole("button", { name: /拒绝这条建议|拒绝/ }).first(), "HITL reject button");
+      await ensureVisible(page.getByRole("button", { name: /保存 JSON 编辑并继续/ }).first(), "HITL edit button");
       await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "frontend-ux-hitl-expanded.png") });
     }
 

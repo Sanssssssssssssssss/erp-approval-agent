@@ -3,6 +3,7 @@ from __future__ import annotations
 
 ERP_INTAKE_SYSTEM_PROMPT = """You are an enterprise ERP approval intake analyst.
 Return JSON only. Do not include markdown, prose, comments, or code fences.
+When string values such as raw_request or business_purpose can stay in the user's language, keep them in that language.
 Extract only facts present in the user request. Do not infer real ERP facts.
 Use this exact JSON shape:
 {
@@ -24,6 +25,8 @@ If a field is missing, use an empty string, null for amount, or unknown for appr
 ERP_REASONING_SYSTEM_PROMPT = """You are an enterprise ERP approval analyst.
 Use LLM-first approval reasoning, but only with the approval request and provided read-only ERP/policy context.
 Return JSON only. Do not include markdown, prose, comments, or code fences.
+Use Chinese for summary, rationale, missing_information, and risk_flags unless the source field is a proper noun, source_id, ERP object id, policy id, or vendor name.
+Use the approval_id exactly as it appears in the Approval request section; do not shorten, normalize, or invent a nearby ERP object id.
 Do not claim real ERP facts that are not present in context.
 Do not approve or reject irreversible ERP actions. recommend_approve is only a recommendation, never final execution.
 The user message will be partitioned into: Approval request, ERP records, Policy records, Missing context hints, and Output JSON schema.

@@ -155,7 +155,7 @@ class ErpApprovalHitlGateTests(unittest.IsolatedAsyncioTestCase):
         payload = orchestrator._build_erp_hitl_request(state, request, context, recommendation, guard)
 
         self.assertEqual(payload["capability_id"], ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID)
-        self.assertEqual(payload["display_name"], "ERP approval recommendation review")
+        self.assertEqual(payload["display_name"], "ERP 审批建议复核")
         self.assertEqual(payload["proposed_input"]["explicit_non_action_statement"], ERP_RECOMMENDATION_REVIEW_NON_ACTION)
         self.assertIn("mock_erp://approval_request/PR-1001", payload["proposed_input"]["context_source_ids"])
 
@@ -236,10 +236,10 @@ class ErpApprovalHitlGateTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(state["erp_review_status"], "rejected_by_human")
         self.assertEqual(state["erp_action_proposals"]["proposals"], [])
-        self.assertIn("Human reviewer rejected the agent recommendation.", state["final_answer"])
-        self.assertIn("Action proposals", state["final_answer"])
-        self.assertIn("No ERP write action was executed.", state["final_answer"])
-        self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
+        self.assertIn("复核人拒绝了 Agent 的审批建议。", state["final_answer"])
+        self.assertIn("后续动作草案", state["final_answer"])
+        self.assertIn("未执行任何 ERP 写入动作。", state["final_answer"])
+        self.assertIn("未执行任何 ERP 通过、驳回、付款、供应商、合同或预算写入动作。", state["final_answer"])
         self.assertNotIn("Status: escalate", state["final_answer"])
         self.assertEqual(emitted, [state["final_answer"]])
 
@@ -304,10 +304,10 @@ class ErpApprovalHitlGateTests(unittest.IsolatedAsyncioTestCase):
         state.update(await orchestrator.erp_action_proposal_node(state))
         state.update(await orchestrator.erp_finalize_node(state))
 
-        self.assertIn("Human review status: not_required", state["final_answer"])
-        self.assertIn("Action proposals", state["final_answer"])
-        self.assertIn("No ERP write action was executed.", state["final_answer"])
-        self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
+        self.assertIn("人工复核状态：无需人工复核", state["final_answer"])
+        self.assertIn("后续动作草案", state["final_answer"])
+        self.assertIn("未执行任何 ERP 写入动作。", state["final_answer"])
+        self.assertIn("未执行任何 ERP 通过、驳回、付款、供应商、合同或预算写入动作。", state["final_answer"])
         self.assertEqual(emitted, [state["final_answer"]])
 
 
