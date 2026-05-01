@@ -206,9 +206,9 @@ def _proposal_summary_cn(action_type: str, summary: str) -> str:
     }
     for source, target in prefix_replacements.items():
         if value.startswith(source):
-            return f"{target}{value.removeprefix(source).strip()}".strip()
+            return f"{target}{_friendly_proposal_text(value.removeprefix(source).strip())}".strip()
     if any("\u4e00" <= char <= "\u9fff" for char in str(summary or "")):
-        return value
+        return _friendly_proposal_text(value)
     labels = {
         "request_more_info": "准备一份补充信息请求草案，但不会发送。",
         "add_internal_comment": "准备一份内部备注草案，但不会写入 ERP。",
@@ -219,6 +219,20 @@ def _proposal_summary_cn(action_type: str, summary: str) -> str:
         "manual_review": "准备一份人工复核草案，但不会执行 ERP 动作。",
     }
     return labels.get(str(action_type), "没有可展示摘要。")
+
+
+def _friendly_proposal_text(value: str) -> str:
+    rendered = str(value or "").strip()
+    replacements = {
+        "Approval request": "审批请求",
+        "approval request": "审批请求",
+        "requester": "申请人",
+        "missing information": "缺失信息",
+        "manual review": "人工复核",
+    }
+    for source, target in replacements.items():
+        rendered = re.sub(source, target, rendered, flags=re.IGNORECASE)
+    return rendered
 
 
 def _warning_cn(warning: str) -> str:

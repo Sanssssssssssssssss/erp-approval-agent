@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ChatMessage } from "@/components/chat/ChatMessage";
+import { HitlRecommendationReviewCard } from "@/components/chat/HitlRecommendationReviewCard";
 import { VirtualizedStack } from "@/components/chat/VirtualizedStack";
 import { PixelGhostFriend } from "@/components/icons/PixelGhostFriend";
 import { useChatStore, useSessionStore } from "@/lib/store";
@@ -12,6 +13,7 @@ const AUTO_SCROLL_RESTORE_THRESHOLD = 12;
 const AUTO_SCROLL_USER_PAUSE_MS = 900;
 const CHAT_ITEM_ESTIMATE = 220;
 const ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID = "erp_approval_recommendation_review";
+const ERP_RECOMMENDATION_REVIEW_TYPE = "erp_recommendation_review";
 
 type ChatRow = {
   id: string;
@@ -31,6 +33,18 @@ function riskLabel(value: string | null | undefined) {
   return value || "未标记风险";
 }
 
+function isErpRecommendationReviewRequest(
+  pendingHitl: ReturnType<typeof useChatStore>["pendingHitl"]
+) {
+  if (!pendingHitl) return false;
+  const proposedInput = pendingHitl.proposed_input as Record<string, unknown> | null | undefined;
+  return (
+    pendingHitl.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID ||
+    proposedInput?.review_type === ERP_RECOMMENDATION_REVIEW_TYPE ||
+    pendingHitl.display_name.includes("ERP 审批建议")
+  );
+}
+
 export function ChatPanel() {
   const {
     messages,
@@ -46,8 +60,7 @@ export function ChatPanel() {
   const [editedInputText, setEditedInputText] = useState("{}");
   const [editError, setEditError] = useState("");
   const { currentSessionId, sessions } = useSessionStore();
-  const isErpRecommendationReview =
-    pendingHitl?.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID;
+  const isErpRecommendationReview = isErpRecommendationReviewRequest(pendingHitl);
   const approveButtonLabel = isErpRecommendationReview ? "采用建议并继续" : "通过复核";
   const approvingButtonLabel = isErpRecommendationReview ? "正在生成复核回执..." : "正在通过...";
   const rejectButtonLabel = isErpRecommendationReview ? "拒绝这条建议" : "拒绝";
@@ -288,67 +301,55 @@ export function ChatPanel() {
         ) : null}
 
         {pendingHitl && currentSessionId ? (
-          <div className="pixel-card-soft mb-4 flex max-h-[52vh] min-h-0 shrink-0 flex-col overflow-y-auto px-4 py-4 sm:max-h-[46vh]">
-            <p className="pixel-label">
-              {isErpRecommendationReview ? "需要人工复核 ERP 建议（不会执行 ERP）" : "需要人工复核"}
-            </p>
-            <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
-              {isErpRecommendationReview ? "ERP 审批建议复核" : pendingHitl.display_name}
-            </h3>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                className="ui-button ui-button-primary"
-                disabled={isStreaming}
-                onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
-                type="button"
-              >
-                {isStreaming ? approvingButtonLabel : approveButtonLabel}
-              </button>
-              <button
-                className="ui-button"
-                disabled={isStreaming}
-                onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
-                type="button"
-              >
-                {isStreaming ? "正在拒绝..." : rejectButtonLabel}
-              </button>
-            </div>
-            <p className="pixel-note mt-4">{hitlReason}</p>
-            {isErpRecommendationReview ? (
-              <p className="pixel-note mt-2">
-                普通复核只需要采用或拒绝建议；只有想改结构化建议内容时才使用 JSON 编辑。
-              </p>
-            ) : null}
-            <div className="mt-4 min-h-0 pr-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="pixel-tag">{riskLabel(pendingHitl.risk_level)}</span>
-                {pendingHitl.request_id ? <span className="pixel-tag">请求 {pendingHitl.request_id.slice(0, 8)}</span> : null}
-                <span className="pixel-tag">checkpoint {pendingHitl.checkpoint_id.slice(0, 8)}</span>
-              </div>
-              <details className="hitl-payload-details mt-4">
-                <summary>高级：查看或编辑结构化建议 JSON</summary>
-                <p className="pixel-note mt-3">
-                  这里编辑的是 Agent 建议 payload，不是 ERP 单据，也不会触发 ERP 写入。
-                </p>
-                <pre>{prettyJson(pendingHitl.proposed_input)}</pre>
-                <label className="pixel-label mt-4 block">编辑 JSON 后继续（可选）</label>
-                <textarea
-                  className="mt-2 min-h-[120px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
-                  onChange={(event) => setEditedInputText(event.target.value)}
-                  value={editedInputText}
-                />
-                {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
+          isErpRecommendationReview ? (
+            <HitlRecommendationReviewCard
+              editError={editError}
+              editedInputText={editedInputText}
+              isStreaming={isStreaming}
+              onAccept={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
+              onEditSubmit={handleEditAndContinue}
+              onEditTextChange={setEditedInputText}
+              onReject={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
+              pendingHitl={pendingHitl}
+            />
+          ) : (
+            <div className="pixel-card-soft mb-4 flex max-h-[52vh] min-h-0 shrink-0 flex-col overflow-y-auto px-4 py-4 sm:max-h-[46vh]">
+              <p className="pixel-label">需要人工复核</p>
+              <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
+                {pendingHitl.display_name}
+              </h3>
+              <div className="mt-4 flex flex-wrap gap-3">
                 <button
-                  className="ui-button mt-3"
+                  className="ui-button ui-button-primary"
                   disabled={isStreaming}
-                  onClick={handleEditAndContinue}
+                  onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
                   type="button"
                 >
-                  {isStreaming ? "正在提交编辑..." : "保存 JSON 编辑并继续"}
+                  {isStreaming ? approvingButtonLabel : approveButtonLabel}
                 </button>
-              </details>
+                <button
+                  className="ui-button"
+                  disabled={isStreaming}
+                  onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
+                  type="button"
+                >
+                  {isStreaming ? "正在拒绝..." : rejectButtonLabel}
+                </button>
+              </div>
+              <p className="pixel-note mt-4">{hitlReason}</p>
+              <div className="mt-4 min-h-0 pr-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="pixel-tag">{riskLabel(pendingHitl.risk_level)}</span>
+                  {pendingHitl.request_id ? <span className="pixel-tag">请求 {pendingHitl.request_id.slice(0, 8)}</span> : null}
+                  <span className="pixel-tag">checkpoint {pendingHitl.checkpoint_id.slice(0, 8)}</span>
+                </div>
+                <details className="hitl-payload-details mt-4">
+                  <summary>查看审查 payload</summary>
+                  <pre>{prettyJson(pendingHitl.proposed_input)}</pre>
+                </details>
+              </div>
             </div>
-          </div>
+          )
         ) : null}
 
         {!renderableMessages.length ? (

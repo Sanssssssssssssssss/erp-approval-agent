@@ -369,11 +369,23 @@ def _friendly_text(text: str) -> str:
     value = str(text or "").strip()
     if not value:
         return "无"
-    value = value.replace("Unknown citation source_id values:", "存在不属于当前上下文的 citation：")
+    if value.startswith("Unknown citation source_id values:"):
+        return value.replace("Unknown citation source_id values:", "模型引用了不属于当前上下文的 citation：", 1)
+    warning_labels = {
+        "recommend_approve downgraded because missing_information is present.": "由于仍有缺失信息，系统已把“建议通过”降级为补充信息。",
+        "recommend_approve downgraded because confidence is below 0.72.": "由于置信度低于 0.72，系统已把“建议通过”降级为人工复核。",
+        "Proposed irreversible ERP execution action replaced with manual_review.": "检测到不可逆 ERP 执行动作，已替换为人工复核。",
+        "Proposed ERP write-like action replaced with manual_review.": "检测到类似 ERP 写入的动作，已替换为人工复核。",
+        "No citations were provided; human review is required.": "模型没有提供 citation，因此必须人工复核。",
+        "recommend_approve downgraded because no citations were provided.": "由于没有 citation，系统已把“建议通过”降级为人工复核。",
+        "recommend_approve downgraded because citations are outside the current context bundle.": "由于 citation 不属于当前上下文，系统已把“建议通过”降级为人工复核。",
+    }
+    if value in warning_labels:
+        return warning_labels[value]
     lowered = value.lower()
     if lowered in COMMON_TEXT_LABELS:
         return COMMON_TEXT_LABELS[lowered]
-    rendered = value.replace("_", " ")
+    rendered = value if "://" in value else value.replace("_", " ")
     replacements = {
         "recommend approve": "建议通过",
         "request more info": "请求补充信息",
