@@ -29,6 +29,8 @@ class GraphState(TypedDict, total=False):
     knowledge_retrieval: Any | None
     erp_request: dict[str, Any] | None
     erp_context: dict[str, Any] | None
+    erp_connector_result: dict[str, Any] | None
+    erp_connector_warnings: list[str]
     erp_recommendation: dict[str, Any] | None
     erp_guard_result: dict[str, Any] | None
     erp_hitl_request: dict[str, Any] | None
@@ -96,6 +98,8 @@ def create_initial_graph_state(
         knowledge_retrieval=None,
         erp_request=None,
         erp_context=None,
+        erp_connector_result=None,
+        erp_connector_warnings=[],
         erp_recommendation=None,
         erp_guard_result=None,
         erp_hitl_request=None,

@@ -213,21 +213,43 @@ Done when:
 
 Status: complete for local simulation models, validation, JSONL ledger, local simulation API, tests, and frontend sandbox.
 
-## Phase 10: Local Simulation Review Refinement
+## Phase 10: Read-Only ERP Connector Interface + Connector Registry
 
 Scope:
 
-- simulation filters and saved simulation views.
-- package-level simulation summaries.
-- compare proposal validation warnings with simulation blocked reasons.
-- local reviewer note linking to simulation records.
+- read-only connector models and protocol.
+- connector registry defaulting to mock.
+- provider profile metadata for SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON.
+- disabled HTTP read-only connector skeleton with test-injected transport.
+- `erp_context_node` consumes connector results as context records.
+- no live ERP network access by default.
 - no ERP write execution.
 
 Done when:
 
-- reviewers can review local dry-run history by package, proposal, status, and requester.
-- simulation outputs remain local artifacts, not action records.
+- mock remains the default connector.
+- non-mock connectors are disabled and network-blocked by default.
+- all connector outputs normalize into approval context records.
+- tests use fake transport only and never call SAP/Dynamics/Oracle.
 - no action execution ledger is introduced.
+
+Status: complete for connector interface, registry, mock connector, provider profiles, HTTP skeleton, executor context-node integration, and connector tests.
+
+## Phase 11: Read-Only Connector Configuration Hardening
+
+Scope:
+
+- typed environment loading for connector config.
+- explicit connector selection tests with network disabled by default.
+- redacted diagnostics and healthcheck UI/API.
+- fixture-driven schema mapping examples for provider profiles.
+- no ERP write execution.
+
+Done when:
+
+- connector configuration can be inspected locally without exposing secrets.
+- non-mock connectors remain disabled unless explicitly configured.
+- no write operation or action execution path exists.
 
 ## Historical Infrastructure Notes
 

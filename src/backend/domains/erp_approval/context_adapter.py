@@ -6,6 +6,11 @@ from typing import Protocol
 
 from pydantic import BaseModel, Field
 
+from src.backend.domains.erp_approval.connectors.models import (
+    ERP_CONNECTOR_NON_ACTION_STATEMENT,
+    ErpReadRequest,
+    ErpReadResult,
+)
 from src.backend.domains.erp_approval.schemas import ApprovalContextBundle, ApprovalContextRecord, ApprovalRequest
 
 
@@ -67,6 +72,67 @@ def build_context_bundle_from_records(
         seen.add(record.source_id)
         normalized.append(record)
     return ApprovalContextBundle(request_id=request_id, records=normalized)
+
+
+def read_request_from_context_query(query: ErpContextQuery) -> ErpReadRequest:
+    requested_operations = [
+        item
+        for item in query.requested_record_types
+        if item in READ_ONLY_RECORD_TYPES
+    ] or sorted(READ_ONLY_RECORD_TYPES)
+    return ErpReadRequest(
+        approval_id=query.approval_id,
+        approval_type=query.approval_type,
+        vendor=query.vendor,
+        cost_center=query.cost_center,
+        purchase_order_id=query.purchase_order_id,
+        invoice_id=query.invoice_id,
+        goods_receipt_id=query.goods_receipt_id,
+        contract_id=query.contract_id,
+        requested_operations=requested_operations,  # type: ignore[arg-type]
+        correlation_id=query.approval_id or "unidentified",
+    )
+
+
+class MockErpReadOnlyConnector:
+    def __init__(self, *, base_dir: Path | str | None = None, fixture_path: Path | str | None = None) -> None:
+        self._adapter = MockErpContextAdapter(base_dir=base_dir, fixture_path=fixture_path)
+
+    @property
+    def provider(self):
+        return "mock"
+
+    def fetch_context(self, request: ErpReadRequest) -> ErpReadResult:
+        query = ErpContextQuery(
+            approval_type=request.approval_type,
+            approval_id=request.approval_id,
+            vendor=request.vendor,
+            cost_center=request.cost_center,
+            purchase_order_id=request.purchase_order_id,
+            invoice_id=request.invoice_id,
+            goods_receipt_id=request.goods_receipt_id,
+            contract_id=request.contract_id,
+            requested_record_types=list(request.requested_operations) or sorted(READ_ONLY_RECORD_TYPES),
+        )
+        bundle = self._adapter.fetch_context(query)
+        return ErpReadResult(
+            provider="mock",
+            status="success" if bundle.records else "unavailable",
+            records=list(bundle.records),
+            warnings=[] if bundle.records else ["Mock ERP connector returned no records."],
+            diagnostics={"fixture_backed": True, "request_id": bundle.request_id},
+            non_action_statement=ERP_CONNECTOR_NON_ACTION_STATEMENT,
+        )
+
+    def healthcheck(self) -> dict:
+        return {
+            "provider": self.provider,
+            "enabled": True,
+            "allow_network": False,
+            "mode": "read_only",
+            "read_only": True,
+            "non_action_statement": ERP_CONNECTOR_NON_ACTION_STATEMENT,
+        }
 
 
 class MockErpContextAdapter:

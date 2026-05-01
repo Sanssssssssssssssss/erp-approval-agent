@@ -31,9 +31,12 @@ from src.backend.domains.erp_approval import (
     ApprovalRecommendation,
     ApprovalRequest,
     ApprovalTraceRepository,
+    ERP_CONNECTOR_NON_ACTION_STATEMENT,
     ErpContextQuery,
-    MockErpContextAdapter,
+    ErpReadResult,
     build_action_proposals,
+    build_context_bundle_from_records,
+    build_default_connector_registry,
     build_proposal_records_from_state,
     build_trace_record_from_state,
     default_proposal_ledger_path,
@@ -43,6 +46,7 @@ from src.backend.domains.erp_approval import (
     parse_recommendation,
     render_action_proposals,
     render_recommendation,
+    read_request_from_context_query,
     validate_action_proposals,
     trace_id_from_state,
 )
@@ -134,7 +138,7 @@ class HarnessLangGraphOrchestrator:
         self._graph = compile_harness_orchestration_graph(self, include_checkpointer=include_checkpointer)
         self._context_assembler = ContextAssembler(base_dir=self._agent.base_dir)
         self._context_writer = ContextWriter(base_dir=self._agent.base_dir)
-        self._erp_context_adapter = MockErpContextAdapter(base_dir=self._agent.base_dir)
+        self._erp_connector_registry = build_default_connector_registry(self._agent.base_dir)
         self._erp_trace_repository = ApprovalTraceRepository(default_trace_path(self._agent.base_dir))
         self._erp_proposal_repository = ApprovalActionProposalRepository(default_proposal_ledger_path(self._agent.base_dir))
         self._resume_checkpoint_id = str(resume_checkpoint_id or "")
@@ -811,10 +815,12 @@ class HarnessLangGraphOrchestrator:
     async def erp_context_node(self, state: GraphState) -> dict[str, Any]:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_context")
         request = self._erp_request_from_state(state)
-        context = self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
+        context, connector_result = self._fetch_erp_context(request)
         result = {
             "erp_request": self._model_dump(request),
             "erp_context": self._model_dump(context),
+            "erp_connector_result": self._model_dump(connector_result),
+            "erp_connector_warnings": list(connector_result.warnings),
             "path_kind": "erp_approval",
             "turn_id": self._current_turn_id(state),
             "context_call_ids": self._context_call_ids(state),
@@ -1827,15 +1833,40 @@ class HarnessLangGraphOrchestrator:
         except Exception:
             return parse_approval_request("", self._user_message(state))
 
+    def _fetch_erp_context(self, request: ApprovalRequest):
+        query = ErpContextQuery.from_request(request)
+        registry = getattr(self, "_erp_connector_registry", None)
+        if registry is None and hasattr(self, "_erp_context_adapter"):
+            context = self._erp_context_adapter.fetch_context(query)
+            connector_result = ErpReadResult(
+                provider="mock",
+                status="success" if context.records else "unavailable",
+                records=list(context.records),
+                warnings=[] if context.records else ["Mock ERP context adapter returned no records."],
+                diagnostics={"legacy_adapter_fallback": True},
+                non_action_statement=ERP_CONNECTOR_NON_ACTION_STATEMENT,
+            )
+            return context, connector_result
+        if registry is None:
+            base_dir = getattr(getattr(self, "_agent", None), "base_dir", None)
+            registry = build_default_connector_registry(base_dir)
+            self._erp_connector_registry = registry
+        connector_result = registry.default().fetch_context(read_request_from_context_query(query))
+        context = build_context_bundle_from_records(
+            connector_result.records,
+            request_id=request.approval_id or "unidentified",
+        )
+        return context, connector_result
+
     def _erp_context_from_state(self, state: GraphState, *, request: ApprovalRequest) -> ApprovalContextBundle:
         payload = state.get("erp_context")
         if not payload:
-            return self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
+            return self._fetch_erp_context(request)[0]
         try:
             context = ApprovalContextBundle.model_validate(payload or {})
-            return context if context.records else self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
+            return context if context.records else self._fetch_erp_context(request)[0]
         except Exception:
-            return self._erp_context_adapter.fetch_context(ErpContextQuery.from_request(request))
+            return self._fetch_erp_context(request)[0]
 
     def _erp_recommendation_from_state(self, state: GraphState) -> ApprovalRecommendation:
         payload = state.get("erp_recommendation")

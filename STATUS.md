@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 9: Mock Action Simulation Sandbox + Local Simulation Ledger.
+Phase 10: Read-only ERP Connector Interface + Connector Registry.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, and Phase 9 adds a local mock action simulation sandbox:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, and Phase 10 adds a read-only ERP connector interface plus connector registry:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 9: reviewers can create local dry-run simulation records for action proposals that belong to saved audit packages. These simulations write only `action_simulations.jsonl`, do not parse final answer text, do not call ERP systems, do not invoke capabilities, and do not execute mock or real actions.
+The current active capability is Phase 10: ERP context retrieval goes through a read-only connector interface and registry. The default connector remains mock. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only. Phase 10 does not call production ERP systems, does not invoke capabilities, and does not execute mock or real actions.
 
 ## Active Product Direction
 
@@ -30,6 +30,7 @@ Current positioning:
 - action proposal ledger and read-only audit package.
 - local saved audit package workspace and reviewer notes.
 - local action simulation sandbox and simulation ledger.
+- read-only ERP connector registry with mock default.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -115,6 +116,16 @@ Current positioning:
 - frontend local simulation panel in the `Insights` audit workspace.
 - `simulated_only=true` and `erp_write_executed=false` on every simulation record.
 
+## Completed Phase 10 Capabilities
+
+- connector models for provider, config, read request, operation, and read result.
+- connector protocol and registry.
+- `MockErpReadOnlyConnector` backed by the existing mock fixture.
+- provider profile metadata for SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON.
+- `HttpReadOnlyErpConnector` skeleton that is disabled and network-blocked by default.
+- `erp_context_node` now fetches context through the default connector registry.
+- state captures `erp_connector_result` and `erp_connector_warnings`.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -155,7 +166,7 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 ## Known Risks / Blockers
 
 - ERP-specific approval logic is minimal and mock-only.
-- no SAP, Dynamics, Oracle, or custom ERP connector exists yet.
+- no SAP, Dynamics, Oracle, or custom ERP connector is enabled by default.
 - no real approval write action exists yet.
 - no real comment/request-more-info/routing action exists yet.
 - no real ERP write-action approval card exists yet.
@@ -164,11 +175,12 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 - action proposal ledger is proposed-only storage, not an action execution ledger.
 - reviewer notes are local artifacts, not ERP comments.
 - action simulation ledger is local dry-run storage, not an action execution ledger.
+- connector profiles are read-only interface metadata, not production ERP integrations.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 10 local simulation review refinement: simulation filters, package-level simulation summaries, and comparison of proposed vs simulated paths.
-2. keep simulation artifacts grounded in proposal records and saved audit packages.
+1. start Phase 11 read-only connector configuration hardening: typed environment loading, explicit connector selection tests, and redacted diagnostics.
+2. keep connector outputs normalized into `ApprovalContextRecord` and never add write operations.
 3. keep all real and mock ERP writes out of scope until a separate guarded execution phase.
