@@ -36,11 +36,11 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="ui-pill">
           <Route size={14} />
-          {turn.streaming ? "Live audit trace" : "Audit trace"}
+          {turn.streaming ? "实时 Audit Trace" : "Audit Trace"}
         </div>
         {turn.usage ? (
           <div className="mono text-sm text-[var(--color-ink-soft)]">
-            {`${turn.usage.input_tokens.toLocaleString()} in / ${turn.usage.output_tokens.toLocaleString()} out`}
+            {`${turn.usage.input_tokens.toLocaleString()} 输入 / ${turn.usage.output_tokens.toLocaleString()} 输出`}
           </div>
         ) : null}
       </div>
@@ -49,20 +49,20 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
         <section className="pixel-card-soft p-4">
           <div className="pixel-label mb-3 flex items-center gap-2">
             <MessageSquareText size={14} />
-            approval prompt
+            审批问题
           </div>
           <div className="whitespace-pre-wrap text-[0.98rem] leading-7 text-[var(--color-ink)]">
-            {turn.prompt?.trim() || "No direct user prompt was captured for this assistant turn."}
+            {turn.prompt?.trim() || "这一轮没有捕获到直接用户问题。"}
           </div>
         </section>
 
         <section className="pixel-card-soft p-4">
           <div className="pixel-label mb-3 flex items-center gap-2">
             <Sparkles size={14} />
-            recommendation draft
+            建议草案
           </div>
           <div className="whitespace-pre-wrap text-[0.98rem] leading-7 text-[var(--color-ink-soft)]">
-            {turn.answer?.trim() || (turn.streaming ? "Streaming response..." : "No text response.")}
+            {turn.answer?.trim() || (turn.streaming ? "正在生成回复..." : "没有文本回复。")}
           </div>
         </section>
       </div>
@@ -82,7 +82,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
       <div className="mt-4">
         {turn.hitlEvents.length ? (
           <div className="pixel-card-soft mb-4 px-4 py-3 text-sm text-[var(--color-ink-soft)]">
-            <p className="pixel-label mb-3">HITL approval trace</p>
+            <p className="pixel-label mb-3">HITL 复核轨迹</p>
             <div className="space-y-2">
               {turn.hitlEvents.map((item, index) => (
                 <div key={`${item.type}-${item.checkpoint_id}-${index}`} className="flex flex-wrap items-center gap-2">
@@ -91,12 +91,12 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
                   <span className="pixel-tag">{item.risk_level}</span>
                   {item.request_id ? (
                     <span className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
-                      request {item.request_id}
+                      请求 {item.request_id}
                     </span>
                   ) : null}
                   {item.decision_id ? (
                     <span className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
-                      decision {item.decision_id}
+                      决策 {item.decision_id}
                     </span>
                   ) : null}
                 </div>
@@ -107,13 +107,13 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
 
         {turn.checkpointEvents.length ? (
           <div className="pixel-card-soft mb-4 px-4 py-3 text-sm text-[var(--color-ink-soft)]">
-            <p className="pixel-label mb-3">checkpoint trace</p>
+            <p className="pixel-label mb-3">checkpoint 轨迹</p>
             <div className="space-y-2">
               {turn.checkpointEvents.map((item, index) => (
                 <div key={`${item.type}-${item.checkpoint_id}-${index}`} className="flex flex-wrap items-center gap-2">
                   <span className="pixel-tag">{item.type}</span>
                   <span className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
-                    {item.checkpoint_id || "pending checkpoint"}
+                    {item.checkpoint_id || "等待中的 checkpoint"}
                   </span>
                 </div>
               ))}
@@ -125,7 +125,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
         {turn.toolCalls.length ? <ThoughtChain toolCalls={turn.toolCalls} /> : null}
         {!hasTrace ? (
           <div className="pixel-card-soft px-4 py-3 text-sm text-[var(--color-ink-soft)]">
-            No retrieval or workflow trace was emitted for this turn.
+            这一轮没有产生检索或 workflow 轨迹。
           </div>
         ) : null}
       </div>
@@ -208,14 +208,14 @@ export function TracePanel() {
             onClick={() => setView("context")}
             type="button"
           >
-            Model-visible context
+            模型可见上下文
           </button>
           <button
             className={`pixel-button px-4 py-2 text-sm ${view === "execution" ? "is-active" : ""}`}
             onClick={() => setView("execution")}
             type="button"
           >
-            Audit event trace
+            审计事件轨迹
           </button>
         </div>
 
@@ -228,10 +228,10 @@ export function TracePanel() {
             <div className="pixel-card-soft px-6 py-8">
               <p className="pixel-label">ready</p>
               <h3 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">
-                Audit trace opens only when you need it
+                需要时再打开 Audit Trace
               </h3>
               <p className="pixel-note mt-4 max-w-3xl">
-                Retrieval, workflow tools, checkpoint events, and HITL stay fully available here without weighing down the default approval assistant surface.
+                检索、workflow tools、checkpoint 事件和 HITL 都集中在这里，不会挤占默认审批助理界面。
               </p>
             </div>
           </div>

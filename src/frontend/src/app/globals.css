@@ -3,23 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #201d1d;
-  --color-bg-alt: #262222;
-  --color-surface: #302c2c;
-  --color-surface-soft: #2a2626;
-  --color-surface-strong: #383333;
-  --color-line: rgba(253, 252, 252, 0.12);
-  --color-line-strong: #646262;
-  --color-ink: #fdfcfc;
-  --color-ink-soft: #9a9898;
-  --color-ink-muted: #6e6e73;
-  --color-accent: #007aff;
-  --color-accent-strong: #4da3ff;
-  --color-accent-soft: rgba(0, 122, 255, 0.12);
-  --color-accent-line: rgba(77, 163, 255, 0.3);
-  --color-danger: #ff3b30;
-  --color-success: #30d158;
-  --color-warning: #ff9f0a;
+  --color-bg: #0f1318;
+  --color-bg-alt: #121821;
+  --color-surface: #171d24;
+  --color-surface-soft: #1d2530;
+  --color-surface-strong: #243140;
+  --color-line: rgba(226, 232, 240, 0.12);
+  --color-line-strong: rgba(226, 232, 240, 0.24);
+  --color-ink: #f5f7fb;
+  --color-ink-soft: #b6c0cc;
+  --color-ink-muted: #7c8796;
+  --color-accent: #2f81f7;
+  --color-accent-strong: #79b8ff;
+  --color-accent-soft: rgba(47, 129, 247, 0.14);
+  --color-accent-line: rgba(121, 184, 255, 0.34);
+  --color-danger: #ff6b6b;
+  --color-success: #54d18a;
+  --color-warning: #f6b655;
 }
 
 * {
@@ -42,7 +42,7 @@ html {
 }
 
 body {
-  font-family: var(--font-body), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", var(--font-body), sans-serif;
   line-height: 1.5;
   letter-spacing: 0;
 }
@@ -91,12 +91,13 @@ a {
 @layer components {
   .panel {
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--color-surface);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.16);
   }
 
   .pixel-title {
-    font-family: var(--font-body), monospace;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", var(--font-body), sans-serif;
     font-weight: 700;
     text-transform: none;
     letter-spacing: 0;
@@ -104,7 +105,7 @@ a {
   }
 
   .pixel-label {
-    font-family: var(--font-body), monospace;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", var(--font-body), sans-serif;
     font-size: 0.75rem;
     font-weight: 500;
     text-transform: uppercase;
@@ -113,7 +114,7 @@ a {
   }
 
   .pixel-note {
-    font-family: var(--font-body), monospace;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", var(--font-body), sans-serif;
     font-size: 1rem;
     line-height: 1.5;
     color: var(--color-ink-soft);
@@ -124,8 +125,8 @@ a {
     align-items: center;
     gap: 0.4rem;
     border: 1px solid var(--color-line);
-    border-radius: 4px;
-    background: transparent;
+    border-radius: 999px;
+    background: rgba(226, 232, 240, 0.04);
     padding: 0.2rem 0.5rem;
     font-size: 0.82rem;
     font-weight: 500;
@@ -154,8 +155,8 @@ a {
     min-height: 36px;
     padding: 0.25rem 0.8rem;
     border: 1px solid var(--color-line-strong);
-    border-radius: 4px;
-    background: transparent;
+    border-radius: 6px;
+    background: rgba(226, 232, 240, 0.03);
     color: var(--color-ink);
     font-size: 0.95rem;
     font-weight: 500;
@@ -165,7 +166,7 @@ a {
 
   .ui-button:hover {
     border-color: var(--color-ink-soft);
-    background: rgba(253, 252, 252, 0.04);
+    background: rgba(226, 232, 240, 0.08);
   }
 
   .ui-button:disabled {
@@ -174,7 +175,8 @@ a {
   }
 
   .ui-button-primary {
-    background: var(--color-bg);
+    border-color: rgba(121, 184, 255, 0.48);
+    background: var(--color-accent-soft);
     color: var(--color-ink);
   }
 
@@ -210,13 +212,13 @@ a {
 
   .pixel-card {
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--color-surface);
   }
 
   .pixel-card-soft {
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--color-surface-soft);
   }
 
@@ -231,7 +233,7 @@ a {
     justify-content: center;
     gap: 0.45rem;
     border: 1px solid var(--color-line-strong);
-    border-radius: 4px;
+    border-radius: 6px;
     background: transparent;
     padding: 0.45rem 0.8rem;
     font-size: 0.95rem;
@@ -240,7 +242,7 @@ a {
   }
 
   .pixel-choice:hover {
-    background: rgba(253, 252, 252, 0.04);
+    background: rgba(226, 232, 240, 0.08);
   }
 
   .pixel-choice-primary {
@@ -271,7 +273,7 @@ a {
     position: absolute;
     inset: 0;
     border: 0;
-    background: rgba(32, 29, 29, 0.72);
+    background: rgba(15, 19, 24, 0.72);
   }
 
   .drawer-panel {
@@ -281,7 +283,7 @@ a {
     width: min(92vw, 920px);
     overflow: hidden;
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--color-surface);
   }
 
@@ -296,7 +298,7 @@ a {
 
   .menu-popover {
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--color-surface);
   }
 
@@ -322,7 +324,7 @@ a {
     justify-content: space-between;
     gap: 0.75rem;
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 8px;
     background: var(--color-surface-soft);
     padding: 0.75rem 0.85rem;
     text-align: left;
@@ -410,6 +412,12 @@ a {
     display: inline-flex;
     align-items: center;
     gap: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .workspace-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .workspace-tab {
@@ -433,7 +441,7 @@ a {
 }
 
 .mono {
-  font-family: var(--font-mono), monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", var(--font-body), monospace;
 }
 
 .markdown {
@@ -466,19 +474,19 @@ a {
 .markdown pre {
   overflow-x: auto;
   border: 1px solid var(--color-line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--color-bg);
   padding: 1rem;
   font-size: 0.94rem;
 }
 
 .markdown :not(pre) > code {
-  background: rgba(253, 252, 252, 0.08);
+  background: rgba(226, 232, 240, 0.08);
   padding: 0.12rem 0.36rem;
 }
 
 .markdown code {
-  font-family: var(--font-body), monospace;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .markdown ul,
@@ -507,7 +515,7 @@ a {
 
 .cli-welcome {
   border: 1px solid var(--color-line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
 }
 
@@ -551,7 +559,7 @@ a {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--color-line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--color-surface-soft);
   padding: 10px;
   line-height: 1;
@@ -596,6 +604,33 @@ a {
 .pixel-field,
 .pixel-tag {
   image-rendering: auto;
+}
+
+.hitl-payload-details {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(15, 19, 24, 0.48);
+  color: var(--color-ink-soft);
+}
+
+.hitl-payload-details summary {
+  cursor: pointer;
+  padding: 0.75rem 0.9rem;
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.hitl-payload-details pre {
+  max-height: 220px;
+  overflow: auto;
+  border-top: 1px solid var(--color-line);
+  margin: 0;
+  padding: 0.85rem 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
 }
 
 @media (max-width: 980px) {

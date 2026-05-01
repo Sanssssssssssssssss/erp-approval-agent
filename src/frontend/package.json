@@ -8,7 +8,8 @@
     "start": "next start -p 3000",
     "lint": "next lint",
     "playwright:install": "playwright install chromium",
-    "verify:chat-ui": "node scripts/verify-chat-ui.mjs"
+    "verify:chat-ui": "node scripts/verify-chat-ui.mjs",
+    "verify:ux": "node scripts/verify-frontend-ux.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

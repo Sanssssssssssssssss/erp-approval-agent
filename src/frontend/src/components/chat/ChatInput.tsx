@@ -40,16 +40,16 @@ export function ChatInput({
             submitValue();
           }
         }}
-        placeholder="Paste an ERP approval request, invoice exception, supplier onboarding question, or budget exception to review."
+        placeholder="粘贴采购申请、费用报销、发票付款、供应商准入、合同例外或预算例外，让审批助理审查。"
         value={value}
       />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
-          Ctrl/Cmd + Enter to send for approval review.
+          Ctrl/Cmd + Enter 发送审批审查请求。
         </p>
         <button className="ui-button ui-button-primary" disabled={disabled || !value.trim()} type="submit">
           <SendHorizonal size={16} />
-          Review
+          开始审查
         </button>
       </div>
     </form>

@@ -56,14 +56,14 @@ export function InspectorPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="drawer-root">
-      <button aria-label="Close files drawer" className="drawer-backdrop" onClick={onClose} type="button" />
+      <button aria-label="关闭文件抽屉" className="drawer-backdrop" onClick={onClose} type="button" />
       <aside className="drawer-panel drawer-panel-right">
         <div className="flex items-start justify-between gap-3 border-b border-[var(--color-line)] px-5 py-5">
           <div>
             <p className="pixel-label">
-              # Files
+              # 文件
             </p>
-            <h2 className="pixel-title mt-2 text-[0.92rem] text-[var(--color-ink)]">Workspace editor</h2>
+            <h2 className="pixel-title mt-2 text-[0.92rem] text-[var(--color-ink)]">Workspace 编辑器</h2>
           </div>
 
           <div className="flex items-center gap-2">
@@ -74,11 +74,11 @@ export function InspectorPanel({ onClose }: { onClose: () => void }) {
               type="button"
             >
               {inspectorSaving ? <Loader2 className="animate-spin" size={15} /> : <Save size={15} />}
-              {inspectorDirty ? "Save" : "Saved"}
+              {inspectorDirty ? "保存" : "已保存"}
             </button>
             <button className="ui-button" onClick={onClose} type="button">
               <X size={16} />
-              Close
+              关闭
             </button>
           </div>
         </div>
@@ -90,7 +90,7 @@ export function InspectorPanel({ onClose }: { onClose: () => void }) {
               <input
                 className="pixel-field py-2 pl-10 pr-4 text-sm"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="# FILTER FILES"
+                placeholder="# 过滤文件"
                 value={query}
               />
             </label>
@@ -98,7 +98,7 @@ export function InspectorPanel({ onClose }: { onClose: () => void }) {
             <div className="mt-4 h-[calc(100vh-17rem)] min-h-0">
               {inspectorCatalogLoading && !inspectorCatalogReady ? (
                 <div className="pixel-card-soft px-4 py-3 text-sm text-[var(--color-ink-soft)]">
-                  Loading file catalog...
+                  正在加载文件目录...
                 </div>
               ) : (
                 <VirtualizedStack
@@ -129,18 +129,18 @@ export function InspectorPanel({ onClose }: { onClose: () => void }) {
           <div className="min-h-0 px-4 py-4">
             {!inspectorPath ? (
               <div className="pixel-card-soft flex h-full items-center justify-center px-6 text-center text-sm leading-7 text-[var(--color-ink-soft)]">
-                Select a file to load its contents. Monaco and file payloads stay out of the startup path until you open this drawer and choose a file.
+                选择一个文件后加载内容。Monaco 和文件 payload 会等到打开抽屉并选择文件后再加载。
               </div>
             ) : inspectorFileLoading ? (
               <div className="pixel-card flex h-full items-center justify-center text-sm text-[var(--color-ink-soft)]">
-                Loading file...
+                正在加载文件...
               </div>
             ) : (
               <div className="pixel-card h-full overflow-hidden bg-[#0b0b0b]">
                 <MonacoEditor
                   defaultLanguage={getLanguage(inspectorPath)}
                   height="100%"
-                  loading={<div className="p-4 text-sm text-[var(--color-ink-soft)]">Loading editor...</div>}
+                  loading={<div className="p-4 text-sm text-[var(--color-ink-soft)]">正在加载编辑器...</div>}
                   onChange={(value) => updateInspectorContent(value ?? "")}
                   options={{
                     automaticLayout: true,

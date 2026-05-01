@@ -6,7 +6,7 @@ import { Blocks, Eye, History, Layers3, RefreshCcw } from "lucide-react";
 import { useChatStore, useSessionStore } from "@/lib/store";
 
 function formatTimestamp(value: string) {
-  if (!value) return "pending";
+  if (!value) return "等待中";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
@@ -24,7 +24,7 @@ function objectToText(value: unknown) {
 function SectionBlock({
   title,
   content,
-  emptyLabel = "No content was included for this block."
+  emptyLabel = "这个区块没有写入内容。"
 }: {
   title: string;
   content: string;
@@ -39,7 +39,7 @@ function SectionBlock({
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="pixel-label">{title}</div>
         <button className="pixel-button px-3 py-1 text-xs" onClick={() => setRaw((value) => !value)} type="button">
-          {raw ? "structured" : "raw"}
+          {raw ? "结构化" : "原始"}
         </button>
       </div>
       {!trimmed ? (
@@ -81,15 +81,15 @@ const TurnListItem = memo(function TurnListItem({
       <div className="flex flex-wrap items-center gap-2">
         <span className="pixel-tag">{item.path_type}</span>
         <span className="pixel-tag">{item.run_status || "fresh"}</span>
-        {item.excluded_from_context ? <span className="pixel-tag">excluded</span> : null}
+        {item.excluded_from_context ? <span className="pixel-tag">已排除</span> : null}
       </div>
       <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--color-ink)]">
-        {item.user_query || "No user query captured."}
+        {item.user_query || "未捕获用户问题。"}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-[var(--color-ink-soft)]">
         <span>{formatTimestamp(item.created_at)}</span>
-        <span>{`calls ${item.call_ids.length}`}</span>
-        <span>{`mem ${item.selected_memory_ids.length}`}</span>
+        <span>{`调用 ${item.call_ids.length}`}</span>
+        <span>{`记忆 ${item.selected_memory_ids.length}`}</span>
       </div>
     </button>
   );
@@ -152,8 +152,8 @@ export function ContextTracePanel() {
   if (!currentSessionId) {
     return (
       <div className="pixel-card-soft px-6 py-8">
-        <p className="pixel-label">approval context trace</p>
-        <p className="pixel-note mt-4">Select an approval session to inspect model-visible context.</p>
+        <p className="pixel-label">审批上下文 trace</p>
+        <p className="pixel-note mt-4">选择一个审批会话后，可以查看模型可见上下文。</p>
       </div>
     );
   }
@@ -161,10 +161,10 @@ export function ContextTracePanel() {
   if (!contextTurns.length && !contextTurnsLoading) {
     return (
       <div className="pixel-card-soft px-6 py-8">
-        <p className="pixel-label">approval context trace</p>
-        <h3 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">No assistant turn snapshot yet</h3>
+        <p className="pixel-label">审批上下文 trace</p>
+        <h3 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">还没有 assistant turn 快照</h3>
         <p className="pixel-note mt-4 max-w-3xl">
-          Once this approval session produces a recommendation draft, the model-call level context snapshots will appear here.
+          当这个审批会话生成建议草案后，模型调用级别的上下文快照会出现在这里。
         </p>
       </div>
     );
@@ -200,7 +200,7 @@ export function ContextTracePanel() {
           model calls
         </div>
         {!contextTurnCalls.length ? (
-          <div className="pixel-note px-2 py-3 text-sm">No model call was recorded for this turn.</div>
+          <div className="pixel-note px-2 py-3 text-sm">这一轮没有记录模型调用。</div>
         ) : (
           <div className="space-y-3 overflow-y-auto pr-1">
             {contextTurnCalls.map((item) => (
@@ -217,38 +217,38 @@ export function ContextTracePanel() {
 
       <div className="space-y-4 overflow-y-auto pr-1">
         {contextTurnsLoading && !selectedContextTurn ? (
-          <div className="pixel-card-soft px-6 py-8 text-sm text-[var(--color-ink-soft)]">Loading context trace...</div>
+          <div className="pixel-card-soft px-6 py-8 text-sm text-[var(--color-ink-soft)]">正在加载上下文 trace...</div>
         ) : selectedContextTurn ? (
           <>
             <section className="pixel-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="ui-pill">
                   <Eye size={14} />
-                  model-visible context
+                  模型可见上下文
                 </div>
                 <div className="mono text-sm text-[var(--color-ink-soft)]">{selectedContextTurn.turn_id}</div>
               </div>
               <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <SectionBlock title="User query" content={selectedContextTurn.user_query} />
+                <SectionBlock title="用户问题" content={selectedContextTurn.user_query} />
                 <section className="pixel-card-soft p-4">
                   <div className="pixel-label mb-3 flex items-center gap-2">
                     <Blocks size={14} />
-                    Approval path / run meta
+                    审批路径 / 运行元数据
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="pixel-tag">{selectedContextTurn.path_type}</span>
                     <span className="pixel-tag">{selectedContextTurn.run_status || "fresh"}</span>
-                    {selectedContextTurn.excluded_from_context ? <span className="pixel-tag">excluded from future context</span> : null}
-                    {selectedContextCall ? <span className="pixel-tag">{selectedContextCall.call_type}</span> : <span className="pixel-tag">post-turn state</span>}
+                    {selectedContextTurn.excluded_from_context ? <span className="pixel-tag">已从未来上下文排除</span> : null}
+                    {selectedContextCall ? <span className="pixel-tag">{selectedContextCall.call_type}</span> : <span className="pixel-tag">turn 后状态</span>}
                   </div>
                   <div className="mt-4 space-y-2 text-sm leading-6 text-[var(--color-ink-soft)]">
-                    <p>{`turn created: ${formatTimestamp(selectedContextTurn.created_at)}`}</p>
+                    <p>{`turn 创建时间: ${formatTimestamp(selectedContextTurn.created_at)}`}</p>
                     <p>{`run: ${selectedContextTurn.run_id}`}</p>
                     <p>{`thread: ${selectedContextTurn.thread_id}`}</p>
                     {selectedContextTurn.checkpoint_id ? <p>{`checkpoint: ${selectedContextTurn.checkpoint_id}`}</p> : null}
-                    {selectedContextTurn.resume_source ? <p>{`resume source: ${selectedContextTurn.resume_source}`}</p> : null}
-                    {selectedContextTurn.excluded_at ? <p>{`excluded at: ${formatTimestamp(selectedContextTurn.excluded_at)}`}</p> : null}
-                    {selectedContextTurn.exclusion_reason ? <p>{`exclusion reason: ${selectedContextTurn.exclusion_reason}`}</p> : null}
+                    {selectedContextTurn.resume_source ? <p>{`恢复来源: ${selectedContextTurn.resume_source}`}</p> : null}
+                    {selectedContextTurn.excluded_at ? <p>{`排除时间: ${formatTimestamp(selectedContextTurn.excluded_at)}`}</p> : null}
+                    {selectedContextTurn.exclusion_reason ? <p>{`排除原因: ${selectedContextTurn.exclusion_reason}`}</p> : null}
                   </div>
                 </section>
               </div>
@@ -256,28 +256,28 @@ export function ContextTracePanel() {
 
             <div className="grid gap-4 xl:grid-cols-2">
               <SectionBlock title="System block" content={envelope?.system_block ?? ""} />
-              <SectionBlock title="Recent history" content={envelope?.history_block ?? ""} />
+              <SectionBlock title="最近历史" content={envelope?.history_block ?? ""} />
               <SectionBlock title="Working memory" content={envelope?.working_memory_block ?? ""} />
               <SectionBlock title="Episodic memory" content={envelope?.episodic_block ?? ""} />
               <SectionBlock title="Semantic memory hits" content={envelope?.semantic_block ?? ""} />
               <SectionBlock title="Procedural memory hits" content={envelope?.procedural_block ?? ""} />
               <SectionBlock title="Conversation recall" content={envelope?.conversation_block ?? ""} />
               <SectionBlock title="Artifacts / MCP / capability outputs" content={envelope?.artifact_block ?? ""} />
-              <SectionBlock title="Policy / evidence retrieval" content={envelope?.evidence_block ?? ""} />
+              <SectionBlock title="政策 / 证据检索" content={envelope?.evidence_block ?? ""} />
               <SectionBlock
-                title="Post-turn state snapshot"
+                title="turn 后状态快照"
                 content={objectToText(selectedContextTurn.post_turn_state_snapshot)}
-                emptyLabel="No post-turn state snapshot was recorded."
+                emptyLabel="没有记录 turn 后状态快照。"
               />
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
               <section className="pixel-card-soft p-4">
-                <div className="pixel-label mb-3">Budget / token allocation</div>
+                <div className="pixel-label mb-3">预算 / token 分配</div>
                 <div className="space-y-3 text-sm text-[var(--color-ink-soft)]">
                   {Object.keys(budgetAllocated).length ? (
                     <div>
-                      <p className="pixel-label mb-2">allocated</p>
+                      <p className="pixel-label mb-2">已分配</p>
                       <div className="space-y-1">
                         {Object.entries(budgetAllocated).map(([key, value]) => (
                           <p key={`allocated-${key}`}>{`${key}: ${value}`}</p>
@@ -285,11 +285,11 @@ export function ContextTracePanel() {
                       </div>
                     </div>
                   ) : (
-                    <p className="pixel-note">No budget allocation metadata recorded.</p>
+                    <p className="pixel-note">没有记录预算分配元数据。</p>
                   )}
                   {Object.keys(budgetUsed).length ? (
                     <div>
-                      <p className="pixel-label mb-2">used</p>
+                      <p className="pixel-label mb-2">已使用</p>
                       <div className="space-y-1">
                         {Object.entries(budgetUsed).map(([key, value]) => (
                           <p key={`used-${key}`}>{`${key}: ${value}`}</p>
@@ -299,7 +299,7 @@ export function ContextTracePanel() {
                   ) : null}
                   {excluded.length ? (
                     <div>
-                      <p className="pixel-label mb-2">never injected</p>
+                      <p className="pixel-label mb-2">未注入</p>
                       <div className="space-y-1">
                         {excluded.map((item) => (
                           <p key={item}>{item}</p>
@@ -311,38 +311,38 @@ export function ContextTracePanel() {
               </section>
 
               <section className="pixel-card-soft p-4">
-                <div className="pixel-label mb-3">Selected / dropped items</div>
+                <div className="pixel-label mb-3">已选择 / 被丢弃项目</div>
                 <div className="space-y-3 text-sm text-[var(--color-ink-soft)]">
                   <div>
-                    <p className="pixel-label mb-2">selected memory ids</p>
+                    <p className="pixel-label mb-2">已选择 memory IDs</p>
                     {selectedMemoryIds.length ? (
                       selectedMemoryIds.map((item) => <p key={item}>{item}</p>)
                     ) : (
-                      <p className="pixel-note">No governed memories were selected.</p>
+                      <p className="pixel-note">没有选择 governed memories。</p>
                     )}
                   </div>
                   <div>
-                    <p className="pixel-label mb-2">selected artifact ids</p>
+                    <p className="pixel-label mb-2">已选择 artifact IDs</p>
                     {selectedArtifactIds.length ? (
                       selectedArtifactIds.map((item) => <p key={item}>{item}</p>)
                     ) : (
-                      <p className="pixel-note">No artifacts were selected.</p>
+                      <p className="pixel-note">没有选择 artifacts。</p>
                     )}
                   </div>
                   <div>
-                    <p className="pixel-label mb-2">selected evidence ids</p>
+                    <p className="pixel-label mb-2">已选择 evidence IDs</p>
                     {selectedEvidenceIds.length ? (
                       selectedEvidenceIds.map((item) => <p key={item}>{item}</p>)
                     ) : (
-                      <p className="pixel-note">No retrieval evidence ids were recorded.</p>
+                      <p className="pixel-note">没有记录检索 evidence IDs。</p>
                     )}
                   </div>
                   <div>
-                    <p className="pixel-label mb-2">dropped items / truncation</p>
+                    <p className="pixel-label mb-2">被丢弃项目 / 截断</p>
                     {droppedItems.length ? (
                       droppedItems.map((item) => <p key={item}>{item}</p>)
                     ) : (
-                      <p className="pixel-note">No items were dropped from this snapshot.</p>
+                      <p className="pixel-note">这个快照没有丢弃任何项目。</p>
                     )}
                     {truncationReason ? <p className="mt-2 text-[var(--color-ink)]">{truncationReason}</p> : null}
                   </div>

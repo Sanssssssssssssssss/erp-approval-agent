@@ -30,6 +30,9 @@ export function AssetsPanel() {
   const { currentSessionId } = useSessionStore();
   const isErpRecommendationReview =
     pendingHitl?.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID;
+  const hitlReason = isErpRecommendationReview
+    ? "请复核 Agent 的 ERP 审批建议。接受这个 HITL 请求只代表接受或编辑建议，不会执行任何 ERP 动作。"
+    : pendingHitl?.reason ?? "";
   const [editedInputText, setEditedInputText] = useState("{}");
   const [editError, setEditError] = useState("");
 
@@ -50,7 +53,7 @@ export function AssetsPanel() {
       setEditError("");
       await submitHitlDecision(pendingHitl.checkpoint_id, "edit", parsed);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : "Invalid JSON input");
+      setEditError(error instanceof Error ? `JSON 格式不正确：${error.message}` : "JSON 格式不正确");
     }
   };
 
@@ -59,19 +62,19 @@ export function AssetsPanel() {
       <div className="panel flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="pixel-label">evidence</p>
+            <p className="pixel-label">证据</p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
-              Checkpoints, approval context memory, HITL requests, and workflow capabilities
+              Checkpoint、审批上下文记忆、HITL 请求与 workflow capabilities
             </h3>
           </div>
           <button className="ui-button" disabled={assetsLoading || isStreaming} onClick={() => void refreshAssets()} type="button">
-            {assetsLoading ? "Refreshing..." : "Refresh"}
+            {assetsLoading ? "正在刷新..." : "刷新"}
           </button>
         </div>
 
         {!currentSessionId ? (
           <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-            No active approval session yet.
+            还没有活动审批会话。
           </div>
         ) : null}
 
@@ -79,7 +82,7 @@ export function AssetsPanel() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="pixel-label">checkpoints</p>
-              <p className="pixel-note mt-2">Resume from an existing approval thread checkpoint.</p>
+              <p className="pixel-note mt-2">从已有审批线程 checkpoint 恢复。</p>
             </div>
             {latestCheckpoint ? (
               <button
@@ -88,7 +91,7 @@ export function AssetsPanel() {
                 onClick={() => void resumeCheckpoint(latestCheckpoint.checkpoint_id)}
                 type="button"
               >
-                Resume latest
+                恢复最新 checkpoint
               </button>
             ) : null}
           </div>
@@ -98,16 +101,16 @@ export function AssetsPanel() {
                 <div className="pixel-card-soft p-4" key={item.checkpoint_id}>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="pixel-tag">{item.state_label}</span>
-                    {item.is_latest ? <span className="pixel-tag">latest</span> : null}
+                    {item.is_latest ? <span className="pixel-tag">最新</span> : null}
                     <span className="mono text-[0.92rem] text-[var(--color-ink-soft)]">{item.checkpoint_id}</span>
                   </div>
                   <div className="mt-3 grid gap-2 text-sm text-[var(--color-ink-soft)] md:grid-cols-2">
                     <p>thread_id: {item.thread_id}</p>
                     <p>session_id: {item.session_id || "-"}</p>
                     <p>run_id: {item.run_id}</p>
-                    <p>created_at: {item.created_at || "-"}</p>
-                    <p>resumed_from: {item.source || "-"}</p>
-                    <p>current status: {item.state_label}</p>
+                    <p>创建时间: {item.created_at || "-"}</p>
+                    <p>恢复来源: {item.source || "-"}</p>
+                    <p>当前状态: {item.state_label}</p>
                   </div>
                   {item.resume_eligible ? (
                     <div className="mt-3">
@@ -117,7 +120,7 @@ export function AssetsPanel() {
                         onClick={() => void resumeCheckpoint(item.checkpoint_id)}
                         type="button"
                       >
-                        Resume this checkpoint
+                        恢复这个 checkpoint
                       </button>
                     </div>
                   ) : null}
@@ -125,40 +128,46 @@ export function AssetsPanel() {
               ))
             ) : (
               <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-                No checkpoints for this approval session yet.
+                这个审批会话还没有 checkpoint。
               </div>
             )}
           </div>
         </section>
 
         <section className="pixel-card p-4">
-          <p className="pixel-label">hitl</p>
+          <p className="pixel-label">HITL</p>
           <p className="pixel-note mt-2">
             {isErpRecommendationReview
-              ? "ERP recommendation review required. This accepts or edits the agent recommendation only and does not execute an ERP approval."
-              : "Pending approval plus the latest request and decision audit trail."}
+              ? "需要复核 ERP 建议。这里只接受或编辑 Agent 建议，不执行 ERP 审批动作。"
+              : "待复核请求，以及最新请求和决策审计轨迹。"}
           </p>
           {pendingHitl ? (
             <div className="pixel-card-soft mt-4 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="pixel-tag">pending</span>
-                <span className="pixel-tag">risk {pendingHitl.risk_level}</span>
+                <span className="pixel-tag">待处理</span>
+                <span className="pixel-tag">风险 {pendingHitl.risk_level}</span>
                 <span className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
-                  request {pendingHitl.request_id || "-"}
+                  请求 {pendingHitl.request_id || "-"}
                 </span>
               </div>
-              <h4 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">{pendingHitl.display_name}</h4>
-              <p className="pixel-note mt-2">{pendingHitl.reason}</p>
+              <h4 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">
+                {isErpRecommendationReview ? "ERP 审批建议复核" : pendingHitl.display_name}
+              </h4>
+              <p className="pixel-note mt-2">{hitlReason}</p>
               {isErpRecommendationReview ? (
                 <p className="pixel-note mt-2">
-                  This review accepts or edits the agent recommendation only. It does not execute an ERP approval.
+                  这个复核只接受或编辑 Agent 建议，不会执行 ERP 通过、驳回、付款、供应商、合同或预算写入。
                 </p>
               ) : null}
               <div className="mt-3 grid gap-2 text-sm text-[var(--color-ink-soft)] md:grid-cols-2">
                 <p>checkpoint_id: {pendingHitl.checkpoint_id}</p>
-                <p>requested_at: {pendingHitl.requested_at || "-"}</p>
+                <p>请求时间: {pendingHitl.requested_at || "-"}</p>
               </div>
-              <label className="pixel-label mt-4 block">edited payload</label>
+              <details className="hitl-payload-details mt-4">
+                <summary>查看审查 payload</summary>
+                <pre>{prettyJson(pendingHitl.proposed_input)}</pre>
+              </details>
+              <label className="pixel-label mt-4 block">编辑 payload</label>
               <textarea
                 className="mt-2 min-h-[170px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
                 onChange={(event) => setEditedInputText(event.target.value)}
@@ -172,7 +181,7 @@ export function AssetsPanel() {
                   onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "approve")}
                   type="button"
                 >
-                  {isErpRecommendationReview ? "Accept recommendation" : "Approve"}
+                  {isErpRecommendationReview ? "接受建议" : "通过复核"}
                 </button>
                 <button
                   className="ui-button"
@@ -180,7 +189,7 @@ export function AssetsPanel() {
                   onClick={() => void handleEditAndContinue()}
                   type="button"
                 >
-                  Edit and continue
+                  编辑后继续
                 </button>
                 <button
                   className="ui-button"
@@ -188,13 +197,13 @@ export function AssetsPanel() {
                   onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
                   type="button"
                 >
-                  {isErpRecommendationReview ? "Reject recommendation" : "Reject"}
+                  {isErpRecommendationReview ? "拒绝建议" : "拒绝"}
                 </button>
               </div>
             </div>
           ) : (
             <div className="pixel-card-soft mt-4 px-4 py-4 text-sm text-[var(--color-ink-soft)]">
-              No pending HITL approval request right now.
+              当前没有待处理的 HITL 复核请求。
             </div>
           )}
           <div className="mt-4 space-y-3">

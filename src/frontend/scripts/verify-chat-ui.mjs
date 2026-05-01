@@ -31,7 +31,7 @@ async function main() {
       () => {
         const textarea = document.querySelector("textarea");
         const reviewButton = Array.from(document.querySelectorAll("button")).find(
-          (node) => node.textContent?.trim().toLowerCase() === "review"
+          (node) => node.textContent?.trim() === "开始审查"
         );
         return Boolean(textarea && !textarea.hasAttribute("disabled") && reviewButton);
       },
@@ -47,7 +47,7 @@ async function main() {
       () =>
         Array.from(document.querySelectorAll("button")).some(
           (node) =>
-            node.textContent?.trim().toLowerCase() === "review" && !node.hasAttribute("disabled")
+            node.textContent?.trim() === "开始审查" && !node.hasAttribute("disabled")
         ),
       null,
       { timeout: 30000 }
@@ -70,26 +70,26 @@ async function main() {
       () =>
         Array.from(document.querySelectorAll("article")).some((node) => {
           const text = node.textContent || "";
-          return text.includes("Input ") && text.includes(" Output ");
+          return text.includes("输入 ") && text.includes(" 输出 ");
         }),
       null,
       { timeout: 180000 }
     );
 
-    await page.getByRole("button", { name: "Audit trace" }).click();
+    await page.getByRole("button", { name: "Audit Trace" }).click();
     await page.waitForFunction(
       () => {
         const text = document.body.textContent || "";
-        return text.includes("Audit trace") || text.includes("Model-visible context");
+        return text.includes("Audit Trace") || text.includes("模型可见上下文");
       },
       null,
       { timeout: 30000 }
     );
 
-    await page.getByRole("button", { name: "Open workflow tools" }).click();
-    await page.getByRole("button", { name: "Open files" }).click();
+    await page.getByRole("button", { name: "打开 Workflow tools" }).click();
+    await page.getByRole("button", { name: "打开文件" }).click();
     await page.waitForFunction(
-      () => document.body.textContent?.includes("Workspace editor"),
+      () => document.body.textContent?.includes("Workspace 编辑器"),
       null,
       { timeout: 30000 }
     );
@@ -101,12 +101,12 @@ async function main() {
     const tokenBadgeTexts = await page.locator("article").evaluateAll((nodes) =>
       nodes
         .map((node) => node.textContent || "")
-        .filter((text) => text.includes("Input ") && text.includes(" Output "))
+        .filter((text) => text.includes("输入 ") && text.includes(" 输出 "))
     );
     const traceVisible = await page
-      .locator("text=Audit trace")
+      .locator("text=Audit Trace")
       .count();
-    const filesVisible = await page.locator("text=Workspace editor").count();
+    const filesVisible = await page.locator("text=Workspace 编辑器").count();
 
     const maxDistance = Math.max(...scrollSamples.map((item) => item.distanceToBottom));
     const finalDistance = scrollSamples[scrollSamples.length - 1].distanceToBottom;

@@ -19,6 +19,18 @@ type ChatRow = {
   streaming: boolean;
 };
 
+function prettyJson(value: unknown) {
+  return JSON.stringify(value ?? {}, null, 2);
+}
+
+function riskLabel(value: string | null | undefined) {
+  const normalized = (value || "").toLowerCase();
+  if (normalized === "high") return "高风险";
+  if (normalized === "medium") return "中风险";
+  if (normalized === "low") return "低风险";
+  return value || "未标记风险";
+}
+
 export function ChatPanel() {
   const {
     messages,
@@ -36,9 +48,12 @@ export function ChatPanel() {
   const { currentSessionId, sessions } = useSessionStore();
   const isErpRecommendationReview =
     pendingHitl?.capability_id === ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID;
-  const approveButtonLabel = isErpRecommendationReview ? "Accept recommendation" : "Approve";
-  const approvingButtonLabel = isErpRecommendationReview ? "Accepting..." : "Approving...";
-  const rejectButtonLabel = isErpRecommendationReview ? "Reject recommendation" : "Reject";
+  const approveButtonLabel = isErpRecommendationReview ? "接受建议" : "通过复核";
+  const approvingButtonLabel = isErpRecommendationReview ? "正在接受..." : "正在通过...";
+  const rejectButtonLabel = isErpRecommendationReview ? "拒绝建议" : "拒绝";
+  const hitlReason = isErpRecommendationReview
+    ? "请复核 Agent 的 ERP 审批建议。接受或编辑建议不会执行任何 ERP 写入。"
+    : pendingHitl?.reason ?? "";
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
   const frameRef = useRef<number | null>(null);
@@ -89,7 +104,7 @@ export function ChatPanel() {
   );
 
   useEffect(() => {
-    setEditedInputText(JSON.stringify(pendingHitl?.proposed_input ?? {}, null, 2));
+    setEditedInputText(prettyJson(pendingHitl?.proposed_input));
     setEditError("");
   }, [pendingHitl]);
 
@@ -246,7 +261,7 @@ export function ChatPanel() {
       setEditError("");
       void submitHitlDecision(pendingHitl.checkpoint_id, "edit", parsed);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : "Invalid JSON");
+      setEditError(error instanceof Error ? `JSON 格式不正确：${error.message}` : "JSON 格式不正确");
     }
   }, [editedInputText, pendingHitl, submitHitlDecision]);
 
@@ -257,7 +272,7 @@ export function ChatPanel() {
           <div className="pixel-card-soft mb-4 px-4 py-4 text-sm text-[var(--color-ink)]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="pixel-label">Backend unavailable</p>
+                <p className="pixel-label">后端不可用</p>
                 <p className="pixel-note mt-2">{connectionError}</p>
               </div>
               <button
@@ -266,40 +281,20 @@ export function ChatPanel() {
                 onClick={() => void retryInitialization()}
                 type="button"
               >
-                {isInitializing ? "Retrying..." : "Retry"}
+                {isInitializing ? "正在重试..." : "重试连接"}
               </button>
             </div>
           </div>
         ) : null}
 
         {pendingHitl && currentSessionId ? (
-          <div className="pixel-card-soft mb-4 px-4 py-4">
+          <div className="pixel-card-soft mb-4 flex max-h-[52vh] min-h-0 shrink-0 flex-col overflow-y-auto px-4 py-4 sm:max-h-[46vh]">
             <p className="pixel-label">
-              {isErpRecommendationReview ? "ERP recommendation review required" : "ERP approval review required"}
+              {isErpRecommendationReview ? "需要人工复核 ERP 建议" : "需要人工复核"}
             </p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
-              {pendingHitl.display_name}
+              {isErpRecommendationReview ? "ERP 审批建议复核" : pendingHitl.display_name}
             </h3>
-            <p className="pixel-note mt-2">{pendingHitl.reason}</p>
-            {isErpRecommendationReview ? (
-              <p className="pixel-note mt-2">
-                This review accepts or edits the agent recommendation only. It does not execute an ERP approval.
-              </p>
-            ) : null}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="pixel-tag">risk {pendingHitl.risk_level}</span>
-              {pendingHitl.request_id ? <span className="pixel-tag">request {pendingHitl.request_id.slice(0, 8)}</span> : null}
-              <span className="mono text-[0.92rem] text-[var(--color-ink-soft)]">
-                {JSON.stringify(pendingHitl.proposed_input)}
-              </span>
-            </div>
-            <label className="pixel-label mt-4 block">Review or edit proposed payload</label>
-            <textarea
-              className="mt-2 min-h-[120px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
-              onChange={(event) => setEditedInputText(event.target.value)}
-              value={editedInputText}
-            />
-            {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 className="ui-button ui-button-primary"
@@ -315,7 +310,7 @@ export function ChatPanel() {
                 onClick={handleEditAndContinue}
                 type="button"
               >
-                {isStreaming ? "Editing..." : "Edit and continue"}
+                {isStreaming ? "正在提交编辑..." : "编辑后继续"}
               </button>
               <button
                 className="ui-button"
@@ -323,8 +318,27 @@ export function ChatPanel() {
                 onClick={() => void submitHitlDecision(pendingHitl.checkpoint_id, "reject")}
                 type="button"
               >
-                {isStreaming ? "Rejecting..." : rejectButtonLabel}
+                {isStreaming ? "正在拒绝..." : rejectButtonLabel}
               </button>
+            </div>
+            <p className="pixel-note mt-4">{hitlReason}</p>
+            <div className="mt-4 min-h-0 pr-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="pixel-tag">{riskLabel(pendingHitl.risk_level)}</span>
+                {pendingHitl.request_id ? <span className="pixel-tag">请求 {pendingHitl.request_id.slice(0, 8)}</span> : null}
+                <span className="pixel-tag">checkpoint {pendingHitl.checkpoint_id.slice(0, 8)}</span>
+              </div>
+              <details className="hitl-payload-details mt-4">
+                <summary>查看审查 payload</summary>
+                <pre>{prettyJson(pendingHitl.proposed_input)}</pre>
+              </details>
+              <label className="pixel-label mt-4 block">编辑建议 payload</label>
+              <textarea
+                className="mt-2 min-h-[120px] w-full rounded-[8px] border border-[var(--color-line)] bg-[var(--color-bg)] px-3 py-3 font-mono text-sm text-[var(--color-ink)] outline-none"
+                onChange={(event) => setEditedInputText(event.target.value)}
+                value={editedInputText}
+              />
+              {editError ? <p className="mt-2 text-sm text-[var(--color-danger)]">{editError}</p> : null}
             </div>
           </div>
         ) : null}
@@ -337,10 +351,10 @@ export function ChatPanel() {
                 <section className="cli-welcome-main">
                   <h3 className="pixel-title text-[2.3rem] text-[var(--color-ink)]">
                     {isInitializing
-                      ? "Starting workbench"
+                      ? "正在启动工作台"
                       : isSessionLoading
-                        ? "Switching approval thread"
-                        : "Review ERP approvals with evidence"}
+                        ? "正在切换审批线程"
+                        : "带证据审查 ERP 审批"}
                   </h3>
                   <div className="cli-emoji-wrap mt-8">
                     <div className="cli-emoji">
@@ -349,10 +363,10 @@ export function ChatPanel() {
                   </div>
                   <div className="mt-8 text-center">
                     <p className="mono text-[1rem] text-[var(--color-ink-soft)]">
-                      LLM-first approval reasoning / policy retrieval / audit trace
+                      LLM-first 审批推理 / 政策检索 / Audit Trace
                     </p>
                     <p className="mono mt-2 text-[1rem] text-[var(--color-ink)]">
-                      Approval recommendation only / HITL before irreversible action
+                      只生成审批建议 / 不执行 ERP 写动作 / HITL 先行
                     </p>
                     <p className="mt-4 text-sm text-[var(--color-ink-muted)]">
                       <a className="underline underline-offset-4" href="https://pxlkit.xyz" rel="noreferrer" target="_blank">
@@ -364,28 +378,28 @@ export function ChatPanel() {
 
                 <section className="cli-welcome-side">
                   <div>
-                    <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">Tips</h4>
+                    <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">使用提示</h4>
                     <div className="mono mt-4 space-y-3 text-[1rem] leading-8 text-[var(--color-ink-soft)]">
-                      <p>Use Audit trace when you want retrieval, workflow tools, checkpoints, and HITL separated from the main run.</p>
-                      <p>Open Workflow tools for files, runtime toggles, and approval session controls.</p>
-                      <p>Use Ctrl/Cmd + Enter to send. Only the approval assistant viewport scrolls.</p>
+                      <p>Audit Trace 里可以单独看检索、workflow tools、checkpoint 和 HITL 事件。</p>
+                      <p>Workflow tools 里可以打开文件、切换运行设置、管理审批会话。</p>
+                      <p>Ctrl/Cmd + Enter 发送。主页面只滚动审批助理区域。</p>
                     </div>
                   </div>
 
                   <div className="cli-divider" />
 
                   <div>
-                    <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">Recent activity</h4>
+                    <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">最近活动</h4>
                     <div className="mono mt-4 space-y-2 text-[1rem] text-[var(--color-ink-soft)]">
                       {recentSessions.length ? (
                         recentSessions.map((session) => (
                           <div className="flex flex-wrap items-center justify-between gap-3" key={session.id}>
                             <span className="truncate">{session.title}</span>
-                            <span className="text-[var(--color-ink-muted)]">{session.message_count} msgs</span>
+                            <span className="text-[var(--color-ink-muted)]">{session.message_count} 条消息</span>
                           </div>
                         ))
                       ) : (
-                        <p>No earlier sessions yet.</p>
+                        <p>还没有更早的会话。</p>
                       )}
                     </div>
                   </div>

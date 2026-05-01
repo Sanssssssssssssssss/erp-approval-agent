@@ -11,7 +11,7 @@ import type { ToolCall } from "@/lib/api";
 function formatBlock(value: string) {
   const text = value.trim();
   if (!text) {
-    return "Empty";
+    return "空";
   }
 
   try {
@@ -37,14 +37,14 @@ const ToolCallRow = memo(function ToolCallRow({ toolCall }: { toolCall: ToolCall
               : "bg-[var(--color-surface-soft)] text-[var(--color-ink-soft)]"
           }`}
         >
-          {isFinished ? "Completed" : "Running"}
+          {isFinished ? "已完成" : "运行中"}
         </span>
       </div>
 
       <div className="space-y-2 text-sm">
         <div className="pixel-card-soft p-3">
           <div className="pixel-label mb-2 text-[var(--color-accent)]">
-            # Input
+            # 输入
           </div>
           <pre className="mono whitespace-pre-wrap text-[var(--color-ink-soft)]">
             {formattedInput}
@@ -52,7 +52,7 @@ const ToolCallRow = memo(function ToolCallRow({ toolCall }: { toolCall: ToolCall
         </div>
         <div className="pixel-card-soft p-3">
           <div className="pixel-label mb-2 text-[var(--color-accent)]">
-            # Output
+            # 输出
           </div>
           <pre className="mono whitespace-pre-wrap text-[var(--color-ink-soft)]">
             {formattedOutput}
@@ -101,14 +101,14 @@ export const ThoughtChain = memo(function ThoughtChain({ toolCalls }: { toolCall
         <TerminalSquare className="mt-0.5 shrink-0 text-[var(--color-accent)]" size={16} />
         <div className="min-w-0 flex-1">
           <div className="pixel-title text-[0.76rem] text-[var(--color-ink)]">
-            {activeTool ? `Running ${activeTool.tool}` : `${toolCalls.length} tool call(s)`}
+            {activeTool ? `正在运行 ${activeTool.tool}` : `${toolCalls.length} 次 tool call`}
           </div>
           <div className="truncate pt-1 text-xs font-normal tracking-[0.16em] text-[var(--color-ink-muted)]">
             {toolNames.join(" -> ")}
           </div>
         </div>
         <span className="shrink-0 text-[11px] font-normal tracking-[0.16em] text-[var(--color-ink-muted)]">
-          {isOpen ? "Collapse" : "Expand"}
+          {isOpen ? "收起" : "展开"}
         </span>
       </summary>
 

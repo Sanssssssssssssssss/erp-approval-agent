@@ -10,7 +10,7 @@ import type { MessageUsage, RetrievalStep, RunMeta, ToolCall } from "@/lib/api";
  * Returns one human-readable usage label from one usage object input and formats the token summary for a turn.
  */
 function formatTokenUsage(usage: MessageUsage) {
-  return `Input ${usage.input_tokens.toLocaleString()} | Output ${usage.output_tokens.toLocaleString()} tokens`;
+  return `输入 ${usage.input_tokens.toLocaleString()} | 输出 ${usage.output_tokens.toLocaleString()} tokens`;
 }
 
 const DOODLE_FRAMES = ["[+__+]", "[+o_+]", "[+O_+]", "[+o_+]", "[+__+]", "[+^^+]"];
@@ -27,9 +27,9 @@ function StreamingThinking() {
   }, []);
 
   return (
-    <div className="doodle-thinking" aria-label="thinking">
+    <div className="doodle-thinking" aria-label="思考中">
       <span className="doodle-frame mono">{DOODLE_FRAMES[frameIndex]}</span>
-      <span className="mono">thinking...</span>
+      <span className="mono">思考中...</span>
     </div>
   );
 }
@@ -126,13 +126,13 @@ export const ChatMessage = memo(function ChatMessage({
         {shouldRenderPlainText ? (
           content ||
           (runMeta?.status === "interrupted"
-            ? "Approval requested before capability execution."
+            ? "执行前需要人工复核。"
             : streaming
               ? <StreamingThinking />
               : "")
         ) : (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content || (runMeta?.status === "interrupted" ? "Approval requested before capability execution." : "Thinking...")}
+            {content || (runMeta?.status === "interrupted" ? "执行前需要人工复核。" : "思考中...")}
           </ReactMarkdown>
         )}
       </div>

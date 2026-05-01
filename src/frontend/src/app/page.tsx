@@ -16,7 +16,7 @@ const TracePanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        Loading audit trace...
+        正在加载 Audit Trace...
       </section>
     ),
     ssr: false
@@ -28,7 +28,7 @@ const AssetsPanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        Loading evidence view...
+        正在加载证据视图...
       </section>
     ),
     ssr: false
@@ -40,7 +40,7 @@ const InsightsPanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        Loading management insights...
+        正在加载管理洞察...
       </section>
     ),
     ssr: false
@@ -84,28 +84,28 @@ function WorkspaceBottomBar({
           onClick={() => onViewChange("chat")}
           type="button"
         >
-          Approval assistant
+          审批助理
         </button>
         <button
           className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("trace")}
           type="button"
         >
-          Audit trace
+          Audit Trace
         </button>
         <button
           className={workspaceView === "assets" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("assets")}
           type="button"
         >
-          Evidence
+          证据
         </button>
         <button
           className={workspaceView === "insights" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("insights")}
           type="button"
         >
-          Insights
+          管理洞察
         </button>
         {workspaceView === "trace" && resumableCheckpoint ? (
           <button
@@ -116,7 +116,7 @@ function WorkspaceBottomBar({
           >
             <span className="inline-flex items-center gap-2">
               <RotateCcw size={14} />
-              Resume checkpoint
+              恢复 checkpoint
             </span>
           </button>
         ) : null}
@@ -125,11 +125,11 @@ function WorkspaceBottomBar({
       <div className="pixel-stat">
         {tokenStats ? (
           <>
-            <span>{`Model ${tokenStats.model_call_total_tokens.toLocaleString()} tokens`}</span>
-            <span>{`Audit trace ${tokenStats.session_trace_tokens.toLocaleString()} tokens`}</span>
+            <span>{`模型 ${tokenStats.model_call_total_tokens.toLocaleString()} tokens`}</span>
+            <span>{`Audit Trace ${tokenStats.session_trace_tokens.toLocaleString()} tokens`}</span>
           </>
         ) : (
-          <span>No token stats yet</span>
+          <span>暂无 token 统计</span>
         )}
       </div>
     </div>

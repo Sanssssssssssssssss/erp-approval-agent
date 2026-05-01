@@ -15,19 +15,19 @@ const STEP_META: Record<
   }
 > = {
   memory: {
-    label: "Memory",
+    label: "记忆",
     icon: Database,
     border: "border-[var(--color-accent-line)] bg-[var(--color-accent-soft)]",
     badge: "bg-[rgba(189,118,80,0.12)] text-[var(--color-accent)]"
   },
   skill: {
-    label: "Capability",
+    label: "能力",
     icon: Search,
     border: "border-[var(--color-line)] bg-[var(--color-surface-soft)]",
     badge: "bg-[var(--color-surface)] text-[var(--color-ink)]"
   },
   fallback: {
-    label: "Fallback",
+    label: "兜底",
     icon: Sparkles,
     border: "border-[rgba(183,84,39,0.2)] bg-[rgba(183,84,39,0.08)]",
     badge: "bg-[rgba(183,84,39,0.12)] text-[var(--color-danger)]"
@@ -45,7 +45,7 @@ const STEP_META: Record<
     badge: "bg-[var(--color-surface)] text-[var(--color-ink)]"
   },
   fused: {
-    label: "Fused",
+    label: "融合",
     icon: Layers3,
     border: "border-[var(--color-accent-line)] bg-[var(--color-accent-soft)]",
     badge: "bg-[rgba(189,118,80,0.12)] text-[var(--color-accent)]"
@@ -77,7 +77,7 @@ const RetrievalStepCard = memo(function RetrievalStepCard({ step }: { step: Retr
         </div>
         {step.results.length ? (
           <span className="shrink-0 border-2 border-[var(--color-line)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-[var(--color-ink-soft)]">
-            {step.results.length} hits
+            {step.results.length} 条命中
           </span>
         ) : null}
       </div>
@@ -117,7 +117,7 @@ export const RetrievalCard = memo(function RetrievalCard({ steps }: { steps: Ret
     <div className="pixel-card-soft mb-4 p-4">
       <div className="pixel-label flex items-center gap-2 text-[var(--color-accent)]">
         <Database size={15} />
-        # Policy / evidence retrieval trace
+        # 政策 / 证据检索轨迹
       </div>
 
       <div className="mt-3 space-y-3">

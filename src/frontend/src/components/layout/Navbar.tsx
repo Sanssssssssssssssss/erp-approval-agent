@@ -44,20 +44,20 @@ export function Navbar({
   }, [menuOpen]);
 
   const knowledgeLabel = knowledgeIndexStatus?.building
-    ? "Index rebuilding"
+    ? "索引重建中"
     : knowledgeIndexStatus?.ready
-      ? `${knowledgeIndexStatus.indexed_files} files indexed`
-      : "Index offline";
+      ? `已索引 ${knowledgeIndexStatus.indexed_files} 个文件`
+      : "索引离线";
 
   return (
     <header className="panel workspace-topbar">
-      <button aria-label="Open approval threads" className="ui-button" onClick={onOpenSessions} type="button">
+      <button aria-label="打开审批线程" className="ui-button" onClick={onOpenSessions} type="button">
         <Menu size={16} />
-        Approval threads
+        审批线程
       </button>
 
       <div className="workspace-title-wrap">
-        <p className="workspace-title-label">Current approval session</p>
+        <p className="workspace-title-label">当前审批会话</p>
         <h1 className="workspace-title-text" title={currentSessionTitle}>
           {currentSessionTitle}
         </h1>
@@ -65,7 +65,7 @@ export function Navbar({
 
       <div className="relative" ref={menuRef}>
         <button
-          aria-label="Open workflow tools"
+          aria-label="打开 Workflow tools"
           className="ui-button"
           onClick={() => setMenuOpen((value) => !value)}
           type="button"
@@ -77,7 +77,7 @@ export function Navbar({
         {menuOpen ? (
           <div className="menu-popover absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[420px] p-3">
             <div className="menu-section">
-              <p className="menu-label">Approval session</p>
+              <p className="menu-label">审批会话</p>
               <div className="grid gap-2">
                 <button
                   className="menu-card"
@@ -88,15 +88,15 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">New approval session</div>
-                    <div className="menu-card-copy">Start a fresh approval thread</div>
+                    <div className="menu-card-title">新建审批会话</div>
+                    <div className="menu-card-copy">开始一个新的审批线程</div>
                   </div>
                   <Plus size={16} />
                 </button>
                 <button
                   className="menu-card"
                   onClick={() => {
-                    const nextTitle = window.prompt("Rename the current approval session", currentSessionTitle);
+                    const nextTitle = window.prompt("重命名当前审批会话", currentSessionTitle);
                     if (nextTitle) {
                       void renameCurrentSession(nextTitle);
                     }
@@ -105,7 +105,7 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Rename approval session</div>
+                    <div className="menu-card-title">重命名审批会话</div>
                     <div className="menu-card-copy">{currentSessionTitle}</div>
                   </div>
                   <Pencil size={16} />
@@ -119,8 +119,8 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Compress approval context</div>
-                    <div className="menu-card-copy">Summarize older approval context</div>
+                    <div className="menu-card-title">压缩审批上下文</div>
+                    <div className="menu-card-copy">总结较早的审批上下文</div>
                   </div>
                   <Wrench size={16} />
                 </button>
@@ -133,8 +133,8 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Open files</div>
-                    <div className="menu-card-copy">Browse and edit workspace files</div>
+                    <div className="menu-card-title">打开文件</div>
+                    <div className="menu-card-copy">浏览和编辑 workspace 文件</div>
                   </div>
                   <FileText size={16} />
                 </button>
@@ -151,8 +151,8 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Policy retrieval</div>
-                    <div className="menu-card-copy">{ragMode ? "Enabled" : "Disabled"}</div>
+                    <div className="menu-card-title">政策检索</div>
+                    <div className="menu-card-copy">{ragMode ? "已开启" : "已关闭"}</div>
                   </div>
                   <Search size={16} />
                 </button>
@@ -163,9 +163,9 @@ export function Navbar({
                   type="button"
                 >
                   <div>
-                    <div className="menu-card-title">Capability retrieval</div>
+                    <div className="menu-card-title">能力检索</div>
                     <div className="menu-card-copy">
-                      {skillRetrievalEnabled ? "Enabled" : "Disabled"}
+                      {skillRetrievalEnabled ? "已开启" : "已关闭"}
                     </div>
                   </div>
                   <Search size={16} />
@@ -194,7 +194,7 @@ export function Navbar({
             </div>
 
             <div className="menu-section">
-              <p className="menu-label">Policy / evidence index</p>
+              <p className="menu-label">政策 / 证据索引</p>
               <div className="menu-note">{knowledgeLabel}</div>
               <button
                 className="menu-card"
@@ -203,8 +203,8 @@ export function Navbar({
                 type="button"
               >
                 <div>
-                  <div className="menu-card-title">Rebuild index</div>
-                  <div className="menu-card-copy">Refresh the current policy and evidence catalog</div>
+                  <div className="menu-card-title">重建索引</div>
+                  <div className="menu-card-copy">刷新当前政策与证据目录</div>
                 </div>
                 <Database size={16} />
               </button>
