@@ -2,6 +2,28 @@
 
 This is the fastest path to a working local ERP Approval Agent Workbench. Phase 14 is the MVP closure point: the local workbench runs with ERP approval graph, trace, audit, simulation, and connector diagnostics features, while still keeping legacy RFP/security compatibility checks.
 
+## One-Click Local Start
+
+From the repo root:
+
+```powershell
+.\start-local.ps1
+```
+
+Full local acceptance loop plus startup:
+
+```powershell
+.\start-local.ps1 -All
+```
+
+Double-click entrypoint:
+
+```text
+start-local.cmd
+```
+
+`-All` runs environment checks, Phase 14 MVP validation, the legacy RFP/security compatibility benchmark smoke, and then starts the backend and frontend.
+
 ## 1. Create the backend venv
 
 ```powershell
@@ -60,6 +82,12 @@ This command validates the existing benchmark harness and retrieval path. It is 
   --suite rfp_security `
   --limit 3 `
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
+```
+
+Or use the one-click wrapper:
+
+```powershell
+.\start-local.ps1 -Benchmark -NoStart
 ```
 
 ## 7. Start the local workbench

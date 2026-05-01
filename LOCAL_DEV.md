@@ -37,6 +37,24 @@ cd ../..
 
 ## Start Commands
 
+One-click setup and startup:
+
+```powershell
+.\start-local.ps1
+```
+
+One-click validation, legacy benchmark smoke, and startup:
+
+```powershell
+.\start-local.ps1 -All
+```
+
+Double-click entrypoint:
+
+```text
+start-local.cmd
+```
+
 Full stack:
 
 ```powershell
@@ -98,6 +116,12 @@ Legacy RFP/security compatibility smoke benchmark:
   --suite rfp_security `
   --limit 3 `
   --output artifacts\benchmarks\latest\rfp_security_smoke.json
+```
+
+One-click legacy compatibility benchmark only:
+
+```powershell
+.\start-local.ps1 -Benchmark -NoStart
 ```
 
 Live validation smoke for the existing harness:

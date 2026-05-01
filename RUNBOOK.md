@@ -36,6 +36,18 @@ cd ..\..
 Start the app:
 
 ```powershell
+.\start-local.ps1
+```
+
+Run validation, legacy benchmark smoke, and then start the app:
+
+```powershell
+.\start-local.ps1 -All
+```
+
+Lower-level startup script:
+
+```powershell
 .\backend\scripts\dev\start-dev.ps1 -InstallIfMissing
 ```
 
@@ -61,6 +73,12 @@ Run the legacy RFP/security compatibility suite:
 .\backend\.venv\Scripts\python.exe backend\benchmarks\run_harness_benchmark.py `
   --suite rfp_security `
   --output artifacts\benchmarks\latest\rfp_security_full.json
+```
+
+Run the one-click legacy smoke benchmark:
+
+```powershell
+.\start-local.ps1 -Benchmark -NoStart
 ```
 
 Run legacy pressure mode:

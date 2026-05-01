@@ -170,6 +170,26 @@ STOP rule: this MVP is closed at Phase 14 unless a future task explicitly opens 
 
 ## Quick Start
 
+One-click local startup from the repo root:
+
+```powershell
+.\start-local.ps1
+```
+
+Full local acceptance loop plus startup:
+
+```powershell
+.\start-local.ps1 -All
+```
+
+Double-click entrypoint on Windows:
+
+```text
+start-local.cmd
+```
+
+`-All` runs environment checks, Phase 14 MVP validation, the legacy RFP/security compatibility benchmark smoke, and then starts the backend and frontend.
+
 1. Create the backend environment.
 
 ```powershell
