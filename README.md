@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, and Phase 8 adds a local audit package workspace with reviewer notes.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, and Phase 9 adds a local mock action simulation sandbox.
 
 ## Product Direction
 
@@ -59,6 +59,7 @@ Completed:
 - Phase 6 trace filtering, detail lookup, JSON/CSV export, and date-bucket trend summaries.
 - Phase 7 action proposal ledger and read-only audit packages with completeness checks.
 - Phase 8 saved audit package manifests and append-only reviewer notes.
+- Phase 9 local action simulation sandbox and simulation ledger.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
@@ -94,7 +95,7 @@ It produces a structured approval recommendation with confidence, missing inform
 
 Action proposals are proposed-only drafts. They include idempotency fields and validation warnings, but they are not tool calls, capability invocations, connector calls, or ERP writes.
 
-Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 persists action proposals separately at `backend/storage/erp_approval/action_proposals.jsonl` and can build temporary read-only audit packages. Phase 8 saves local audit package manifests at `backend/storage/erp_approval/audit_packages.jsonl` and append-only reviewer notes at `backend/storage/erp_approval/reviewer_notes.jsonl`. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
+Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 persists action proposals separately at `backend/storage/erp_approval/action_proposals.jsonl` and can build temporary read-only audit packages. Phase 8 saves local audit package manifests at `backend/storage/erp_approval/audit_packages.jsonl` and append-only reviewer notes at `backend/storage/erp_approval/reviewer_notes.jsonl`. Phase 9 records local dry-run simulation results at `backend/storage/erp_approval/action_simulations.jsonl`. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
 
 ERP approval APIs include read-only trace/proposal/audit lookups plus local audit workspace writes:
 
@@ -106,16 +107,20 @@ ERP approval APIs include read-only trace/proposal/audit lookups plus local audi
 - `GET /api/erp-approval/export.csv`
 - `GET /api/erp-approval/proposals?limit=100`
 - `GET /api/erp-approval/proposals/{proposal_record_id}`
+- `GET /api/erp-approval/proposals/{proposal_record_id}/simulations`
 - `GET /api/erp-approval/traces/{trace_id}/proposals`
+- `GET /api/erp-approval/action-simulations`
+- `GET /api/erp-approval/action-simulations/{simulation_id}`
 - `GET /api/erp-approval/audit-package?trace_ids=...&limit=100`
 - `GET /api/erp-approval/audit-packages`
 - `GET /api/erp-approval/audit-packages/{package_id}`
 - `GET /api/erp-approval/audit-packages/{package_id}/export.json`
 - `GET /api/erp-approval/audit-packages/{package_id}/notes`
+- `POST /api/erp-approval/action-simulations`
 - `POST /api/erp-approval/audit-packages`
 - `POST /api/erp-approval/audit-packages/{package_id}/notes`
 
-The two POST endpoints write only local audit workspace artifacts. They are not ERP writes and do not execute action proposals.
+The local POST endpoints write only local audit workspace artifacts or local dry-run simulation records. They are not ERP writes and do not execute action proposals.
 
 ## Quick Start
 
@@ -183,7 +188,8 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_api `
   backend.tests.test_erp_approval_proposal_ledger `
   backend.tests.test_erp_approval_audit_package `
-  backend.tests.test_erp_approval_audit_workspace
+  backend.tests.test_erp_approval_audit_workspace `
+  backend.tests.test_erp_approval_action_simulation
 ```
 
 Legacy RFP/security compatibility benchmark smoke:
@@ -217,6 +223,7 @@ npm run build
 - action proposal ledger is not an execution ledger; it stores proposed-only drafts with `executable=false`.
 - audit packages are completeness review artifacts, not model-quality benchmarks.
 - saved audit packages and reviewer notes are local review artifacts, not ERP comments or ERP writes.
+- local action simulations are dry-run records only; they do not send, post, route, approve, reject, pay, update, or execute anything.
 
 ## Non-Claims
 
@@ -228,7 +235,7 @@ This repository does not currently claim to:
 - benchmark-prove ERP approval accuracy.
 - provide production process mining or execution audit.
 
-Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, a local trace explorer/analytics foundation, read-only audit packages, and a local audit package workspace. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
+Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, a local trace explorer/analytics foundation, read-only audit packages, a local audit package workspace, and a local dry-run simulation sandbox. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 

@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field
 from src.backend.domains.erp_approval import (
     ApprovalActionProposalQuery,
     ApprovalActionProposalRepository,
+    ApprovalActionSimulationQuery,
+    ApprovalActionSimulationRepository,
+    ApprovalActionSimulationRequest,
     ReviewerNoteRepository,
     SavedAuditPackageQuery,
     SavedAuditPackageRepository,
@@ -14,10 +17,13 @@ from src.backend.domains.erp_approval import (
     append_reviewer_note,
     build_audit_package,
     build_saved_audit_package_manifest,
+    build_simulation_record,
+    default_action_simulation_path,
     default_proposal_ledger_path,
     default_reviewer_notes_path,
     default_saved_audit_package_path,
     default_trace_path,
+    validate_simulation_request,
 )
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
@@ -59,6 +65,11 @@ def _saved_package_repository() -> SavedAuditPackageRepository:
 def _note_repository() -> ReviewerNoteRepository:
     base_dir = agent_manager.base_dir or get_settings().backend_dir
     return ReviewerNoteRepository(default_reviewer_notes_path(base_dir))
+
+
+def _simulation_repository() -> ApprovalActionSimulationRepository:
+    base_dir = agent_manager.base_dir or get_settings().backend_dir
+    return ApprovalActionSimulationRepository(default_action_simulation_path(base_dir))
 
 
 @router.get("/erp-approval/traces")
@@ -136,6 +147,64 @@ async def get_erp_approval_proposal(proposal_record_id: str) -> dict:
     if record is None:
         raise HTTPException(status_code=404, detail="ERP approval proposal record not found")
     return record.model_dump()
+
+
+@router.get("/erp-approval/proposals/{proposal_record_id}/simulations")
+async def list_erp_approval_proposal_simulations(proposal_record_id: str) -> list[dict]:
+    return [record.model_dump() for record in _simulation_repository().by_proposal_record_id(proposal_record_id)]
+
+
+@router.get("/erp-approval/action-simulations")
+async def list_erp_approval_action_simulations(
+    limit: int = Query(default=100, ge=0, le=1000),
+    proposal_record_id: str | None = None,
+    package_id: str | None = None,
+    trace_id: str | None = None,
+    approval_id: str | None = None,
+    action_type: str | None = None,
+    status: str | None = None,
+    requested_by: str | None = None,
+) -> list[dict]:
+    query = ApprovalActionSimulationQuery(
+        limit=limit,
+        proposal_record_id=_clean_optional(proposal_record_id),
+        package_id=_clean_optional(package_id),
+        trace_id=_clean_optional(trace_id),
+        approval_id=_clean_optional(approval_id),
+        action_type=_clean_optional(action_type),
+        status=_clean_optional(status),
+        requested_by=_clean_optional(requested_by),
+    )
+    return [record.model_dump() for record in _simulation_repository().list_recent(query)]
+
+
+@router.get("/erp-approval/action-simulations/{simulation_id}")
+async def get_erp_approval_action_simulation(simulation_id: str) -> dict:
+    record = _simulation_repository().get(simulation_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="ERP approval action simulation not found")
+    return record.model_dump()
+
+
+@router.post("/erp-approval/action-simulations")
+async def create_erp_approval_action_simulation(request: ApprovalActionSimulationRequest) -> dict:
+    if not request.confirm_no_erp_write:
+        raise HTTPException(status_code=400, detail="confirm_no_erp_write must be true for local simulation")
+    proposal = _proposal_repository().get(request.proposal_record_id)
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="ERP approval proposal record not found")
+    saved_package = _saved_package_repository().get(request.package_id)
+    if saved_package is None:
+        raise HTTPException(status_code=404, detail="Saved ERP approval audit package not found")
+    if proposal.proposal_record_id not in saved_package.proposal_record_ids:
+        raise HTTPException(status_code=400, detail="Proposal record does not belong to saved audit package")
+
+    validation = validate_simulation_request(request, proposal, saved_package)
+    record = build_simulation_record(request, proposal, saved_package, validation, _now())
+    result = _simulation_repository().upsert(record)
+    if not result.success:
+        raise HTTPException(status_code=500, detail=result.error or "Failed to save local action simulation")
+    return (_simulation_repository().get(record.simulation_id) or record).model_dump()
 
 
 @router.get("/erp-approval/analytics/summary")

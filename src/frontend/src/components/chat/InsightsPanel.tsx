@@ -17,11 +17,13 @@ import {
   listSavedErpApprovalAuditPackages,
   listErpApprovalTraceProposals,
   listErpApprovalTraces,
+  runErpApprovalActionSimulation,
   saveErpApprovalAuditPackage
 } from "@/lib/api";
 import type {
   ErpApprovalReviewerNote,
   ErpApprovalActionProposalRecord,
+  ErpApprovalActionSimulationRecord,
   ErpApprovalAnalyticsSummary,
   ErpApprovalTraceQuery,
   ErpApprovalTraceRecord,
@@ -287,6 +289,11 @@ function AuditWorkspace({
   noteType,
   packages,
   selectedPackage,
+  simulationConfirmNoWrite,
+  simulationNote,
+  simulationProposalId,
+  simulationRecord,
+  simulationRequestedBy,
   notes,
   saving,
   title,
@@ -298,8 +305,13 @@ function AuditWorkspace({
   onNoteAuthorChange,
   onNoteBodyChange,
   onNoteTypeChange,
+  onRunSimulation,
   onSaveFiltered,
   onSaveSelected,
+  onSimulationConfirmNoWriteChange,
+  onSimulationNoteChange,
+  onSimulationProposalIdChange,
+  onSimulationRequestedByChange,
   onTitleChange
 }: {
   createdBy: string;
@@ -309,6 +321,11 @@ function AuditWorkspace({
   noteType: string;
   packages: SavedErpApprovalAuditPackageManifest[];
   selectedPackage: SavedErpApprovalAuditPackageManifest | null;
+  simulationConfirmNoWrite: boolean;
+  simulationNote: string;
+  simulationProposalId: string;
+  simulationRecord: ErpApprovalActionSimulationRecord | null;
+  simulationRequestedBy: string;
   notes: ErpApprovalReviewerNote[];
   saving: boolean;
   title: string;
@@ -320,8 +337,13 @@ function AuditWorkspace({
   onNoteAuthorChange: (value: string) => void;
   onNoteBodyChange: (value: string) => void;
   onNoteTypeChange: (value: string) => void;
+  onRunSimulation: () => void;
   onSaveFiltered: () => void;
   onSaveSelected: () => void;
+  onSimulationConfirmNoWriteChange: (value: boolean) => void;
+  onSimulationNoteChange: (value: string) => void;
+  onSimulationProposalIdChange: (value: string) => void;
+  onSimulationRequestedByChange: (value: string) => void;
   onTitleChange: (value: string) => void;
 }) {
   return (
@@ -441,6 +463,84 @@ function AuditWorkspace({
               <button className="ui-button mt-3" disabled={saving || !noteBody.trim()} onClick={onAppendNote} type="button">
                 Add local note
               </button>
+
+              <div className="mt-6 border-t border-[var(--color-line)] pt-5">
+                <p className="pixel-label">local simulation sandbox</p>
+                <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
+                  This is a local simulation only. It does not execute an ERP action.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-[minmax(220px,1fr)_minmax(140px,0.5fr)_minmax(220px,1fr)]">
+                  <select
+                    className="pixel-field px-3 py-2"
+                    onChange={(event) => onSimulationProposalIdChange(event.target.value)}
+                    value={simulationProposalId}
+                  >
+                    <option value="">Select proposal record</option>
+                    {selectedPackage.proposal_record_ids.map((proposalId) => (
+                      <option key={proposalId} value={proposalId}>
+                        {proposalId}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="pixel-field px-3 py-2"
+                    onChange={(event) => onSimulationRequestedByChange(event.target.value)}
+                    placeholder="Requested by"
+                    value={simulationRequestedBy}
+                  />
+                  <input
+                    className="pixel-field px-3 py-2"
+                    onChange={(event) => onSimulationNoteChange(event.target.value)}
+                    placeholder="Simulation note"
+                    value={simulationNote}
+                  />
+                </div>
+                <label className="mt-3 flex items-center gap-2 text-sm text-[var(--color-ink-soft)]">
+                  <input
+                    checked={simulationConfirmNoWrite}
+                    onChange={(event) => onSimulationConfirmNoWriteChange(event.target.checked)}
+                    type="checkbox"
+                  />
+                  Confirm this is local dry-run only and no ERP write will be attempted.
+                </label>
+                <button
+                  className="ui-button mt-3"
+                  disabled={saving || !selectedPackage.proposal_record_ids.length || !simulationProposalId || !simulationConfirmNoWrite}
+                  onClick={onRunSimulation}
+                  type="button"
+                >
+                  Run local simulation
+                </button>
+
+                {simulationRecord ? (
+                  <div className="pixel-card-soft mt-4 p-3 text-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[var(--color-ink)]">{simulationRecord.status}</p>
+                        <p className="mt-1 break-all text-xs text-[var(--color-ink-muted)]">{simulationRecord.simulation_id}</p>
+                      </div>
+                      <span className="pixel-tag">simulated_only={String(simulationRecord.simulated_only)}</span>
+                      <span className="pixel-tag">erp_write_executed={String(simulationRecord.erp_write_executed)}</span>
+                    </div>
+                    <pre className="mt-3 overflow-auto whitespace-pre-wrap text-xs text-[var(--color-ink-soft)]">
+                      {JSON.stringify(simulationRecord.output_preview, null, 2)}
+                    </pre>
+                    {simulationRecord.validation_warnings.length ? (
+                      <div className="mt-3">
+                        <p className="pixel-label mb-2">validation warnings</p>
+                        <ValueList values={simulationRecord.validation_warnings} />
+                      </div>
+                    ) : null}
+                    {simulationRecord.blocked_reasons.length ? (
+                      <div className="mt-3">
+                        <p className="pixel-label mb-2">blocked reasons</p>
+                        <ValueList values={simulationRecord.blocked_reasons} />
+                      </div>
+                    ) : null}
+                    <p className="mt-3 text-[var(--color-ink-soft)]">{simulationRecord.non_action_statement}</p>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
             <p className="pixel-note">Select a saved package to review notes and export the saved snapshot.</p>
@@ -466,6 +566,11 @@ export function InsightsPanel() {
   const [noteAuthor, setNoteAuthor] = useState("local_reviewer");
   const [noteType, setNoteType] = useState("general");
   const [noteBody, setNoteBody] = useState("");
+  const [simulationProposalId, setSimulationProposalId] = useState("");
+  const [simulationRequestedBy, setSimulationRequestedBy] = useState("local_reviewer");
+  const [simulationNote, setSimulationNote] = useState("");
+  const [simulationConfirmNoWrite, setSimulationConfirmNoWrite] = useState(false);
+  const [simulationRecord, setSimulationRecord] = useState<ErpApprovalActionSimulationRecord | null>(null);
   const [filters, setFilters] = useState<TraceFilters>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -600,6 +705,10 @@ export function InsightsPanel() {
       .then(([packagePayload, notesPayload]) => {
         setSelectedPackage(packagePayload);
         setPackageNotes(notesPayload);
+        setSimulationProposalId((current) =>
+          packagePayload.proposal_record_ids.includes(current) ? current : packagePayload.proposal_record_ids[0] ?? ""
+        );
+        setSimulationRecord(null);
       })
       .catch((caught) => setError(isApiError(caught, "Unable to load saved audit package.")))
       .finally(() => setWorkspaceSaving(false));
@@ -622,6 +731,8 @@ export function InsightsPanel() {
       .then((manifest) => {
         setSelectedPackage(manifest);
         setPackageNotes([]);
+        setSimulationProposalId(manifest.proposal_record_ids[0] ?? "");
+        setSimulationRecord(null);
         loadSavedPackages();
       })
       .catch((caught) => setError(isApiError(caught, "Unable to save local audit package.")))
@@ -667,6 +778,25 @@ export function InsightsPanel() {
     void exportSavedErpApprovalAuditPackage(packageId)
       .then((payload) => downloadText(`${filename}-saved-audit-package.json`, JSON.stringify(payload, null, 2), "application/json"))
       .catch((caught) => setError(isApiError(caught, "Unable to download saved audit package.")))
+      .finally(() => setWorkspaceSaving(false));
+  };
+
+  const runLocalSimulation = () => {
+    if (!selectedPackage?.package_id || !simulationProposalId || !simulationConfirmNoWrite) {
+      setError("Select a proposal record and confirm that this is local simulation only.");
+      return;
+    }
+    setWorkspaceSaving(true);
+    setError("");
+    void runErpApprovalActionSimulation({
+      proposal_record_id: simulationProposalId,
+      package_id: selectedPackage.package_id,
+      requested_by: simulationRequestedBy,
+      confirm_no_erp_write: simulationConfirmNoWrite,
+      note: simulationNote
+    })
+      .then((payload) => setSimulationRecord(payload))
+      .catch((caught) => setError(isApiError(caught, "Unable to run local ERP approval action simulation.")))
       .finally(() => setWorkspaceSaving(false));
   };
 
@@ -898,12 +1028,22 @@ export function InsightsPanel() {
               onNoteAuthorChange={setNoteAuthor}
               onNoteBodyChange={setNoteBody}
               onNoteTypeChange={setNoteType}
+              onRunSimulation={runLocalSimulation}
               onSaveFiltered={saveFilteredTracePackage}
               onSaveSelected={saveSelectedTracePackage}
+              onSimulationConfirmNoWriteChange={setSimulationConfirmNoWrite}
+              onSimulationNoteChange={setSimulationNote}
+              onSimulationProposalIdChange={setSimulationProposalId}
+              onSimulationRequestedByChange={setSimulationRequestedBy}
               onTitleChange={setPackageTitle}
               packages={savedPackages}
               saving={workspaceSaving}
               selectedPackage={selectedPackage}
+              simulationConfirmNoWrite={simulationConfirmNoWrite}
+              simulationNote={simulationNote}
+              simulationProposalId={simulationProposalId}
+              simulationRecord={simulationRecord}
+              simulationRequestedBy={simulationRequestedBy}
               title={packageTitle}
             />
           </>

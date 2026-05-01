@@ -194,20 +194,39 @@ Done when:
 
 Status: complete for saved package manifests, package snapshot export, append-only reviewer notes, local workspace APIs, and frontend workspace.
 
-## Phase 9: Local Audit Workspace Refinement
+## Phase 9: Mock Action Simulation Sandbox + Local Simulation Ledger
 
 Scope:
 
-- package detail pages.
-- saved filter presets.
-- local reviewer note search.
-- package comparison by hash and completeness summary.
+- local dry-run simulation records for action proposals.
+- simulation requests must reference a saved audit package and proposal record.
+- validation requires `confirm_no_erp_write=true`.
+- all records keep `simulated_only=true` and `erp_write_executed=false`.
+- store records in local JSONL only.
 - no ERP write execution.
 
 Done when:
 
-- reviewers can organize local packages without touching ERP systems.
-- reviewer notes remain local artifacts, not ERP comments.
+- reviewers can dry-run a proposed future action path without touching ERP systems.
+- simulations are clearly separate from execution records.
+- no capability invocation or action execution endpoint is introduced.
+
+Status: complete for local simulation models, validation, JSONL ledger, local simulation API, tests, and frontend sandbox.
+
+## Phase 10: Local Simulation Review Refinement
+
+Scope:
+
+- simulation filters and saved simulation views.
+- package-level simulation summaries.
+- compare proposal validation warnings with simulation blocked reasons.
+- local reviewer note linking to simulation records.
+- no ERP write execution.
+
+Done when:
+
+- reviewers can review local dry-run history by package, proposal, status, and requester.
+- simulation outputs remain local artifacts, not action records.
 - no action execution ledger is introduced.
 
 ## Historical Infrastructure Notes

@@ -54,6 +54,15 @@ from src.backend.domains.erp_approval.audit_workspace_models import (
     SavedAuditPackageQuery,
     SavedAuditPackageWriteResult,
 )
+from src.backend.domains.erp_approval.action_simulation_models import (
+    ACTION_SIMULATION_NON_ACTION_STATEMENT,
+    ApprovalActionSimulationListResponse,
+    ApprovalActionSimulationQuery,
+    ApprovalActionSimulationRecord,
+    ApprovalActionSimulationRequest,
+    ApprovalActionSimulationValidationResult,
+    ApprovalActionSimulationWriteResult,
+)
 from src.backend.domains.erp_approval.action_proposals import (
     build_action_proposals,
     render_action_proposals,
@@ -81,6 +90,15 @@ from src.backend.domains.erp_approval.audit_workspace import (
     default_reviewer_notes_path,
     default_saved_audit_package_path,
 )
+from src.backend.domains.erp_approval.action_simulation import (
+    build_simulation_record,
+    render_simulation_preview,
+    validate_simulation_request,
+)
+from src.backend.domains.erp_approval.action_simulation_ledger import (
+    ApprovalActionSimulationRepository,
+    default_action_simulation_path,
+)
 from src.backend.domains.erp_approval.service import (
     extract_json_object,
     guard_recommendation,
@@ -92,6 +110,7 @@ from src.backend.domains.erp_approval.service import (
 
 __all__ = [
     "ACTION_PROPOSAL_NON_ACTION_STATEMENT",
+    "ACTION_SIMULATION_NON_ACTION_STATEMENT",
     "ApprovalActionProposal",
     "ApprovalActionProposalBundle",
     "ApprovalActionProposalListResponse",
@@ -102,6 +121,13 @@ __all__ = [
     "ApprovalActionType",
     "ApprovalActionValidationResult",
     "ApprovalActionProposalWriteResult",
+    "ApprovalActionSimulationListResponse",
+    "ApprovalActionSimulationQuery",
+    "ApprovalActionSimulationRecord",
+    "ApprovalActionSimulationRepository",
+    "ApprovalActionSimulationRequest",
+    "ApprovalActionSimulationValidationResult",
+    "ApprovalActionSimulationWriteResult",
     "ApprovalAnalyticsSummary",
     "ApprovalAuditCompletenessCheck",
     "ApprovalAuditPackage",
@@ -145,8 +171,10 @@ __all__ = [
     "build_mock_context",
     "build_proposal_records_from_state",
     "build_saved_audit_package_manifest",
+    "build_simulation_record",
     "build_trace_record_from_state",
     "default_reviewer_notes_path",
+    "default_action_simulation_path",
     "default_proposal_ledger_path",
     "default_saved_audit_package_path",
     "default_trace_path",
@@ -157,10 +185,12 @@ __all__ = [
     "parse_recommendation",
     "render_action_proposals",
     "render_recommendation",
+    "render_simulation_preview",
     "run_completeness_checks",
     "summarize_traces",
     "summarize_trace_trends",
     "trace_id_from_state",
     "validate_action_proposals",
     "validate_approval_recommendation",
+    "validate_simulation_request",
 ]

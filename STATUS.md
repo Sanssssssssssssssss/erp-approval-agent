@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 8: Local Audit Package Workspace + Reviewer Notes.
+Phase 9: Mock Action Simulation Sandbox + Local Simulation Ledger.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, and Phase 8 adds saved audit package manifests plus append-only reviewer notes:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, and Phase 9 adds a local mock action simulation sandbox:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 8: reviewers can save local audit package manifests from trace/proposal records and append local reviewer notes. These local POST endpoints write only audit workspace JSONL files. They do not parse final answer text, do not call ERP systems, and do not execute mock or real actions.
+The current active capability is Phase 9: reviewers can create local dry-run simulation records for action proposals that belong to saved audit packages. These simulations write only `action_simulations.jsonl`, do not parse final answer text, do not call ERP systems, do not invoke capabilities, and do not execute mock or real actions.
 
 ## Active Product Direction
 
@@ -29,6 +29,7 @@ Current positioning:
 - frontend management Insights panel with trace filtering and drill-down.
 - action proposal ledger and read-only audit package.
 - local saved audit package workspace and reviewer notes.
+- local action simulation sandbox and simulation ledger.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -104,6 +105,16 @@ Current positioning:
 - local-only POST endpoints for saving audit packages and notes.
 - frontend workspace for saving packages, listing saved packages, adding local notes, and exporting saved package JSON.
 
+## Completed Phase 9 Capabilities
+
+- local action simulation request, validation, record, query, and write-result models.
+- deterministic simulation id and idempotency fingerprint.
+- local simulation repository at `backend/storage/erp_approval/action_simulations.jsonl`.
+- local-only `POST /api/erp-approval/action-simulations` endpoint for dry-run records.
+- read-only simulation list/detail/by-proposal endpoints.
+- frontend local simulation panel in the `Insights` audit workspace.
+- `simulated_only=true` and `erp_write_executed=false` on every simulation record.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -152,11 +163,12 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 - trace analytics are operational summaries only, not process mining, benchmark accuracy, or production ERP action audit.
 - action proposal ledger is proposed-only storage, not an action execution ledger.
 - reviewer notes are local artifacts, not ERP comments.
+- action simulation ledger is local dry-run storage, not an action execution ledger.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 9 read-only audit workspace refinement: package detail pages, saved filters, and local note search.
-2. keep audit workspace artifacts grounded in structured trace/proposal records.
+1. start Phase 10 local simulation review refinement: simulation filters, package-level simulation summaries, and comparison of proposed vs simulated paths.
+2. keep simulation artifacts grounded in proposal records and saved audit packages.
 3. keep all real and mock ERP writes out of scope until a separate guarded execution phase.

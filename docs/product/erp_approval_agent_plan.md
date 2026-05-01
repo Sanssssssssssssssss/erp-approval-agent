@@ -18,6 +18,7 @@ Current implementation:
 - Phase 6 read-only trace explorer with filters, export, drill-down, and trend summaries exists.
 - Phase 7 proposed-only action proposal ledger and read-only audit packages exist.
 - Phase 8 local audit package workspace and reviewer notes exist.
+- Phase 9 local action simulation sandbox and simulation ledger exist.
 - no real ERP connector exists.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.
@@ -65,7 +66,7 @@ bootstrap
 -> finalize
 ```
 
-Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Future phases can expand this into richer local workspace organization and, later, audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
@@ -119,7 +120,7 @@ Current Phase 3 HITL semantics are narrower: the reviewer accepts, rejects, or e
 
 Current Phase 4 action proposals are also non-executing. They can describe request-more-info, internal-comment, routing, or manual-review drafts, but every proposal is `executable=false` and says no ERP write action was executed.
 
-Current Phase 5 trace analytics are implemented as local structured JSONL records and read-only summary endpoints. Phase 6 adds a trace explorer over those records. Phase 7 adds a separate action proposal ledger and audit package builder. Phase 8 adds saved package manifests and local reviewer notes. Analytics and audit packages are derived from structured fields such as recommendation status, review status, missing information, risk flags, guard warnings, proposal idempotency fields, and proposal validation results. Text filters match structured fields such as approval ID, requester, vendor, cost center, and trace ID. They do not parse final answer text, call an ERP system, execute mock actions, or claim benchmark accuracy.
+Current Phase 5 trace analytics are implemented as local structured JSONL records and read-only summary endpoints. Phase 6 adds a trace explorer over those records. Phase 7 adds a separate action proposal ledger and audit package builder. Phase 8 adds saved package manifests and local reviewer notes. Phase 9 adds local simulation records for proposed action paths. Analytics, audit packages, and simulations are derived from structured fields such as recommendation status, review status, missing information, risk flags, guard warnings, proposal idempotency fields, and proposal validation results. Text filters match structured fields such as approval ID, requester, vendor, cost center, and trace ID. They do not parse final answer text, call an ERP system, execute mock actions, or claim benchmark accuracy.
 
 ## Minimal Future Data Model
 
@@ -233,6 +234,19 @@ Early phases can use mock records with normalized context fields:
   - note_type
   - body
   - non_action_statement
+- action_simulation_record
+  - simulation_id
+  - proposal_record_id
+  - package_id
+  - approval_id
+  - action_type
+  - status
+  - idempotency_key
+  - idempotency_fingerprint
+  - output_preview
+  - simulated_only
+  - erp_write_executed
+  - non_action_statement
 
 ## Non-Goals For Early Phases
 
@@ -247,6 +261,7 @@ Early phases can use mock records with normalized context fields:
 - no write API in trace explorer/export phases.
 - no action execution API in proposal ledger or audit package phases.
 - no reviewer note should be treated as an ERP comment.
+- no action simulation should be treated as action execution or ERP dry-run against a live system.
 
 ## Why HarnessRuntime And LangGraph Remain
 

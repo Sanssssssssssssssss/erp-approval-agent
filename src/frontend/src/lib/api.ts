@@ -261,6 +261,29 @@ export type SavedErpApprovalAuditPackageExport = {
   non_action_statement: string;
 };
 
+export type ErpApprovalActionSimulationRecord = {
+  simulation_id: string;
+  proposal_record_id: string;
+  package_id: string;
+  trace_id: string;
+  approval_id: string;
+  action_type: string;
+  requested_by: string;
+  simulation_mode: "dry_run";
+  status: "simulated" | "blocked" | "rejected_by_validation";
+  created_at: string;
+  idempotency_key: string;
+  idempotency_fingerprint: string;
+  proposal_idempotency_key: string;
+  input_snapshot: Record<string, unknown>;
+  output_preview: Record<string, unknown>;
+  validation_warnings: string[];
+  blocked_reasons: string[];
+  simulated_only: boolean;
+  erp_write_executed: boolean;
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -885,6 +908,26 @@ export async function appendSavedErpApprovalAuditPackageNote(
     method: "POST",
     body: JSON.stringify(payload)
   });
+}
+
+export async function runErpApprovalActionSimulation(payload: {
+  proposal_record_id: string;
+  package_id: string;
+  requested_by: string;
+  confirm_no_erp_write: boolean;
+  note?: string;
+  simulation_mode?: "dry_run";
+}) {
+  return request<ErpApprovalActionSimulationRecord>("/erp-approval/action-simulations", {
+    method: "POST",
+    body: JSON.stringify({ simulation_mode: "dry_run", ...payload })
+  });
+}
+
+export async function listErpApprovalProposalSimulations(proposalRecordId: string) {
+  return request<ErpApprovalActionSimulationRecord[]>(
+    `/erp-approval/proposals/${encodeURIComponent(proposalRecordId)}/simulations`
+  );
 }
 
 export async function listMcpCapabilities() {
