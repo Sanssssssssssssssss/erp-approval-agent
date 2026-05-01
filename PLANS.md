@@ -138,7 +138,7 @@ Done when:
 
 Status: complete for local trace ledger and lightweight read-only analytics foundation. This is not a benchmark, process-mining system, or ERP connector.
 
-## Phase 6: Read-Only Analytics Refinement
+## Phase 6: ERP Approval Trace Explorer + Read-Only Analytics Refinement
 
 Scope:
 
@@ -153,6 +153,24 @@ Done when:
 - managers can review stored ERP approval trace summaries without touching ERP systems.
 - analytics remain clearly separated from benchmark accuracy claims.
 - no approval write action is introduced.
+
+Status: complete for trace filters, detail lookup, JSON/CSV export, date-bucket trend summaries, and frontend drill-down.
+
+## Phase 7: Read-Only Audit Packaging
+
+Scope:
+
+- saved read-only trace views.
+- export metadata for audit handoff.
+- trace bundle pages for reviewer discussion.
+- lightweight quality checks on trace completeness.
+- no ERP write execution.
+
+Done when:
+
+- reviewers can package a set of traces for internal review without modifying ERP data.
+- exports remain grounded in structured trace records.
+- no benchmark or process-mining claim is introduced.
 
 ## Historical Infrastructure Notes
 

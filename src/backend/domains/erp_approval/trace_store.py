@@ -1,20 +1,38 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from src.backend.domains.erp_approval.analytics import summarize_traces
+from src.backend.domains.erp_approval.analytics import summarize_trace_trends, summarize_traces
 from src.backend.domains.erp_approval.trace_models import (
     ERP_TRACE_NON_ACTION_STATEMENT,
     ApprovalAnalyticsSummary,
+    ApprovalTraceListResponse,
+    ApprovalTraceQuery,
     ApprovalTraceRecord,
     ApprovalTraceWriteResult,
+    ApprovalTrendSummary,
 )
 
 
 FINAL_ANSWER_PREVIEW_LIMIT = 800
+CSV_EXPORT_FIELDS = [
+    "trace_id",
+    "created_at",
+    "approval_id",
+    "approval_type",
+    "recommendation_status",
+    "review_status",
+    "human_review_required",
+    "guard_downgraded",
+    "proposal_action_types",
+    "blocked_proposal_ids",
+    "rejected_proposal_ids",
+]
 
 
 def default_trace_path(base_dir: Path) -> Path:
@@ -113,6 +131,19 @@ class ApprovalTraceRepository:
             return []
         return records[-limit:][::-1]
 
+    def query(self, query: ApprovalTraceQuery) -> list[ApprovalTraceRecord]:
+        with self._lock:
+            records = self._read_all_unlocked()
+        filtered = [record for record in records if _matches_query(record, query)]
+        limit = max(0, int(query.limit or 0))
+        if limit <= 0:
+            return []
+        return filtered[-limit:][::-1]
+
+    def list_response(self, query: ApprovalTraceQuery) -> ApprovalTraceListResponse:
+        records = self.query(query)
+        return ApprovalTraceListResponse(traces=records, total=len(records), query=query)
+
     def get(self, trace_id: str) -> ApprovalTraceRecord | None:
         with self._lock:
             for record in self._read_all_unlocked():
@@ -123,6 +154,39 @@ class ApprovalTraceRepository:
     def summarize(self, limit: int = 500) -> ApprovalAnalyticsSummary:
         records = self.list_recent(limit=limit)
         return summarize_traces(records)
+
+    def export_json(self, query: ApprovalTraceQuery) -> dict[str, Any]:
+        records = self.query(query)
+        return {
+            "query": query.model_dump(),
+            "total": len(records),
+            "records": [record.model_dump() for record in records],
+        }
+
+    def export_csv(self, query: ApprovalTraceQuery) -> str:
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=CSV_EXPORT_FIELDS, lineterminator="\n")
+        writer.writeheader()
+        for record in self.query(query):
+            writer.writerow(
+                {
+                    "trace_id": record.trace_id,
+                    "created_at": record.created_at,
+                    "approval_id": record.approval_id,
+                    "approval_type": record.approval_type,
+                    "recommendation_status": record.recommendation_status,
+                    "review_status": record.review_status,
+                    "human_review_required": str(record.human_review_required).lower(),
+                    "guard_downgraded": str(record.guard_downgraded).lower(),
+                    "proposal_action_types": ";".join(record.proposal_action_types),
+                    "blocked_proposal_ids": ";".join(record.blocked_proposal_ids),
+                    "rejected_proposal_ids": ";".join(record.rejected_proposal_ids),
+                }
+            )
+        return output.getvalue()
+
+    def trend_summary(self, query: ApprovalTraceQuery) -> ApprovalTrendSummary:
+        return summarize_trace_trends(self.query(query))
 
     def _read_all_unlocked(self) -> list[ApprovalTraceRecord]:
         if not self.path.exists():
@@ -160,3 +224,63 @@ def _float_or_none(value: Any) -> float | None:
         return float(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def _matches_query(record: ApprovalTraceRecord, query: ApprovalTraceQuery) -> bool:
+    if query.approval_type and record.approval_type != query.approval_type:
+        return False
+    if query.recommendation_status and record.recommendation_status != query.recommendation_status:
+        return False
+    if query.review_status and record.review_status != query.review_status:
+        return False
+    if query.proposal_action_type and query.proposal_action_type not in record.proposal_action_types:
+        return False
+    if query.human_review_required is not None and record.human_review_required != query.human_review_required:
+        return False
+    if query.guard_downgraded is not None and record.guard_downgraded != query.guard_downgraded:
+        return False
+    if query.high_risk_only and not _is_high_risk_trace(record):
+        return False
+    if query.text_query and not _matches_text_query(record, query.text_query):
+        return False
+    if query.date_from and not _created_at_gte(record.created_at, query.date_from):
+        return False
+    if query.date_to and not _created_at_lte(record.created_at, query.date_to):
+        return False
+    return True
+
+
+def _is_high_risk_trace(record: ApprovalTraceRecord) -> bool:
+    return bool(
+        record.risk_flags
+        or record.guard_warnings
+        or record.blocked_proposal_ids
+        or record.recommendation_status in {"blocked", "recommend_reject", "escalate"}
+    )
+
+
+def _matches_text_query(record: ApprovalTraceRecord, text_query: str) -> bool:
+    needle = text_query.strip().lower()
+    if not needle:
+        return True
+    fields = [
+        record.approval_id,
+        record.requester,
+        record.department,
+        record.vendor,
+        record.cost_center,
+        record.trace_id,
+    ]
+    return any(needle in str(value or "").lower() for value in fields)
+
+
+def _created_at_gte(created_at: str, threshold: str) -> bool:
+    if len(threshold) <= 10:
+        return (created_at or "")[:10] >= threshold
+    return (created_at or "") >= threshold
+
+
+def _created_at_lte(created_at: str, threshold: str) -> bool:
+    if len(threshold) <= 10:
+        return (created_at or "")[:10] <= threshold
+    return (created_at or "") <= threshold

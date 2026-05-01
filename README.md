@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, and Phase 5 adds a local ERP approval trace ledger plus read-only analytics foundation.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, and Phase 6 adds a read-only trace explorer with filters, export, drill-down, and trend summaries.
 
 ## Product Direction
 
@@ -56,7 +56,8 @@ Completed:
 - Phase 4 guarded ERP action proposal skeleton with deterministic validation, idempotency keys, and `executable=false`.
 - Phase 5 local ERP approval trace ledger written from structured graph state.
 - read-only ERP approval analytics API for trace summaries.
-- frontend `Insights` tab for management-efficiency summary counts.
+- Phase 6 trace filtering, detail lookup, JSON/CSV export, and date-bucket trend summaries.
+- frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
 Still not implemented:
@@ -91,13 +92,16 @@ It produces a structured approval recommendation with confidence, missing inform
 
 Action proposals are proposed-only drafts. They include idempotency fields and validation warnings, but they are not tool calls, capability invocations, connector calls, or ERP writes.
 
-Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. The read-only analytics endpoints summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
+Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
 
 Read-only ERP approval APIs:
 
 - `GET /api/erp-approval/traces?limit=100`
 - `GET /api/erp-approval/traces/{trace_id}`
 - `GET /api/erp-approval/analytics/summary?limit=500`
+- `GET /api/erp-approval/analytics/trends?limit=500`
+- `GET /api/erp-approval/export.json`
+- `GET /api/erp-approval/export.csv`
 
 ## Quick Start
 
@@ -192,6 +196,7 @@ npm run build
 - `HarnessRuntime` remains the lifecycle owner.
 - future ERP write actions must be idempotent, auditable, and guarded by explicit HITL.
 - analytics are based on structured trace records, not final-answer text parsing.
+- trace explorer filters only structured fields such as approval id, requester, vendor, cost center, status, date, and risk markers.
 
 ## Non-Claims
 
@@ -202,7 +207,7 @@ This repository does not currently claim to:
 - provide production-ready ERP automation.
 - benchmark-prove ERP approval accuracy.
 
-Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, and a local trace/analytics foundation. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
+Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, and a local trace explorer/analytics foundation. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 

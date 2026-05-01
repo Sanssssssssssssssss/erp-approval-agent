@@ -2,15 +2,15 @@
 
 ## Current Active Phase
 
-Phase 5: ERP Approval Trace Ledger + Analytics Foundation.
+Phase 6: ERP Approval Trace Explorer + Read-only Analytics Refinement.
 
-Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, and Phase 5 adds a local structured trace ledger plus read-only analytics summary:
+Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, and Phase 6 adds trace explorer filters, detail lookup, export, and trend summaries:
 
 ```text
 bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 5: after finalization, the graph writes a local ERP approval trace record from structured state and exposes read-only analytics over those records. Analytics summarize recommendation status, review status, missing information, risk flags, guard warnings, and action proposal validation outcomes. They do not parse final answer text and do not call ERP systems.
+The current active capability is Phase 6: after finalization, the graph writes a local ERP approval trace record from structured state and exposes read-only trace exploration over those records. Analytics summarize recommendation status, review status, missing information, risk flags, guard warnings, action proposal validation outcomes, and date-bucket trends. They do not parse final answer text and do not call ERP systems.
 
 ## Active Product Direction
 
@@ -26,7 +26,7 @@ Current positioning:
 - guarded ERP action proposal drafts.
 - local ERP approval trace ledger.
 - read-only ERP approval analytics API.
-- frontend management Insights panel.
+- frontend management Insights panel with trace filtering and drill-down.
 - HarnessRuntime-owned execution lifecycle.
 - LangGraph orchestration.
 - auditable approval trace.
@@ -77,6 +77,14 @@ Current positioning:
   - `GET /api/erp-approval/analytics/summary`
 - frontend `Insights` tab with trace-based management summary counts.
 
+## Completed Phase 6 Capabilities
+
+- `ApprovalTraceQuery`, trace list response, export format, and trend models.
+- repository filters for approval type, recommendation status, review status, proposal action type, human review, guard downgrade, high-risk traces, structured text fields, and ISO date strings.
+- read-only JSON and CSV export.
+- read-only trend summary bucketed by `created_at` date.
+- frontend trace explorer with filters, list, detail card, export buttons, and trend buckets.
+
 ## Historical Infrastructure Context
 
 The previous infrastructure closeout remains useful historical context. It documented capabilities that future ERP approval work should preserve:
@@ -122,12 +130,12 @@ These paths support existing tests and compatibility benchmarks until ERP-specif
 - no real comment/request-more-info/routing action exists yet.
 - no real ERP write-action approval card exists yet.
 - current benchmark evidence is legacy RFP/security compatibility evidence, not ERP approval accuracy evidence.
-- trace analytics are operational summaries only, not process mining or benchmark accuracy.
+- trace analytics are operational summaries only, not process mining, benchmark accuracy, or production ERP action audit.
 - model/provider credentials and network availability may affect live model validation.
 - full production write actions require future idempotency, audit, and strict HITL design.
 
 ## Recommended Next Steps
 
-1. start Phase 6 read-only analytics refinement: trend filters, export, and richer trace drill-down.
+1. start Phase 7 read-only audit packaging: saved views, richer export metadata, and review-ready trace bundles.
 2. keep analytics grounded in structured trace records, evidence, review status, validation warnings, and proposal outcomes.
 3. keep all real ERP writes out of scope until a separate guarded execution phase.

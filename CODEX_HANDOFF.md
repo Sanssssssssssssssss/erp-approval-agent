@@ -2,7 +2,7 @@
 
 Treat this repository as ERP Approval Agent Workbench. It is not a generic agent sandbox and is no longer primarily an RFP/security product.
 
-Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics boundaries.
+Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Current work should treat `erp_approval` as an implemented backend graph path, while still preserving mock-only/read-only/proposed-only/read-only-analytics boundaries.
 
 ## First Read
 
@@ -62,7 +62,7 @@ bootstrap
 -> finalize
 ```
 
-It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. Phase 4 added proposed-only action drafts with validation and idempotency fields. Phase 5 writes local trace records from structured graph state and exposes read-only analytics summaries. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
+It produces an approval recommendation, not autonomous final execution. Phase 2 added read-only context adapter interfaces and mock records. Phase 3 added a durable HITL review gate for accepting, rejecting, or editing the agent recommendation. Phase 4 added proposed-only action drafts with validation and idempotency fields. Phase 5 writes local trace records from structured graph state and exposes read-only analytics summaries. Phase 6 turns those records into a read-only trace explorer. HITL approve in this path means "accept the agent recommendation"; it never means "approve the ERP object."
 
 Current capabilities:
 
@@ -74,7 +74,7 @@ Current capabilities:
 - guarded action proposals that are always `executable=false`.
 - local JSONL trace ledger at `backend/storage/erp_approval/approval_traces.jsonl`.
 - read-only APIs under `/api/erp-approval/*`.
-- frontend `Insights` tab for trace-based summary counts.
+- frontend `Insights` tab for trace-based summary counts, filters, drill-down, export, and trend buckets.
 
 Still absent:
 
@@ -88,6 +88,7 @@ Trace analytics rules:
 
 - build analytics from `ApprovalTraceRecord` fields only.
 - do not reverse-parse `final_answer`.
+- do not filter search text against `final_answer_preview`.
 - do not treat analytics as a benchmark or process-mining system.
 - do not add write endpoints under the ERP approval analytics router.
 

@@ -100,6 +100,79 @@ export type ErpApprovalAnalyticsSummary = {
   high_risk_trace_ids: string[];
 };
 
+export type ErpApprovalTraceRecord = {
+  trace_id: string;
+  run_id: string;
+  session_id: string | null;
+  thread_id: string;
+  turn_id: string;
+  created_at: string;
+  updated_at: string;
+  approval_id: string;
+  approval_type: string;
+  requester: string;
+  department: string;
+  amount: number | null;
+  currency: string;
+  vendor: string;
+  cost_center: string;
+  context_source_ids: string[];
+  recommendation_status: string;
+  recommendation_confidence: number;
+  human_review_required: boolean;
+  missing_information: string[];
+  risk_flags: string[];
+  citations: string[];
+  guard_warnings: string[];
+  guard_downgraded: boolean;
+  review_status: string;
+  hitl_decision: string;
+  proposal_ids: string[];
+  proposal_action_types: string[];
+  proposal_statuses: string[];
+  proposal_validation_warnings: string[];
+  blocked_proposal_ids: string[];
+  rejected_proposal_ids: string[];
+  final_answer_preview: string;
+  non_action_statement: string;
+};
+
+export type ErpApprovalTraceQuery = {
+  limit?: number;
+  approval_type?: string;
+  recommendation_status?: string;
+  review_status?: string;
+  proposal_action_type?: string;
+  human_review_required?: boolean;
+  guard_downgraded?: boolean;
+  high_risk_only?: boolean;
+  text_query?: string;
+  date_from?: string;
+  date_to?: string;
+};
+
+export type ErpApprovalTrendBucket = {
+  bucket: string;
+  total_traces: number;
+  human_review_required_count: number;
+  guard_downgrade_count: number;
+  blocked_proposal_count: number;
+  rejected_proposal_count: number;
+  by_recommendation_status: Record<string, number>;
+  by_review_status: Record<string, number>;
+};
+
+export type ErpApprovalTrendSummary = {
+  bucket_field: string;
+  buckets: ErpApprovalTrendBucket[];
+};
+
+export type ErpApprovalTraceExport = {
+  query: ErpApprovalTraceQuery;
+  total: number;
+  records: ErpApprovalTraceRecord[];
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -541,6 +614,41 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  const apiBase = getApiBase();
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBase}${path}`, {
+      ...init,
+      headers: {
+        ...(init?.headers ?? {})
+      }
+    });
+  } catch (error) {
+    throw buildConnectionError(apiBase, error);
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed: ${response.status}`);
+  }
+
+  return response.text();
+}
+
+function erpApprovalTraceSearch(params: ErpApprovalTraceQuery = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
+    search.set(key, String(value));
+  });
+  const serialized = search.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
 /**
  * Returns a session-summary list from no inputs and fetches all stored chat sessions.
  */
@@ -609,6 +717,26 @@ export async function getPendingHitl(sessionId: string) {
 
 export async function getErpApprovalAnalyticsSummary(limit = 500) {
   return request<ErpApprovalAnalyticsSummary>(`/erp-approval/analytics/summary?limit=${limit}`);
+}
+
+export async function listErpApprovalTraces(params: ErpApprovalTraceQuery = {}) {
+  return request<ErpApprovalTraceRecord[]>(`/erp-approval/traces${erpApprovalTraceSearch(params)}`);
+}
+
+export async function getErpApprovalTrace(traceId: string) {
+  return request<ErpApprovalTraceRecord>(`/erp-approval/traces/${encodeURIComponent(traceId)}`);
+}
+
+export async function getErpApprovalTrendSummary(params: ErpApprovalTraceQuery = {}) {
+  return request<ErpApprovalTrendSummary>(`/erp-approval/analytics/trends${erpApprovalTraceSearch(params)}`);
+}
+
+export async function exportErpApprovalTracesJson(params: ErpApprovalTraceQuery = {}) {
+  return request<ErpApprovalTraceExport>(`/erp-approval/export.json${erpApprovalTraceSearch(params)}`);
+}
+
+export async function exportErpApprovalTracesCsv(params: ErpApprovalTraceQuery = {}) {
+  return requestText(`/erp-approval/export.csv${erpApprovalTraceSearch(params)}`);
 }
 
 export async function listMcpCapabilities() {

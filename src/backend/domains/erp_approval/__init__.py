@@ -24,16 +24,21 @@ from src.backend.domains.erp_approval.schemas import (
 from src.backend.domains.erp_approval.trace_models import (
     ERP_TRACE_NON_ACTION_STATEMENT,
     ApprovalAnalyticsSummary,
+    ApprovalTraceExportFormat,
+    ApprovalTraceListResponse,
+    ApprovalTraceQuery,
     ApprovalTraceRecord,
     ApprovalTraceSummary,
     ApprovalTraceWriteResult,
+    ApprovalTrendBucket,
+    ApprovalTrendSummary,
 )
 from src.backend.domains.erp_approval.action_proposals import (
     build_action_proposals,
     render_action_proposals,
     validate_action_proposals,
 )
-from src.backend.domains.erp_approval.analytics import summarize_traces
+from src.backend.domains.erp_approval.analytics import summarize_trace_trends, summarize_traces
 from src.backend.domains.erp_approval.trace_store import (
     ApprovalTraceRepository,
     build_trace_record_from_state,
@@ -63,10 +68,15 @@ __all__ = [
     "ApprovalRecommendation",
     "ApprovalRequest",
     "ApprovalStatus",
+    "ApprovalTraceExportFormat",
+    "ApprovalTraceListResponse",
+    "ApprovalTraceQuery",
     "ApprovalTraceRecord",
     "ApprovalTraceRepository",
     "ApprovalTraceSummary",
     "ApprovalTraceWriteResult",
+    "ApprovalTrendBucket",
+    "ApprovalTrendSummary",
     "ApprovalType",
     "ERP_TRACE_NON_ACTION_STATEMENT",
     "ErpContextAdapter",
@@ -84,6 +94,7 @@ __all__ = [
     "render_action_proposals",
     "render_recommendation",
     "summarize_traces",
+    "summarize_trace_trends",
     "validate_action_proposals",
     "validate_approval_recommendation",
 ]

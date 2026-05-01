@@ -8,7 +8,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from src.backend.domains.erp_approval.analytics import summarize_traces
+from src.backend.domains.erp_approval.analytics import summarize_trace_trends, summarize_traces
 from src.backend.domains.erp_approval.trace_models import ApprovalTraceRecord
 
 
@@ -60,6 +60,47 @@ class ErpApprovalAnalyticsTests(unittest.TestCase):
         self.assertEqual(summary.blocked_proposal_count, 1)
         self.assertEqual(summary.rejected_proposal_count, 1)
         self.assertIn("trace-1", summary.high_risk_trace_ids)
+
+    def test_summarize_trace_trends_groups_by_created_at_date(self) -> None:
+        records = [
+            ApprovalTraceRecord(
+                trace_id="trace-1",
+                created_at="2026-05-01T08:00:00+00:00",
+                recommendation_status="request_more_info",
+                review_status="accepted_by_human",
+                human_review_required=True,
+                guard_downgraded=True,
+                blocked_proposal_ids=["blocked-1"],
+            ),
+            ApprovalTraceRecord(
+                trace_id="trace-2",
+                created_at="2026-05-01T09:00:00+00:00",
+                recommendation_status="request_more_info",
+                review_status="accepted_by_human",
+                human_review_required=True,
+                rejected_proposal_ids=["rejected-1"],
+            ),
+            ApprovalTraceRecord(
+                trace_id="trace-3",
+                created_at="2026-05-02T09:00:00+00:00",
+                recommendation_status="recommend_approve",
+                review_status="not_required",
+                human_review_required=False,
+            ),
+        ]
+
+        trends = summarize_trace_trends(records)
+
+        self.assertEqual(trends.bucket_field, "created_at_date")
+        self.assertEqual(len(trends.buckets), 2)
+        self.assertEqual(trends.buckets[0].bucket, "2026-05-01")
+        self.assertEqual(trends.buckets[0].total_traces, 2)
+        self.assertEqual(trends.buckets[0].human_review_required_count, 2)
+        self.assertEqual(trends.buckets[0].guard_downgrade_count, 1)
+        self.assertEqual(trends.buckets[0].blocked_proposal_count, 1)
+        self.assertEqual(trends.buckets[0].rejected_proposal_count, 1)
+        self.assertEqual(trends.buckets[0].by_recommendation_status["request_more_info"], 2)
+        self.assertEqual(trends.buckets[1].by_review_status["not_required"], 1)
 
 
 if __name__ == "__main__":

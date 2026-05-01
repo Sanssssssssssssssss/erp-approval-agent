@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from collections import Counter
 
-from src.backend.domains.erp_approval.trace_models import ApprovalAnalyticsSummary, ApprovalTraceRecord
+from src.backend.domains.erp_approval.trace_models import (
+    ApprovalAnalyticsSummary,
+    ApprovalTraceRecord,
+    ApprovalTrendBucket,
+    ApprovalTrendSummary,
+)
 
 
 def summarize_traces(records: list[ApprovalTraceRecord]) -> ApprovalAnalyticsSummary:
@@ -54,6 +59,44 @@ def summarize_traces(records: list[ApprovalTraceRecord]) -> ApprovalAnalyticsSum
         rejected_proposal_count=rejected_proposal_count,
         high_risk_trace_ids=high_risk_trace_ids[:50],
     )
+
+
+def summarize_trace_trends(records: list[ApprovalTraceRecord]) -> ApprovalTrendSummary:
+    grouped: dict[str, list[ApprovalTraceRecord]] = {}
+    for record in records:
+        bucket = (record.created_at or "unknown")[:10] or "unknown"
+        grouped.setdefault(bucket, []).append(record)
+
+    buckets: list[ApprovalTrendBucket] = []
+    for bucket, bucket_records in sorted(grouped.items()):
+        recommendation_status: Counter[str] = Counter()
+        review_status: Counter[str] = Counter()
+        human_review_required_count = 0
+        guard_downgrade_count = 0
+        blocked_proposal_count = 0
+        rejected_proposal_count = 0
+        for record in bucket_records:
+            recommendation_status[record.recommendation_status or "unknown"] += 1
+            review_status[record.review_status or "unknown"] += 1
+            if record.human_review_required:
+                human_review_required_count += 1
+            if record.guard_downgraded:
+                guard_downgrade_count += 1
+            blocked_proposal_count += len(record.blocked_proposal_ids)
+            rejected_proposal_count += len(record.rejected_proposal_ids)
+        buckets.append(
+            ApprovalTrendBucket(
+                bucket=bucket,
+                total_traces=len(bucket_records),
+                human_review_required_count=human_review_required_count,
+                guard_downgrade_count=guard_downgrade_count,
+                blocked_proposal_count=blocked_proposal_count,
+                rejected_proposal_count=rejected_proposal_count,
+                by_recommendation_status=dict(sorted(recommendation_status.items())),
+                by_review_status=dict(sorted(review_status.items())),
+            )
+        )
+    return ApprovalTrendSummary(buckets=buckets)
 
 
 def _top_counter(counter: Counter[str], *, limit: int = 10) -> list[dict[str, int | str]]:

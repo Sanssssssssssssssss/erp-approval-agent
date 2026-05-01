@@ -15,6 +15,7 @@ Current implementation:
 - Phase 3 durable ERP recommendation review HITL gate exists.
 - Phase 4 guarded action proposal skeleton exists.
 - Phase 5 local trace ledger and read-only analytics foundation exists.
+- Phase 6 read-only trace explorer with filters, export, drill-down, and trend summaries exists.
 - no real ERP connector exists.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.
@@ -62,7 +63,7 @@ bootstrap
 -> finalize
 ```
 
-Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Future phases can expand this into richer trace drill-down and, later, audited guarded write execution.
+Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Future phases can expand this into richer audit packaging and, later, audited guarded write execution.
 
 ## Prompt-Engineering Direction
 
@@ -116,7 +117,7 @@ Current Phase 3 HITL semantics are narrower: the reviewer accepts, rejects, or e
 
 Current Phase 4 action proposals are also non-executing. They can describe request-more-info, internal-comment, routing, or manual-review drafts, but every proposal is `executable=false` and says no ERP write action was executed.
 
-Current Phase 5 trace analytics are implemented as local structured JSONL records and read-only summary endpoints. Analytics are derived from structured fields such as recommendation status, review status, missing information, risk flags, guard warnings, and proposal validation results. They do not parse final answer text, call an ERP system, or claim benchmark accuracy.
+Current Phase 5 trace analytics are implemented as local structured JSONL records and read-only summary endpoints. Phase 6 adds a trace explorer over those records. Analytics are derived from structured fields such as recommendation status, review status, missing information, risk flags, guard warnings, and proposal validation results. Text filters match structured fields such as approval ID, requester, vendor, cost center, and trace ID. They do not parse final answer text, call an ERP system, or claim benchmark accuracy.
 
 ## Minimal Future Data Model
 
@@ -182,6 +183,20 @@ Early phases can use mock records with normalized context fields:
   - risk_flag_counts
   - proposal_action_type_counts
   - blocked_or_rejected_proposal_counts
+- trace_query
+  - approval_type
+  - recommendation_status
+  - review_status
+  - proposal_action_type
+  - human_review_required
+  - guard_downgraded
+  - high_risk_only
+  - text_query
+  - date_from
+  - date_to
+- trend_summary
+  - bucket_field
+  - buckets
 
 ## Non-Goals For Early Phases
 
@@ -193,6 +208,7 @@ Early phases can use mock records with normalized context fields:
 - no broad runtime rewrite.
 - no second agent framework.
 - no process-mining or production management analytics claim in the trace foundation phase.
+- no write API in trace explorer/export phases.
 
 ## Why HarnessRuntime And LangGraph Remain
 

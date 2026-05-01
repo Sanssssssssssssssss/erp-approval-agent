@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -55,6 +55,29 @@ class ApprovalTraceSummary(BaseModel):
     proposal_action_types: list[str] = Field(default_factory=list)
 
 
+ApprovalTraceExportFormat = Literal["json", "csv"]
+
+
+class ApprovalTraceQuery(BaseModel):
+    limit: int = Field(default=100, ge=0, le=5000)
+    approval_type: str | None = None
+    recommendation_status: str | None = None
+    review_status: str | None = None
+    proposal_action_type: str | None = None
+    human_review_required: bool | None = None
+    guard_downgraded: bool | None = None
+    high_risk_only: bool = False
+    text_query: str = ""
+    date_from: str = ""
+    date_to: str = ""
+
+
+class ApprovalTraceListResponse(BaseModel):
+    traces: list[ApprovalTraceRecord] = Field(default_factory=list)
+    total: int = 0
+    query: ApprovalTraceQuery = Field(default_factory=ApprovalTraceQuery)
+
+
 class ApprovalAnalyticsSummary(BaseModel):
     total_traces: int = 0
     by_approval_type: dict[str, int] = Field(default_factory=dict)
@@ -69,6 +92,22 @@ class ApprovalAnalyticsSummary(BaseModel):
     blocked_proposal_count: int = 0
     rejected_proposal_count: int = 0
     high_risk_trace_ids: list[str] = Field(default_factory=list)
+
+
+class ApprovalTrendBucket(BaseModel):
+    bucket: str = ""
+    total_traces: int = 0
+    human_review_required_count: int = 0
+    guard_downgrade_count: int = 0
+    blocked_proposal_count: int = 0
+    rejected_proposal_count: int = 0
+    by_recommendation_status: dict[str, int] = Field(default_factory=dict)
+    by_review_status: dict[str, int] = Field(default_factory=dict)
+
+
+class ApprovalTrendSummary(BaseModel):
+    bucket_field: str = "created_at_date"
+    buckets: list[ApprovalTrendBucket] = Field(default_factory=list)
 
 
 class ApprovalTraceWriteResult(BaseModel):
