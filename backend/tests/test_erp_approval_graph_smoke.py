@@ -12,6 +12,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from src.backend.context import ContextAssembler
 from src.backend.domains.erp_approval.context_adapter import MockErpContextAdapter
+from src.backend.domains.erp_approval.proposal_ledger import ApprovalActionProposalRepository
 from src.backend.domains.erp_approval.prompts import ERP_INTAKE_SYSTEM_PROMPT
 from src.backend.domains.erp_approval.trace_store import ApprovalTraceRepository
 from src.backend.orchestration.executor import HarnessLangGraphOrchestrator
@@ -19,12 +20,14 @@ from src.backend.orchestration.state import create_initial_graph_state
 
 
 class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
-    def _orchestrator(self, trace_repository=None):
+    def _orchestrator(self, trace_repository=None, proposal_repository=None):
         orchestrator = HarnessLangGraphOrchestrator.__new__(HarnessLangGraphOrchestrator)
         orchestrator._context_assembler = ContextAssembler(base_dir=BACKEND_DIR)
         orchestrator._erp_context_adapter = MockErpContextAdapter(base_dir=BACKEND_DIR)
         if trace_repository is not None:
             orchestrator._erp_trace_repository = trace_repository
+        if proposal_repository is not None:
+            orchestrator._erp_proposal_repository = proposal_repository
         emitted_answers: list[str] = []
 
         async def fake_stream_model_answer(_messages, *, system_prompt_override=None, **_kwargs):
@@ -83,7 +86,8 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
     async def test_erp_nodes_reach_final_answer_with_mocked_model_and_writes_trace(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             trace_repository = ApprovalTraceRepository(Path(temp_dir) / "approval_traces.jsonl")
-            orchestrator, emitted_answers = self._orchestrator(trace_repository)
+            proposal_repository = ApprovalActionProposalRepository(Path(temp_dir) / "action_proposals.jsonl")
+            orchestrator, emitted_answers = self._orchestrator(trace_repository, proposal_repository)
 
             state = create_initial_graph_state(
                 run_id="run-erp-smoke",
@@ -107,6 +111,7 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
                 state.update(await node(state))
 
             traces = trace_repository.list_recent(limit=10)
+            proposal_records = proposal_repository.list_recent(limit=10)
 
         self.assertTrue(state["answer_finalized"])
         self.assertEqual(state["erp_review_status"], "not_required")
@@ -115,8 +120,13 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("No ERP write action was executed.", state["final_answer"])
         self.assertIn("No ERP approval, rejection, payment, supplier, contract, or budget action was executed.", state["final_answer"])
         self.assertTrue(state["erp_trace_write_result"]["success"])
+        self.assertEqual(len(state["erp_proposal_write_results"]), 1)
+        self.assertTrue(state["erp_proposal_write_results"][0]["success"])
         self.assertEqual(len(traces), 1)
         self.assertEqual(traces[0].recommendation_status, "recommend_approve")
+        self.assertEqual(len(proposal_records), 1)
+        self.assertEqual(proposal_records[0].trace_id, traces[0].trace_id)
+        self.assertFalse(proposal_records[0].executable)
         self.assertEqual(emitted_answers, [state["final_answer"]])
 
     async def test_erp_finalize_trace_write_failure_does_not_block_final_answer(self) -> None:
@@ -148,6 +158,39 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(state["answer_finalized"])
         self.assertIn("ERP approval recommendation", state["final_answer"])
         self.assertIsNone(state["erp_trace_write_result"])
+        self.assertEqual(emitted_answers, [state["final_answer"]])
+
+    async def test_erp_finalize_proposal_ledger_failure_does_not_block_final_answer(self) -> None:
+        class FailingProposalRepository:
+            def upsert_many(self, _records):
+                raise OSError("proposal write failed")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            trace_repository = ApprovalTraceRepository(Path(temp_dir) / "approval_traces.jsonl")
+            orchestrator, emitted_answers = self._orchestrator(trace_repository, FailingProposalRepository())
+            state = create_initial_graph_state(
+                run_id="run-erp-proposal-fail",
+                session_id="session-erp-proposal-fail",
+                thread_id="thread-erp-proposal-fail",
+                user_message="Review PR-1001",
+                history=[],
+            )
+            state["turn_id"] = "run-erp-proposal-fail:0"
+            state["path_kind"] = "erp_approval"
+            for node in (
+                orchestrator.erp_intake_node,
+                orchestrator.erp_context_node,
+                orchestrator.erp_reasoning_node,
+                orchestrator.erp_guard_node,
+                orchestrator.erp_hitl_gate_node,
+                orchestrator.erp_action_proposal_node,
+                orchestrator.erp_finalize_node,
+            ):
+                state.update(await node(state))
+
+        self.assertTrue(state["answer_finalized"])
+        self.assertTrue(state["erp_trace_write_result"]["success"])
+        self.assertEqual(state["erp_proposal_write_results"], [])
         self.assertEqual(emitted_answers, [state["final_answer"]])
 
 

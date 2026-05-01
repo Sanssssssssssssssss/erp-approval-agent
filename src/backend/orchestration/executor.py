@@ -25,6 +25,7 @@ from src.backend.decision.skill_gate import SkillDecision, skill_instruction
 from src.backend.domains.erp_approval import (
     ApprovalActionProposalBundle,
     ApprovalActionValidationResult,
+    ApprovalActionProposalRepository,
     ApprovalContextBundle,
     ApprovalGuardResult,
     ApprovalRecommendation,
@@ -33,7 +34,9 @@ from src.backend.domains.erp_approval import (
     ErpContextQuery,
     MockErpContextAdapter,
     build_action_proposals,
+    build_proposal_records_from_state,
     build_trace_record_from_state,
+    default_proposal_ledger_path,
     default_trace_path,
     guard_recommendation,
     parse_approval_request,
@@ -41,6 +44,7 @@ from src.backend.domains.erp_approval import (
     render_action_proposals,
     render_recommendation,
     validate_action_proposals,
+    trace_id_from_state,
 )
 from src.backend.domains.erp_approval.prompts import ERP_INTAKE_SYSTEM_PROMPT, ERP_REASONING_SYSTEM_PROMPT
 from src.backend.observability.otel_spans import set_span_attributes, with_observation
@@ -132,6 +136,7 @@ class HarnessLangGraphOrchestrator:
         self._context_writer = ContextWriter(base_dir=self._agent.base_dir)
         self._erp_context_adapter = MockErpContextAdapter(base_dir=self._agent.base_dir)
         self._erp_trace_repository = ApprovalTraceRepository(default_trace_path(self._agent.base_dir))
+        self._erp_proposal_repository = ApprovalActionProposalRepository(default_proposal_ledger_path(self._agent.base_dir))
         self._resume_checkpoint_id = str(resume_checkpoint_id or "")
         self._resume_thread_id = str(resume_thread_id or "")
         self._resume_source = str(resume_source or "")
@@ -1066,6 +1071,9 @@ class HarnessLangGraphOrchestrator:
         trace_result = self._write_erp_trace_record({**dict(state), **result})
         if trace_result is not None:
             result["erp_trace_write_result"] = self._model_dump(trace_result)
+        proposal_results = self._write_erp_proposal_records({**dict(state), **result}, trace_result=trace_result)
+        if proposal_results:
+            result["erp_proposal_write_results"] = [self._model_dump(item) for item in proposal_results]
         final_state, updates = self._write_context_snapshot(
             state=state,
             result=result,
@@ -1883,6 +1891,26 @@ class HarnessLangGraphOrchestrator:
             return repository.upsert(record)
         except Exception:
             return None
+
+    def _write_erp_proposal_records(self, state: GraphState | dict[str, Any], *, trace_result: Any = None) -> list[Any]:
+        repository = getattr(self, "_erp_proposal_repository", None)
+        if repository is None:
+            agent = getattr(self, "_agent", None)
+            base_dir = getattr(agent, "base_dir", None)
+            if base_dir is None:
+                return []
+            repository = ApprovalActionProposalRepository(default_proposal_ledger_path(base_dir))
+            self._erp_proposal_repository = repository
+        try:
+            trace_id = str(getattr(trace_result, "trace_id", "") or "")
+            if not trace_id:
+                trace_id = trace_id_from_state(dict(state))
+            records = build_proposal_records_from_state(dict(state), trace_id, self._trace_now())
+            if not records:
+                return []
+            return repository.upsert_many(records)
+        except Exception:
+            return []
 
     def _trace_now(self) -> str:
         try:

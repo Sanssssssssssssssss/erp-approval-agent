@@ -7,11 +7,14 @@ import {
   exportErpApprovalTracesCsv,
   exportErpApprovalTracesJson,
   getErpApprovalAnalyticsSummary,
+  getErpApprovalAuditPackage,
   getErpApprovalTrace,
   getErpApprovalTrendSummary,
+  listErpApprovalTraceProposals,
   listErpApprovalTraces
 } from "@/lib/api";
 import type {
+  ErpApprovalActionProposalRecord,
   ErpApprovalAnalyticsSummary,
   ErpApprovalTraceQuery,
   ErpApprovalTraceRecord,
@@ -136,7 +139,52 @@ function isApiError(caught: unknown, fallback: string) {
   return caught instanceof ApiConnectionError ? caught.message : fallback;
 }
 
-function TraceDetail({ trace }: { trace: ErpApprovalTraceRecord | null }) {
+function ProposalRecords({ proposals }: { proposals: ErpApprovalActionProposalRecord[] }) {
+  if (!proposals.length) {
+    return <p className="pixel-note mt-3">No action proposal records for this trace.</p>;
+  }
+  return (
+    <div className="mt-3 space-y-3">
+      {proposals.map((proposal) => (
+        <div className="border-t border-[var(--color-line)] pt-3 text-sm" key={proposal.proposal_record_id}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[var(--color-ink)]">{proposal.title || proposal.action_type}</p>
+              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{proposal.proposal_record_id}</p>
+            </div>
+            <span className="pixel-tag">executable={String(proposal.executable)}</span>
+          </div>
+          <p className="mt-2 text-[var(--color-ink-soft)]">{proposal.summary || "No summary provided."}</p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            <p className="text-[var(--color-ink-soft)]">action {proposal.action_type || "unknown"}</p>
+            <p className="text-[var(--color-ink-soft)]">risk {proposal.risk_level || "unknown"}</p>
+            <p className="break-all text-[var(--color-ink-soft)] md:col-span-2">
+              idempotency {proposal.idempotency_key || "missing"}
+            </p>
+          </div>
+          {proposal.validation_warnings.length ? (
+            <div className="mt-3">
+              <p className="pixel-label mb-2">validation warnings</p>
+              <ValueList values={proposal.validation_warnings} />
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TraceDetail({
+  trace,
+  proposals,
+  auditLoading,
+  onDownloadAuditPackage
+}: {
+  trace: ErpApprovalTraceRecord | null;
+  proposals: ErpApprovalActionProposalRecord[];
+  auditLoading: boolean;
+  onDownloadAuditPackage: () => void;
+}) {
   if (!trace) {
     return (
       <div className="pixel-card p-4 text-sm text-[var(--color-ink-soft)]">
@@ -152,7 +200,12 @@ function TraceDetail({ trace }: { trace: ErpApprovalTraceRecord | null }) {
           <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">{trace.approval_id || trace.trace_id}</h3>
           <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{trace.trace_id}</p>
         </div>
-        <span className="pixel-tag">{trace.approval_type || "unknown"}</span>
+        <div className="flex flex-wrap gap-2">
+          <span className="pixel-tag">{trace.approval_type || "unknown"}</span>
+          <button className="ui-button" disabled={auditLoading} onClick={onDownloadAuditPackage} type="button">
+            {auditLoading ? "Preparing audit package..." : "Download audit package"}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
@@ -209,6 +262,10 @@ function TraceDetail({ trace }: { trace: ErpApprovalTraceRecord | null }) {
           <p className="pixel-label mb-2">context source ids</p>
           <ValueList values={trace.context_source_ids} />
         </div>
+        <div>
+          <p className="pixel-label mb-2">action proposal records</p>
+          <ProposalRecords proposals={proposals} />
+        </div>
       </div>
     </div>
   );
@@ -219,10 +276,12 @@ export function InsightsPanel() {
   const [trends, setTrends] = useState<ErpApprovalTrendSummary | null>(null);
   const [traces, setTraces] = useState<ErpApprovalTraceRecord[]>([]);
   const [selectedTrace, setSelectedTrace] = useState<ErpApprovalTraceRecord | null>(null);
+  const [selectedProposals, setSelectedProposals] = useState<ErpApprovalActionProposalRecord[]>([]);
   const [filters, setFilters] = useState<TraceFilters>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [error, setError] = useState("");
 
   const query = useMemo(() => queryFromFilters(filters), [filters]);
@@ -244,6 +303,9 @@ export function InsightsPanel() {
         setTraces(tracePayload);
         setTrends(trendPayload);
         setSelectedTrace((current) => tracePayload.find((trace) => trace.trace_id === current?.trace_id) ?? tracePayload[0] ?? null);
+        if (!tracePayload.length) {
+          setSelectedProposals([]);
+        }
       })
       .catch((caught) => {
         if (active) {
@@ -269,11 +331,36 @@ export function InsightsPanel() {
   const selectTrace = (trace: ErpApprovalTraceRecord) => {
     setSelectedTrace(trace);
     setDetailLoading(true);
-    void getErpApprovalTrace(trace.trace_id)
-      .then(setSelectedTrace)
+    void Promise.all([getErpApprovalTrace(trace.trace_id), listErpApprovalTraceProposals(trace.trace_id)])
+      .then(([tracePayload, proposalPayload]) => {
+        setSelectedTrace(tracePayload);
+        setSelectedProposals(proposalPayload);
+      })
       .catch((caught) => setError(isApiError(caught, "Unable to load ERP approval trace detail.")))
       .finally(() => setDetailLoading(false));
   };
+
+  useEffect(() => {
+    if (!selectedTrace?.trace_id) {
+      setSelectedProposals([]);
+      return;
+    }
+    let active = true;
+    void listErpApprovalTraceProposals(selectedTrace.trace_id)
+      .then((payload) => {
+        if (active) {
+          setSelectedProposals(payload);
+        }
+      })
+      .catch((caught) => {
+        if (active) {
+          setError(isApiError(caught, "Unable to load ERP approval action proposal records."));
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTrace?.trace_id]);
 
   const exportJson = () => {
     setExporting(true);
@@ -291,6 +378,18 @@ export function InsightsPanel() {
       .then((payload) => downloadText("erp-approval-traces.csv", payload, "text/csv"))
       .catch((caught) => setError(isApiError(caught, "Unable to export ERP approval traces as CSV.")))
       .finally(() => setExporting(false));
+  };
+
+  const downloadAuditPackage = () => {
+    if (!selectedTrace?.trace_id) {
+      return;
+    }
+    setAuditLoading(true);
+    setError("");
+    void getErpApprovalAuditPackage([selectedTrace.trace_id])
+      .then((payload) => downloadText(`${selectedTrace.approval_id || "erp-approval"}-audit-package.json`, JSON.stringify(payload, null, 2), "application/json"))
+      .catch((caught) => setError(isApiError(caught, "Unable to download ERP approval audit package.")))
+      .finally(() => setAuditLoading(false));
   };
 
   return (
@@ -497,7 +596,12 @@ export function InsightsPanel() {
                 {detailLoading ? (
                   <div className="absolute right-3 top-3 z-10 pixel-tag">Loading detail</div>
                 ) : null}
-                <TraceDetail trace={selectedTrace} />
+                <TraceDetail
+                  auditLoading={auditLoading}
+                  onDownloadAuditPackage={downloadAuditPackage}
+                  proposals={selectedProposals}
+                  trace={selectedTrace}
+                />
               </div>
             </section>
           </>

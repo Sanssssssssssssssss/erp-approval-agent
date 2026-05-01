@@ -156,21 +156,41 @@ Done when:
 
 Status: complete for trace filters, detail lookup, JSON/CSV export, date-bucket trend summaries, and frontend drill-down.
 
-## Phase 7: Read-Only Audit Packaging
+## Phase 7: ERP Action Proposal Ledger + Read-Only Audit Package
 
 Scope:
 
-- saved read-only trace views.
-- export metadata for audit handoff.
-- trace bundle pages for reviewer discussion.
-- lightweight quality checks on trace completeness.
+- proposed-only action proposal ledger.
+- persist proposal idempotency fields, payload preview, validation warnings, and non-action statement.
+- read-only proposal list/detail and per-trace proposal lookup.
+- temporary audit package generated from traces and proposals.
+- lightweight completeness checks on trace/proposal auditability.
 - no ERP write execution.
 
 Done when:
 
 - reviewers can package a set of traces for internal review without modifying ERP data.
 - exports remain grounded in structured trace records.
+- action proposal ledger remains separate from any execution ledger.
 - no benchmark or process-mining claim is introduced.
+
+Status: complete for proposal ledger, per-trace proposal records, audit package endpoint, completeness checks, and frontend audit package download.
+
+## Phase 8: Read-Only Audit Package Refinement
+
+Scope:
+
+- saved audit package manifests.
+- package metadata and reviewer notes stored locally without ERP writes.
+- package export views for internal review meetings.
+- richer completeness check grouping.
+- no action execution.
+
+Done when:
+
+- reviewers can save and revisit read-only audit packages.
+- saved packages remain local filesystem artifacts.
+- no ERP connector or action API is introduced.
 
 ## Historical Infrastructure Notes
 

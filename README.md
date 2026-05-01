@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, and Phase 6 adds a read-only trace explorer with filters, export, drill-down, and trend summaries.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, and Phase 7 adds a proposed-only action proposal ledger plus read-only audit packages.
 
 ## Product Direction
 
@@ -57,6 +57,7 @@ Completed:
 - Phase 5 local ERP approval trace ledger written from structured graph state.
 - read-only ERP approval analytics API for trace summaries.
 - Phase 6 trace filtering, detail lookup, JSON/CSV export, and date-bucket trend summaries.
+- Phase 7 action proposal ledger and read-only audit packages with completeness checks.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
@@ -92,7 +93,7 @@ It produces a structured approval recommendation with confidence, missing inform
 
 Action proposals are proposed-only drafts. They include idempotency fields and validation warnings, but they are not tool calls, capability invocations, connector calls, or ERP writes.
 
-Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
+Phase 5 records each completed ERP approval run as a local JSONL trace at `backend/storage/erp_approval/approval_traces.jsonl`. The trace is built from structured graph state, not by parsing final answer text. Phase 6 adds read-only trace filtering, trace detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 persists action proposals separately at `backend/storage/erp_approval/action_proposals.jsonl` and can build temporary read-only audit packages. Analytics summarize recommendation status, review status, missing information, guard warnings, and action proposal validation outcomes.
 
 Read-only ERP approval APIs:
 
@@ -102,6 +103,10 @@ Read-only ERP approval APIs:
 - `GET /api/erp-approval/analytics/trends?limit=500`
 - `GET /api/erp-approval/export.json`
 - `GET /api/erp-approval/export.csv`
+- `GET /api/erp-approval/proposals?limit=100`
+- `GET /api/erp-approval/proposals/{proposal_record_id}`
+- `GET /api/erp-approval/traces/{trace_id}/proposals`
+- `GET /api/erp-approval/audit-package?trace_ids=...&limit=100`
 
 ## Quick Start
 
@@ -166,7 +171,9 @@ Focused ERP approval tests:
   backend.tests.test_erp_approval_action_proposals `
   backend.tests.test_erp_approval_trace_store `
   backend.tests.test_erp_approval_analytics `
-  backend.tests.test_erp_approval_api
+  backend.tests.test_erp_approval_api `
+  backend.tests.test_erp_approval_proposal_ledger `
+  backend.tests.test_erp_approval_audit_package
 ```
 
 Legacy RFP/security compatibility benchmark smoke:
@@ -197,6 +204,8 @@ npm run build
 - future ERP write actions must be idempotent, auditable, and guarded by explicit HITL.
 - analytics are based on structured trace records, not final-answer text parsing.
 - trace explorer filters only structured fields such as approval id, requester, vendor, cost center, status, date, and risk markers.
+- action proposal ledger is not an execution ledger; it stores proposed-only drafts with `executable=false`.
+- audit packages are completeness review artifacts, not model-quality benchmarks.
 
 ## Non-Claims
 
@@ -206,8 +215,9 @@ This repository does not currently claim to:
 - automatically approve ERP requests.
 - provide production-ready ERP automation.
 - benchmark-prove ERP approval accuracy.
+- provide production process mining or execution audit.
 
-Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, and a local trace explorer/analytics foundation. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
+Current ERP work includes a graph skeleton, mock read-only context, durable recommendation review HITL, proposed-only action drafts, a local trace explorer/analytics foundation, and read-only audit packages. Legacy RFP/security validation remains only a compatibility signal until ERP-specific suites are added.
 
 ## Key Docs
 

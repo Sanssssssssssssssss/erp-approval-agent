@@ -173,6 +173,58 @@ export type ErpApprovalTraceExport = {
   records: ErpApprovalTraceRecord[];
 };
 
+export type ErpApprovalActionProposalRecord = {
+  proposal_record_id: string;
+  proposal_id: string;
+  trace_id: string;
+  run_id: string;
+  session_id: string | null;
+  thread_id: string;
+  turn_id: string;
+  approval_id: string;
+  approval_type: string;
+  created_at: string;
+  updated_at: string;
+  review_status: string;
+  recommendation_status: string;
+  action_type: string;
+  status: string;
+  title: string;
+  summary: string;
+  target: string;
+  payload_preview: Record<string, unknown>;
+  citations: string[];
+  idempotency_key: string;
+  idempotency_scope: string;
+  idempotency_fingerprint: string;
+  risk_level: string;
+  requires_human_review: boolean;
+  executable: boolean;
+  non_action_statement: string;
+  validation_warnings: string[];
+  blocked: boolean;
+  rejected_by_validation: boolean;
+};
+
+export type ErpApprovalAuditCompletenessCheck = {
+  check_name: string;
+  passed: boolean;
+  severity: "info" | "warning" | "error";
+  message: string;
+};
+
+export type ErpApprovalAuditPackage = {
+  package_id: string;
+  created_at: string;
+  trace_ids: string[];
+  proposal_record_ids: string[];
+  traces: Array<Record<string, unknown>>;
+  proposals: Array<Record<string, unknown>>;
+  completeness_checks: ErpApprovalAuditCompletenessCheck[];
+  summary: Record<string, unknown>;
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -727,6 +779,10 @@ export async function getErpApprovalTrace(traceId: string) {
   return request<ErpApprovalTraceRecord>(`/erp-approval/traces/${encodeURIComponent(traceId)}`);
 }
 
+export async function listErpApprovalTraceProposals(traceId: string) {
+  return request<ErpApprovalActionProposalRecord[]>(`/erp-approval/traces/${encodeURIComponent(traceId)}/proposals`);
+}
+
 export async function getErpApprovalTrendSummary(params: ErpApprovalTraceQuery = {}) {
   return request<ErpApprovalTrendSummary>(`/erp-approval/analytics/trends${erpApprovalTraceSearch(params)}`);
 }
@@ -737,6 +793,15 @@ export async function exportErpApprovalTracesJson(params: ErpApprovalTraceQuery 
 
 export async function exportErpApprovalTracesCsv(params: ErpApprovalTraceQuery = {}) {
   return requestText(`/erp-approval/export.csv${erpApprovalTraceSearch(params)}`);
+}
+
+export async function getErpApprovalAuditPackage(traceIds: string[]) {
+  const search = new URLSearchParams();
+  if (traceIds.length) {
+    search.set("trace_ids", traceIds.join(","));
+  }
+  const serialized = search.toString();
+  return request<ErpApprovalAuditPackage>(`/erp-approval/audit-package${serialized ? `?${serialized}` : ""}`);
 }
 
 export async function listMcpCapabilities() {
