@@ -77,6 +77,8 @@ Completed:
 - local `POST /api/erp-approval/case-review` API for deterministic evidence-case review with optional local text evidence; it does not call real ERP, execute actions, or enter `capability_invoke`.
 - local CaseHarness state machine for multi-turn approval dossiers:
   - every user turn is treated as a controlled `CasePatch`, not free chat.
+  - `POST /api/erp-approval/cases/turn` now runs inside `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`.
+  - each case turn emits canonical harness trace events: `run.started`, `case.turn.started`, `case.patch.validated`, `case.state.persisted`, and `run.completed`.
   - validated evidence updates `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text files under `backend/storage/erp_approval/cases/<case_id>/`.
   - off-topic turns, weak user statements, and execution-like text cannot pollute the case state.
   - local `POST /api/erp-approval/cases/turn` runs one case-state update turn and returns the updated case, patch, review, dossier, audit events, and storage paths.
@@ -150,11 +152,13 @@ ERP approval APIs include read-only trace/proposal/audit lookups plus local audi
 - `GET /api/erp-approval/connectors/replay/fixtures`
 - `GET /api/erp-approval/connectors/replay/coverage`
 - `GET /api/erp-approval/connectors/replay`
+- `POST /api/erp-approval/case-review`
+- `POST /api/erp-approval/cases/turn`
 - `POST /api/erp-approval/action-simulations`
 - `POST /api/erp-approval/audit-packages`
 - `POST /api/erp-approval/audit-packages/{package_id}/notes`
 
-The local POST endpoints write only local audit workspace artifacts or local dry-run simulation records. They are not ERP writes and do not execute action proposals.
+The local POST endpoints write only local case-review, case-state, audit workspace, or dry-run simulation artifacts. They are not ERP writes and do not execute action proposals. Case turns are HarnessRuntime-owned runs; they may write local dossier artifacts but must never emit `approval.*` events.
 
 Optional connector environment variables are documented in `backend/.env.example`:
 

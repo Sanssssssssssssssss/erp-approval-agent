@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, ValidationError
 
@@ -41,7 +43,8 @@ from src.backend.domains.erp_approval.case_review_service import (
     run_local_case_review,
 )
 from src.backend.domains.erp_approval.case_harness import CaseHarness
-from src.backend.domains.erp_approval.case_state_models import CaseTurnRequest
+from src.backend.domains.erp_approval.case_state_models import CASE_HARNESS_NON_ACTION_STATEMENT, CaseTurnRequest
+from src.backend.domains.erp_approval.case_turn_executor import CaseTurnExecutor
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
 
@@ -106,6 +109,41 @@ def _case_harness() -> CaseHarness:
     return CaseHarness(_case_review_base_dir())
 
 
+def _harness_runtime():
+    try:
+        return agent_manager.get_harness_runtime()
+    except RuntimeError:
+        from src.backend.runtime.runtime import build_harness_runtime  # pylint: disable=import-outside-toplevel
+
+        return build_harness_runtime(_case_review_base_dir())
+
+
+def _case_turn_session_id(request: CaseTurnRequest) -> str:
+    if request.case_id.strip():
+        return request.case_id.strip()
+    digest = hashlib.sha256(request.user_message.encode("utf-8")).hexdigest()[:16]
+    return f"erp-case-draft:{digest}"
+
+
+def _event_summary(event) -> dict:
+    payload = dict(event.payload or {})
+    if event.name == "answer.completed":
+        content = str(payload.get("content", "") or "")
+        payload = {
+            "final": bool(payload.get("final", True)),
+            "segment_index": payload.get("segment_index", 0),
+            "content_preview": content[:320],
+            "content_length": len(content),
+        }
+    return {
+        "event_id": event.event_id,
+        "run_id": event.run_id,
+        "name": event.name,
+        "ts": event.ts,
+        "payload": payload,
+    }
+
+
 @router.post("/erp-approval/case-review")
 async def review_erp_approval_case(request: CaseReviewRequest) -> dict:
     if not request.user_message.strip():
@@ -117,7 +155,29 @@ async def review_erp_approval_case(request: CaseReviewRequest) -> dict:
 async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
     if not request.user_message.strip() and not request.extra_evidence:
         raise HTTPException(status_code=400, detail="user_message or extra_evidence is required")
-    return _case_harness().handle_turn(request).model_dump()
+    executor = CaseTurnExecutor(_case_harness(), request)
+    events = []
+    runtime = _harness_runtime()
+    async for event in runtime.run_with_executor(
+        user_message=request.user_message,
+        session_id=_case_turn_session_id(request),
+        source="internal",
+        executor=executor,
+        history=[],
+        orchestration_engine="case_harness",
+    ):
+        events.append(event)
+    if executor.response is None:
+        raise HTTPException(status_code=500, detail="ERP approval case turn did not produce a response")
+    payload = executor.response.model_dump()
+    payload["harness_run"] = {
+        "run_id": events[0].run_id if events else "",
+        "orchestration_engine": "case_harness",
+        "event_names": [event.name for event in events],
+        "events": [_event_summary(event) for event in events],
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    return payload
 
 
 @router.get("/erp-approval/cases")

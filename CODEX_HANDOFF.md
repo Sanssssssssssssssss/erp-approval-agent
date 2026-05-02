@@ -21,7 +21,7 @@ The newest post-Phase-14 direction is Harness-governed case state. Treat chat as
 - validate the patch before writing.
 - only then update `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text.
 
-The local CaseHarness API is `POST /api/erp-approval/cases/turn`. It may write local dossier artifacts under `backend/storage/erp_approval/cases/<case_id>/`, but it must never write to ERP, call `capability_invoke`, or emit `approval.*` events.
+The local CaseHarness API is `POST /api/erp-approval/cases/turn`. It is now wrapped by `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`, so each case turn has canonical harness trace coverage. Expected non-action case-turn events are `case.turn.started`, `case.patch.validated`, and `case.state.persisted`, surrounded by the normal `run.started` / `run.completed` lifecycle. It may write local dossier artifacts under `backend/storage/erp_approval/cases/<case_id>/`, but it must never write to ERP, call `capability_invoke`, or emit `approval.*` events.
 
 ## First Read
 
@@ -95,6 +95,7 @@ Current capabilities:
 - LLM-first ERP intake and reasoning prompts.
 - evidence-first case file, evidence requirements, evidence claims, evidence sufficiency gate, control matrix, and adversarial review.
 - local CaseHarness state machine for multi-turn approval dossiers, with validated `CasePatch` writes to `case_state.json`, `dossier.md`, and `audit_log.jsonl`.
+- HarnessRuntime-owned local case turns via `POST /api/erp-approval/cases/turn`; do not bypass runtime lifecycle when extending this path.
 - mock ERP/policy context.
 - deterministic recommendation guard via `human_review_required`.
 - durable ERP recommendation HITL review using existing checkpoint/resume semantics.

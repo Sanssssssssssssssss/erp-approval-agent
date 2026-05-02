@@ -39,6 +39,9 @@ HarnessEventName = Literal[
     "answer.delta",
     "answer.completed",
     "guard.failed",
+    "case.turn.started",
+    "case.patch.validated",
+    "case.state.persisted",
     "run.completed",
     "run.failed",
 ]
@@ -74,6 +77,9 @@ CANONICAL_EVENT_NAMES: tuple[HarnessEventName, ...] = (
     "answer.delta",
     "answer.completed",
     "guard.failed",
+    "case.turn.started",
+    "case.patch.validated",
+    "case.state.persisted",
     "run.completed",
     "run.failed",
 )

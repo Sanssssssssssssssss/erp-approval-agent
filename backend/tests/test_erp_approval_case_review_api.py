@@ -134,6 +134,15 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
 
         self.assertEqual(create_response.status_code, 200)
         self.assertEqual(evidence_response.status_code, 200)
+        harness_run = evidence_response.json()["harness_run"]
+        self.assertTrue(harness_run["run_id"])
+        self.assertEqual(harness_run["orchestration_engine"], "case_harness")
+        self.assertIn("run.started", harness_run["event_names"])
+        self.assertIn("case.turn.started", harness_run["event_names"])
+        self.assertIn("case.patch.validated", harness_run["event_names"])
+        self.assertIn("case.state.persisted", harness_run["event_names"])
+        self.assertIn("run.completed", harness_run["event_names"])
+        self.assertFalse(any(name.startswith("approval.") for name in harness_run["event_names"]))
         self.assertEqual(evidence_response.json()["patch"]["patch_type"], "accept_evidence")
         self.assertTrue(evidence_response.json()["case_state"]["accepted_evidence"])
         self.assertIn("No ERP write action was executed", evidence_response.json()["dossier"])
