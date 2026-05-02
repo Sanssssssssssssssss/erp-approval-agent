@@ -2,7 +2,7 @@
 
 ERP Approval Agent Workbench is a local-first, LLM-first, graph-driven approval agent workbench for ERP business workflows. It helps review approval requests with retrieved business context, policy context, auditable reasoning traces, and human-in-the-loop approval controls.
 
-The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface and registry, Phase 11 hardened connector configuration, diagnostics, healthcheck, provider mapping fixtures, and redaction, Phase 12 added local fixture replay plus connector diagnostics UX, Phase 13 expanded read-only connector mapping fixtures with a local replay coverage matrix, and Phase 14 closes the MVP boundary with documentation, acceptance checks, release boundary tests, and final validation.
+The repository target identity is `erp-approval-agent`. Phase 0 aligned the public product language, Phase 1 added the first minimal ERP approval graph skeleton, Phase 2 added read-only mock ERP context adapters, Phase 3 added a durable recommendation review HITL gate, Phase 4 added guarded ERP action proposal drafts, Phase 5 added a local ERP approval trace ledger plus read-only analytics foundation, Phase 6 added a read-only trace explorer with filters, export, drill-down, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added a local audit package workspace with reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface and registry, Phase 11 hardened connector configuration, diagnostics, healthcheck, provider mapping fixtures, and redaction, Phase 12 added local fixture replay plus connector diagnostics UX, Phase 13 expanded read-only connector mapping fixtures with a local replay coverage matrix, Phase 14 closes the MVP boundary with documentation, acceptance checks, release boundary tests, and final validation, and the current refactor makes the ERP core evidence-first rather than recommendation-centric.
 
 ## Product Direction
 
@@ -48,8 +48,10 @@ These legacy paths are not the new product identity. They are retained to avoid 
 Completed:
 
 - Phase 0 product-semantic migration.
-- current LLM-first ERP approval graph:
-  `bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize`.
+- current evidence-first ERP approval graph:
+  `bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_case_file -> erp_evidence_requirements -> erp_evidence_claims -> erp_evidence_sufficiency -> erp_control_matrix -> erp_case_recommendation -> erp_adversarial_review -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize`.
+- evidence-first case analysis: one-sentence approval prompts create case drafts; they do not satisfy blocking evidence by themselves.
+- deterministic evidence sufficiency and control-matrix gates block `recommend_approve` when ERP/policy/attachment evidence is missing or conflicting.
 - Phase 2 read-only ERP context adapter interface.
 - normalized mock ERP records for approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy context.
 - Phase 3 ERP recommendation review HITL gate using the existing checkpoint/resume mechanism.
@@ -88,7 +90,13 @@ bootstrap
 -> memory_retrieval
 -> erp_intake
 -> erp_context
--> erp_reasoning
+-> erp_case_file
+-> erp_evidence_requirements
+-> erp_evidence_claims
+-> erp_evidence_sufficiency
+-> erp_control_matrix
+-> erp_case_recommendation
+-> erp_adversarial_review
 -> erp_guard
 -> erp_hitl_gate
 -> erp_action_proposal
@@ -96,7 +104,7 @@ bootstrap
 -> finalize
 ```
 
-It produces a structured approval recommendation with confidence, missing information, risk flags, citations, proposed next action, and guarded action proposal drafts. If `human_review_required=true`, the graph creates a durable HITL review request. That review accepts, rejects, or edits the agent recommendation only; it does not execute an ERP approval.
+It now produces an evidence-first approval case file before drafting a recommendation. The case file contains required evidence, artifacts, claims, evidence sufficiency, contradictions, control checks, risk assessment, and adversarial review. `recommend_approve` is only allowed when evidence sufficiency and the control matrix both pass with supported citations and no contradiction. If `human_review_required=true`, the graph creates a durable HITL review request. That review accepts, rejects, or edits the agent recommendation only; it does not execute an ERP approval.
 
 Action proposals are proposed-only drafts. They include idempotency fields and validation warnings, but they are not tool calls, capability invocations, connector calls, or ERP writes.
 

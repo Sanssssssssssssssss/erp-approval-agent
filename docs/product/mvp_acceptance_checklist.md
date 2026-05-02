@@ -10,11 +10,13 @@ This checklist defines the Phase 14 MVP acceptance boundary. It is a release-rea
 - [x] Current ERP graph is stable:
 
 ```text
-bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
+bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_case_file -> erp_evidence_requirements -> erp_evidence_claims -> erp_evidence_sufficiency -> erp_control_matrix -> erp_case_recommendation -> erp_adversarial_review -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
 - [x] `GRAPH_VERSION` is `phase14`.
-- [x] ERP approval path is LLM-first and graph-governed.
+- [x] ERP approval path is evidence-first, LLM-assisted, and graph-governed.
+- [x] One-sentence input creates a case draft only; missing blocking evidence prevents `recommend_approve`.
+- [x] Evidence sufficiency, contradiction detection, control matrix, and adversarial review run before guard/HITL.
 - [x] ERP context is read-only and defaults to mock.
 - [x] Recommendation HITL gate reviews the agent recommendation only.
 - [x] Action proposals remain proposed-only and `executable=false`.

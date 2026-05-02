@@ -7,10 +7,18 @@ Phase 14: Final MVP Closure.
 Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, Phase 11 hardened connector configuration, Phase 12 added local connector replay diagnostics, Phase 13 added multi-entity replay coverage, and Phase 14 closes the MVP boundary:
 
 ```text
-bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_reasoning -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
+bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> erp_case_file -> erp_evidence_requirements -> erp_evidence_claims -> erp_evidence_sufficiency -> erp_control_matrix -> erp_case_recommendation -> erp_adversarial_review -> erp_guard -> erp_hitl_gate -> erp_action_proposal -> erp_finalize -> finalize
 ```
 
-The current active capability is Phase 14: final MVP closure. No connector, simulation, audit workspace, mapper diagnostic, profile note, benchmark, live ERP, or ERP write-action scope is added. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, representative provider payload fixtures, local fixture replay, and local replay coverage. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only.
+The current active capability is Phase 14 plus an evidence-first case-agent refactor. No connector, simulation, audit workspace, mapper diagnostic, profile note, benchmark, live ERP, or ERP write-action scope is added. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, representative provider payload fixtures, local fixture replay, and local replay coverage. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only.
+
+Evidence-first behavior:
+
+- one-sentence input creates a case draft only.
+- blocking ERP/policy/attachment evidence gaps prevent `recommend_approve`.
+- deterministic evidence sufficiency and control-matrix checks run before recommendation drafting.
+- adversarial review downgrades unsupported or over-strong recommendations.
+- final answers render required evidence, evidence claims, sufficiency, contradictions, control checks, risk, adversarial review, recommendation, and the non-action boundary.
 
 ## Active Product Direction
 
@@ -19,7 +27,7 @@ ERP Approval Agent Workbench is becoming a local-first, LLM-first, graph-driven 
 Current positioning:
 
 - approval recommendation, not autonomous final execution.
-- LLM-first approval reasoning, governed by graph nodes and HITL controls.
+- evidence-first approval case analysis, with LLM used for intake/explanation and deterministic gates used for sufficiency/control boundaries.
 - existing ERP approval graph skeleton.
 - mock ERP/policy context.
 - durable ERP recommendation review HITL gate.

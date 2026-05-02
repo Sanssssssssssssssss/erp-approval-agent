@@ -26,6 +26,7 @@ from src.backend.domains.erp_approval import (
     ApprovalActionProposalBundle,
     ApprovalActionValidationResult,
     ApprovalActionProposalRepository,
+    ApprovalCaseFile,
     ApprovalContextBundle,
     ApprovalGuardResult,
     ApprovalRecommendation,
@@ -34,18 +35,30 @@ from src.backend.domains.erp_approval import (
     ERP_CONNECTOR_NON_ACTION_STATEMENT,
     ErpContextQuery,
     ErpReadResult,
+    adversarial_review_case,
     build_action_proposals,
+    build_case_file_from_request_context,
     build_connector_registry_from_env,
     build_context_bundle_from_records,
     build_contextual_fallback_recommendation,
+    build_evidence_artifacts,
+    build_evidence_requirements,
     build_proposal_records_from_state,
     build_trace_record_from_state,
+    complete_case_analysis,
+    detect_contradictions,
+    draft_recommendation_from_case,
+    evaluate_control_matrix,
+    evaluate_evidence_sufficiency,
+    extract_claims_from_artifacts,
     default_proposal_ledger_path,
     default_trace_path,
     guard_recommendation,
+    link_claims_to_requirements,
     parse_approval_request,
     parse_recommendation,
     render_action_proposals,
+    render_case_analysis,
     render_recommendation,
     read_request_from_context_query,
     validate_action_proposals,
@@ -835,45 +848,200 @@ class HarnessLangGraphOrchestrator:
         )
         return {**result, **updates}
 
+    async def erp_case_file_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_case_file")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = build_case_file_from_request_context(request, context)
+        result = self._erp_case_result(case_file)
+        result.update(
+            {
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_evidence_requirements_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_evidence_requirements")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = self._erp_case_file_from_state(state, request=request, context=context)
+        requirements = build_evidence_requirements(case_file)
+        case_file = complete_case_analysis(case_file.model_copy(update={"evidence_requirements": requirements}))
+        result = self._erp_case_result(case_file)
+        result.update(
+            {
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_evidence_claims_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_evidence_claims")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = self._erp_case_file_from_state(state, request=request, context=context)
+        artifacts = build_evidence_artifacts(request, context)
+        claims = extract_claims_from_artifacts(case_file, artifacts)
+        requirements, claims = link_claims_to_requirements(list(case_file.evidence_requirements), claims)
+        contradictions = detect_contradictions(claims)
+        case_file = complete_case_analysis(
+            case_file.model_copy(
+                update={
+                    "evidence_artifacts": artifacts,
+                    "evidence_requirements": requirements,
+                    "evidence_claims": claims,
+                    "contradictions": contradictions,
+                }
+            )
+        )
+        result = self._erp_case_result(case_file)
+        result.update(
+            {
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_evidence_sufficiency_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_evidence_sufficiency")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = self._erp_case_file_from_state(state, request=request, context=context)
+        sufficiency = evaluate_evidence_sufficiency(case_file.evidence_requirements, case_file.evidence_claims, case_file.contradictions)
+        case_file = complete_case_analysis(case_file.model_copy(update={"evidence_sufficiency": sufficiency}))
+        result = self._erp_case_result(case_file)
+        result.update(
+            {
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_control_matrix_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_control_matrix")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
+        control_matrix = evaluate_control_matrix(case_file)
+        case_file = case_file.model_copy(update={"control_checks": control_matrix.checks})
+        result = self._erp_case_result(case_file)
+        result["erp_control_matrix"] = self._model_dump(control_matrix)
+        result.update(
+            {
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_case_recommendation_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_case_recommendation")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
+        recommendation = draft_recommendation_from_case(case_file)
+        result = self._erp_case_result(case_file)
+        result.update(
+            {
+                "erp_recommendation": self._model_dump(recommendation),
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
+    async def erp_adversarial_review_node(self, state: GraphState) -> dict[str, Any]:
+        assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_adversarial_review")
+        request = self._erp_request_from_state(state)
+        context = self._erp_context_from_state(state, request=request)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
+        recommendation = self._erp_recommendation_from_state(state)
+        case_file, recommendation = adversarial_review_case(case_file, recommendation)
+        result = self._erp_case_result(case_file)
+        result.update(
+            {
+                "erp_recommendation": self._model_dump(recommendation),
+                "path_kind": "erp_approval",
+                "turn_id": self._current_turn_id(state),
+                "context_call_ids": self._context_call_ids(state),
+            }
+        )
+        _payload, updates = self._write_context_snapshot(
+            state=state,
+            result=result,
+            assembly=assembly,
+            turn_id=result["turn_id"],
+            call_ids=result["context_call_ids"],
+        )
+        return {**result, **updates}
+
     async def erp_reasoning_node(self, state: GraphState) -> dict[str, Any]:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_reasoning")
         turn_id = self._current_turn_id(state)
-        call_id = self._record_model_call_snapshot(
-            state=state,
-            assembly=assembly,
-            call_site="erp_reasoning",
-            call_type="erp_reasoning_call",
-            turn_id=turn_id,
-        )
-        call_ids = self._context_call_ids(state, call_id)
+        call_ids = self._context_call_ids(state)
         request = self._erp_request_from_state(state)
         context = self._erp_context_from_state(state, request=request)
-        messages = list(assembly.history_messages)
-        messages.append(
-            {
-                "role": "user",
-                "content": self._format_erp_reasoning_input(request, context),
-            }
-        )
-        try:
-            raw_recommendation, usage = await self._stream_model_answer(
-                messages,
-                extra_instructions=list(assembly.extra_instructions) or None,
-                system_prompt_override=ERP_REASONING_SYSTEM_PROMPT,
-                stream_deltas=False,
-                path_type=assembly.path_kind,
-            )
-        except Exception:
-            raw_recommendation = ""
-            usage = None
-        recommendation = parse_recommendation(raw_recommendation)
-        if "模型输出未能解析" in recommendation.risk_flags:
-            recommendation = build_contextual_fallback_recommendation(request, context)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
+        recommendation = draft_recommendation_from_case(case_file)
+        case_file, recommendation = adversarial_review_case(case_file, recommendation)
         result = {
             "erp_request": self._model_dump(request),
             "erp_context": self._model_dump(context),
+            **self._erp_case_result(case_file),
             "erp_recommendation": self._model_dump(recommendation),
-            "answer_usage": usage,
             "path_kind": "erp_approval",
             "turn_id": turn_id,
             "context_call_ids": call_ids,
@@ -891,6 +1059,7 @@ class HarnessLangGraphOrchestrator:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_guard")
         request = self._erp_request_from_state(state)
         context = self._erp_context_from_state(state, request=request)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
         recommendation = self._erp_recommendation_from_state(state)
         guarded, guard = guard_recommendation(request, context, recommendation)
         result = {
@@ -1000,6 +1169,7 @@ class HarnessLangGraphOrchestrator:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_action_proposal")
         request = self._erp_request_from_state(state)
         context = self._erp_context_from_state(state, request=request)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
         recommendation = self._erp_recommendation_from_state(state)
         recommendation, guard = self._erp_guard_from_state(state, request, context, recommendation)
         review_status = self._erp_review_status_from_state(state, recommendation, guard)
@@ -1039,6 +1209,7 @@ class HarnessLangGraphOrchestrator:
         assembly = self._context_assembler.assemble(path_kind="erp_approval", state=state, call_site="erp_finalize")
         request = self._erp_request_from_state(state)
         context = self._erp_context_from_state(state, request=request)
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
         recommendation = self._erp_recommendation_from_state(state)
         recommendation, guard = self._erp_guard_from_state(state, request, context, recommendation)
         review_status = self._erp_review_status_from_state(state, recommendation, guard)
@@ -1058,6 +1229,7 @@ class HarnessLangGraphOrchestrator:
             review_status,
             action_bundle,
             action_validation,
+            case_file=case_file,
         )
         await self._emit_final_answer(answer, usage=state.get("answer_usage"))
         turn_id = self._current_turn_id(state)
@@ -1068,6 +1240,7 @@ class HarnessLangGraphOrchestrator:
             "answer_finalized": True,
             "erp_request": self._model_dump(request),
             "erp_context": self._model_dump(context),
+            **self._erp_case_result(case_file),
             "erp_recommendation": self._model_dump(recommendation),
             "erp_guard_result": self._model_dump(guard),
             "erp_review_status": review_status,
@@ -1880,6 +2053,47 @@ class HarnessLangGraphOrchestrator:
         except Exception:
             return parse_recommendation("")
 
+    def _erp_case_file_from_state(
+        self,
+        state: GraphState,
+        *,
+        request: ApprovalRequest,
+        context: ApprovalContextBundle,
+    ) -> ApprovalCaseFile:
+        payload = state.get("erp_case_file")
+        if payload:
+            try:
+                data = ApprovalCaseFile.model_validate(payload or {}).model_dump()
+            except Exception:
+                data = build_case_file_from_request_context(request, context).model_dump()
+        else:
+            data = build_case_file_from_request_context(request, context).model_dump()
+        overlays = {
+            "evidence_requirements": state.get("erp_evidence_requirements") or None,
+            "evidence_artifacts": state.get("erp_evidence_artifacts") or None,
+            "evidence_claims": state.get("erp_evidence_claims") or None,
+            "evidence_sufficiency": state.get("erp_evidence_sufficiency") or None,
+            "contradictions": state.get("erp_contradictions") or None,
+            "adversarial_review": state.get("erp_adversarial_review") or None,
+        }
+        for key, value in overlays.items():
+            if value:
+                data[key] = value
+        return ApprovalCaseFile.model_validate(data)
+
+    def _erp_case_result(self, case_file: ApprovalCaseFile) -> dict[str, Any]:
+        control_matrix = evaluate_control_matrix(case_file)
+        return {
+            "erp_case_file": self._model_dump(case_file),
+            "erp_evidence_requirements": [self._model_dump(item) for item in case_file.evidence_requirements],
+            "erp_evidence_artifacts": [self._model_dump(item) for item in case_file.evidence_artifacts],
+            "erp_evidence_claims": [self._model_dump(item) for item in case_file.evidence_claims],
+            "erp_evidence_sufficiency": self._model_dump(case_file.evidence_sufficiency),
+            "erp_contradictions": self._model_dump(case_file.contradictions),
+            "erp_control_matrix": self._model_dump(control_matrix),
+            "erp_adversarial_review": self._model_dump(case_file.adversarial_review),
+        }
+
     def _erp_action_proposals_from_state(
         self,
         state: GraphState,
@@ -2131,9 +2345,11 @@ class HarnessLangGraphOrchestrator:
         review_status: str,
         action_bundle: ApprovalActionProposalBundle,
         action_validation: ApprovalActionValidationResult,
+        case_file: ApprovalCaseFile | None = None,
     ) -> str:
         rendered_actions = render_action_proposals(action_bundle, action_validation)
         review_label = self._erp_review_status_label(review_status)
+        answer = render_case_analysis(case_file, recommendation, guard) if case_file is not None else render_recommendation(request, context, recommendation, guard)
         if review_status == "rejected_by_human":
             return "\n".join(
                 [
@@ -2146,10 +2362,11 @@ class HarnessLangGraphOrchestrator:
                     f"审批单：{self._erp_approval_type_label(request.approval_type)} / {request.approval_id or '未识别'}",
                     ERP_NO_ACTION_EXECUTED_STATEMENT,
                     "",
+                    answer,
+                    "",
                     rendered_actions,
                 ]
             ).strip()
-        answer = render_recommendation(request, context, recommendation, guard)
         review_note = "\n".join(
             [
                 "## HITL 复核回执",

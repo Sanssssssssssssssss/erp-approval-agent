@@ -32,7 +32,14 @@ $ErpTests = @(
   "backend.tests.test_erp_approval_connector_api",
   "backend.tests.test_erp_approval_connector_replay",
   "backend.tests.test_erp_approval_connector_coverage",
-  "backend.tests.test_erp_approval_release_boundary"
+  "backend.tests.test_erp_approval_release_boundary",
+  "backend.tests.test_erp_approval_case_file",
+  "backend.tests.test_erp_approval_evidence_requirements",
+  "backend.tests.test_erp_approval_evidence_claims",
+  "backend.tests.test_erp_approval_evidence_sufficiency",
+  "backend.tests.test_erp_approval_control_matrix",
+  "backend.tests.test_erp_approval_case_review",
+  "backend.tests.test_erp_approval_case_graph"
 )
 
 $LegacyTests = @(
@@ -53,7 +60,25 @@ $CompileScript = @'
 import py_compile
 
 files = [
+    "src/backend/domains/erp_approval/case_models.py",
+    "src/backend/domains/erp_approval/evidence_requirements.py",
+    "src/backend/domains/erp_approval/evidence_claims.py",
+    "src/backend/domains/erp_approval/evidence_sufficiency.py",
+    "src/backend/domains/erp_approval/control_matrix.py",
+    "src/backend/domains/erp_approval/case_review.py",
+    "src/backend/domains/erp_approval/__init__.py",
+    "src/backend/orchestration/compiler.py",
+    "src/backend/orchestration/executor.py",
+    "src/backend/orchestration/nodes/__init__.py",
+    "src/backend/orchestration/nodes/erp_approval.py",
     "src/backend/orchestration/state.py",
+    "backend/tests/test_erp_approval_case_file.py",
+    "backend/tests/test_erp_approval_evidence_requirements.py",
+    "backend/tests/test_erp_approval_evidence_claims.py",
+    "backend/tests/test_erp_approval_evidence_sufficiency.py",
+    "backend/tests/test_erp_approval_control_matrix.py",
+    "backend/tests/test_erp_approval_case_review.py",
+    "backend/tests/test_erp_approval_case_graph.py",
     "backend/tests/test_erp_approval_connector_config.py",
     "backend/tests/test_erp_approval_release_boundary.py",
 ]

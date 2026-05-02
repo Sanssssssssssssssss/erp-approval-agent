@@ -323,6 +323,23 @@ Done when:
 
 Status: complete for final MVP closure.
 
+## Evidence-First Case Agent Refactor
+
+Scope:
+
+- convert the ERP approval core from recommendation-centric to evidence-case-centric.
+- add case file, evidence requirements, evidence artifacts, evidence claims, sufficiency gate, contradiction detection, control matrix, case-grounded recommendation, and adversarial review.
+- treat one-sentence user input as a case draft only.
+- keep all Phase 14 boundaries: no live ERP, no network, no ERP writes, no capability invocation, no benchmark claim.
+
+Done when:
+
+- missing blocking evidence prevents `recommend_approve`.
+- final answers show Required evidence checklist, Evidence claims, Evidence sufficiency, Contradictions, Control matrix checks, Risk assessment, Adversarial review, Recommendation, and Non-action boundary.
+- tests prove purchase requisition, invoice payment, supplier onboarding, contract exception, and budget exception cases cannot pass without required evidence.
+
+Status: complete for local evidence-first case analysis and graph refactor.
+
 ## Historical Infrastructure Notes
 
 The previous infrastructure plan introduced useful runtime foundations:

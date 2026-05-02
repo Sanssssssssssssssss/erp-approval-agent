@@ -32,6 +32,14 @@ class GraphState(TypedDict, total=False):
     erp_context: dict[str, Any] | None
     erp_connector_result: dict[str, Any] | None
     erp_connector_warnings: list[str]
+    erp_case_file: dict[str, Any] | None
+    erp_evidence_requirements: list[dict[str, Any]]
+    erp_evidence_artifacts: list[dict[str, Any]]
+    erp_evidence_claims: list[dict[str, Any]]
+    erp_evidence_sufficiency: dict[str, Any] | None
+    erp_contradictions: dict[str, Any] | None
+    erp_control_matrix: dict[str, Any] | None
+    erp_adversarial_review: dict[str, Any] | None
     erp_recommendation: dict[str, Any] | None
     erp_guard_result: dict[str, Any] | None
     erp_hitl_request: dict[str, Any] | None
@@ -101,6 +109,14 @@ def create_initial_graph_state(
         erp_context=None,
         erp_connector_result=None,
         erp_connector_warnings=[],
+        erp_case_file=None,
+        erp_evidence_requirements=[],
+        erp_evidence_artifacts=[],
+        erp_evidence_claims=[],
+        erp_evidence_sufficiency=None,
+        erp_contradictions=None,
+        erp_control_matrix=None,
+        erp_adversarial_review=None,
         erp_recommendation=None,
         erp_guard_result=None,
         erp_hitl_request=None,

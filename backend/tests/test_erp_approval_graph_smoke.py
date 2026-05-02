@@ -24,6 +24,8 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
         orchestrator = HarnessLangGraphOrchestrator.__new__(HarnessLangGraphOrchestrator)
         orchestrator._context_assembler = ContextAssembler(base_dir=BACKEND_DIR)
         orchestrator._erp_context_adapter = MockErpContextAdapter(base_dir=BACKEND_DIR)
+        orchestrator._resume_checkpoint_id = ""
+        orchestrator._resume_source = ""
         if trace_repository is not None:
             orchestrator._erp_trace_repository = trace_repository
         if proposal_repository is not None:
@@ -73,8 +75,31 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             del usage
             emitted_answers.append(content)
 
+        class FakeRuntime:
+            def now(self) -> str:
+                return "2026-01-01T00:00:00+00:00"
+
+            async def emit(self, *_args, **_kwargs) -> None:
+                return None
+
+        class FakeHandle:
+            run_id = "run-erp-smoke"
+            metadata = {}
+
+        class FakeBindings:
+            runtime = FakeRuntime()
+            handle = FakeHandle()
+            context = None
+
         orchestrator._stream_model_answer = fake_stream_model_answer
         orchestrator._emit_final_answer = fake_emit_final_answer
+        orchestrator._bindings_or_raise = lambda: FakeBindings()
+        orchestrator._erp_hitl_interrupt = lambda _request: {
+            "decision": "approve",
+            "actor_id": "test-user",
+            "actor_type": "test",
+            "decided_at": "2026-01-01T00:00:00+00:00",
+        }
         orchestrator._record_model_call_snapshot = lambda **kwargs: str(kwargs.get("call_site", ""))
         orchestrator._record_post_turn_snapshot = lambda **_kwargs: None
         orchestrator._write_context_snapshot = lambda **kwargs: (
@@ -102,7 +127,13 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             for node in (
                 orchestrator.erp_intake_node,
                 orchestrator.erp_context_node,
-                orchestrator.erp_reasoning_node,
+                orchestrator.erp_case_file_node,
+                orchestrator.erp_evidence_requirements_node,
+                orchestrator.erp_evidence_claims_node,
+                orchestrator.erp_evidence_sufficiency_node,
+                orchestrator.erp_control_matrix_node,
+                orchestrator.erp_case_recommendation_node,
+                orchestrator.erp_adversarial_review_node,
                 orchestrator.erp_guard_node,
                 orchestrator.erp_hitl_gate_node,
                 orchestrator.erp_action_proposal_node,
@@ -114,16 +145,15 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             proposal_records = proposal_repository.list_recent(limit=10)
 
         self.assertTrue(state["answer_finalized"])
-        self.assertEqual(state["erp_review_status"], "not_required")
-        self.assertIn("ERP 审批建议", state["final_answer"])
-        self.assertIn("后续动作草案", state["final_answer"])
-        self.assertIn("未执行任何 ERP 写入动作。", state["final_answer"])
-        self.assertIn("未执行任何 ERP 通过、驳回、付款、供应商、合同或预算写入动作。", state["final_answer"])
+        self.assertEqual(state["erp_review_status"], "accepted_by_human")
+        self.assertIn("Required evidence checklist", state["final_answer"])
+        self.assertIn("Control matrix checks", state["final_answer"])
+        self.assertIn("No ERP write action was executed", state["final_answer"])
         self.assertTrue(state["erp_trace_write_result"]["success"])
         self.assertEqual(len(state["erp_proposal_write_results"]), 1)
         self.assertTrue(state["erp_proposal_write_results"][0]["success"])
         self.assertEqual(len(traces), 1)
-        self.assertEqual(traces[0].recommendation_status, "recommend_approve")
+        self.assertNotEqual(traces[0].recommendation_status, "recommend_approve")
         self.assertEqual(len(proposal_records), 1)
         self.assertEqual(proposal_records[0].trace_id, traces[0].trace_id)
         self.assertFalse(proposal_records[0].executable)
@@ -147,7 +177,13 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
         for node in (
             orchestrator.erp_intake_node,
             orchestrator.erp_context_node,
-            orchestrator.erp_reasoning_node,
+            orchestrator.erp_case_file_node,
+            orchestrator.erp_evidence_requirements_node,
+            orchestrator.erp_evidence_claims_node,
+            orchestrator.erp_evidence_sufficiency_node,
+            orchestrator.erp_control_matrix_node,
+            orchestrator.erp_case_recommendation_node,
+            orchestrator.erp_adversarial_review_node,
             orchestrator.erp_guard_node,
             orchestrator.erp_hitl_gate_node,
             orchestrator.erp_action_proposal_node,
@@ -156,7 +192,7 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             state.update(await node(state))
 
         self.assertTrue(state["answer_finalized"])
-        self.assertIn("ERP 审批建议", state["final_answer"])
+        self.assertIn("Required evidence checklist", state["final_answer"])
         self.assertIsNone(state["erp_trace_write_result"])
         self.assertEqual(emitted_answers, [state["final_answer"]])
 
@@ -180,7 +216,13 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             for node in (
                 orchestrator.erp_intake_node,
                 orchestrator.erp_context_node,
-                orchestrator.erp_reasoning_node,
+                orchestrator.erp_case_file_node,
+                orchestrator.erp_evidence_requirements_node,
+                orchestrator.erp_evidence_claims_node,
+                orchestrator.erp_evidence_sufficiency_node,
+                orchestrator.erp_control_matrix_node,
+                orchestrator.erp_case_recommendation_node,
+                orchestrator.erp_adversarial_review_node,
                 orchestrator.erp_guard_node,
                 orchestrator.erp_hitl_gate_node,
                 orchestrator.erp_action_proposal_node,

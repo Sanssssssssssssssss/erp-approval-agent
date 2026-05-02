@@ -14,7 +14,14 @@ from src.backend.orchestration.nodes import (
     build_capability_synthesis_node,
     build_direct_answer_node,
     build_erp_action_proposal_node,
+    build_erp_adversarial_review_node,
+    build_erp_case_file_node,
+    build_erp_case_recommendation_node,
     build_erp_context_node,
+    build_erp_control_matrix_node,
+    build_erp_evidence_claims_node,
+    build_erp_evidence_requirements_node,
+    build_erp_evidence_sufficiency_node,
     build_erp_finalize_node,
     build_erp_guard_node,
     build_erp_hitl_gate_node,
@@ -40,6 +47,13 @@ def compile_harness_orchestration_graph(orchestrator, *, include_checkpointer: b
     graph.add_node("direct_answer", build_direct_answer_node(orchestrator))
     graph.add_node("erp_intake", build_erp_intake_node(orchestrator))
     graph.add_node("erp_context", build_erp_context_node(orchestrator))
+    graph.add_node("erp_case_file", build_erp_case_file_node(orchestrator))
+    graph.add_node("erp_evidence_requirements", build_erp_evidence_requirements_node(orchestrator))
+    graph.add_node("erp_evidence_claims", build_erp_evidence_claims_node(orchestrator))
+    graph.add_node("erp_evidence_sufficiency", build_erp_evidence_sufficiency_node(orchestrator))
+    graph.add_node("erp_control_matrix", build_erp_control_matrix_node(orchestrator))
+    graph.add_node("erp_case_recommendation", build_erp_case_recommendation_node(orchestrator))
+    graph.add_node("erp_adversarial_review", build_erp_adversarial_review_node(orchestrator))
     graph.add_node("erp_reasoning", build_erp_reasoning_node(orchestrator))
     graph.add_node("erp_guard", build_erp_guard_node(orchestrator))
     graph.add_node("erp_hitl_gate", build_erp_hitl_gate_node(orchestrator))
@@ -71,8 +85,14 @@ def compile_harness_orchestration_graph(orchestrator, *, include_checkpointer: b
         },
     )
     graph.add_edge("erp_intake", "erp_context")
-    graph.add_edge("erp_context", "erp_reasoning")
-    graph.add_edge("erp_reasoning", "erp_guard")
+    graph.add_edge("erp_context", "erp_case_file")
+    graph.add_edge("erp_case_file", "erp_evidence_requirements")
+    graph.add_edge("erp_evidence_requirements", "erp_evidence_claims")
+    graph.add_edge("erp_evidence_claims", "erp_evidence_sufficiency")
+    graph.add_edge("erp_evidence_sufficiency", "erp_control_matrix")
+    graph.add_edge("erp_control_matrix", "erp_case_recommendation")
+    graph.add_edge("erp_case_recommendation", "erp_adversarial_review")
+    graph.add_edge("erp_adversarial_review", "erp_guard")
     graph.add_edge("erp_guard", "erp_hitl_gate")
     graph.add_edge("erp_hitl_gate", "erp_action_proposal")
     graph.add_edge("erp_action_proposal", "erp_finalize")
