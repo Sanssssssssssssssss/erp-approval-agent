@@ -124,10 +124,25 @@ def _requirement_ids(review: Any | None) -> set[str]:
 def _stringify_model_review(model_review: dict[str, Any] | None) -> str:
     if not model_review:
         return ""
+    redacted = _drop_non_action_statements(model_review)
     try:
-        return json.dumps(model_review, ensure_ascii=False, sort_keys=True)
+        return json.dumps(redacted, ensure_ascii=False, sort_keys=True)
     except TypeError:
-        return str(model_review)
+        return str(redacted)
+
+
+def _drop_non_action_statements(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _drop_non_action_statements(item)
+            for key, item in value.items()
+            if key != "non_action_statement"
+        }
+    if isinstance(value, list):
+        return [_drop_non_action_statements(item) for item in value]
+    if isinstance(value, str) and "No ERP write action was executed" in value:
+        return ""
+    return value
 
 
 def contract_for_state(state: ApprovalCaseState) -> CaseTurnContract:

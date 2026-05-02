@@ -260,6 +260,8 @@ class CaseHarness:
     ) -> tuple[CaseStageModelDecision | None, str]:
         if self.stage_model is None:
             return None, ""
+        if not candidates and deterministic_intent in {"create_case", "ask_required_materials", "ask_status", "off_topic"}:
+            return None, ""
         try:
             return (
                 self.stage_model.review_turn(

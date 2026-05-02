@@ -880,20 +880,32 @@ function buildConnectionError(baseUrl: string, error: unknown) {
 /**
  * Returns one parsed JSON response from path and fetch-init inputs and performs a typed API request.
  */
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
   const apiBase = getApiBase();
   let response: Response;
+  const controller = timeoutMs ? new AbortController() : null;
+  const timeoutId = controller
+    ? globalThis.setTimeout(() => controller.abort(), timeoutMs)
+    : null;
 
   try {
     response = await fetch(`${apiBase}${path}`, {
       ...init,
+      signal: init?.signal ?? controller?.signal,
       headers: {
         "Content-Type": "application/json",
         ...(init?.headers ?? {})
       }
     });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("本轮案件更新超过等待时间。通常是模型审证调用太慢或后端正在处理旧请求；请稍后重试，或先关闭阶段模型后再启动。");
+    }
     throw buildConnectionError(apiBase, error);
+  } finally {
+    if (timeoutId !== null) {
+      globalThis.clearTimeout(timeoutId);
+    }
   }
 
   if (!response.ok) {
@@ -1124,7 +1136,7 @@ export async function applyErpApprovalCaseTurn(payload: ErpApprovalCaseTurnReque
   return request<ErpApprovalCaseTurnResponse>("/erp-approval/cases/turn", {
     method: "POST",
     body: JSON.stringify(payload)
-  });
+  }, 60000);
 }
 
 export async function getErpApprovalConnectorHealth() {

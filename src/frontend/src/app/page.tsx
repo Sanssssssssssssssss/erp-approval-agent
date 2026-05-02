@@ -92,7 +92,7 @@ function WorkspaceBottomBar({
           onClick={() => onViewChange("chat")}
           type="button"
         >
-          审批助理
+          聊天流（不写案卷）
         </button>
         <button
           className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"}

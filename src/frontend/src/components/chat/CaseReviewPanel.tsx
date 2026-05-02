@@ -58,6 +58,28 @@ function text(value: unknown, fallback = "未提供") {
   return rendered || fallback;
 }
 
+const TEXT_FILE_EXTENSIONS = [".txt", ".md", ".json", ".csv", ".tsv", ".xml", ".log"];
+
+function fileExtension(name: string) {
+  const index = name.lastIndexOf(".");
+  return index >= 0 ? name.slice(index).toLowerCase() : "";
+}
+
+function isTextEvidenceFile(file: File) {
+  return file.type.startsWith("text/") || TEXT_FILE_EXTENSIONS.includes(fileExtension(file.name));
+}
+
+async function sha256File(file: File) {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest))
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function sourceSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9_.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "file";
+}
+
 function boolLabel(value: unknown) {
   return value === true || String(value).toLowerCase() === "true" ? "是" : "否";
 }
@@ -299,6 +321,7 @@ export function CaseReviewPanel() {
   const [evidenceType, setEvidenceType] = useState("quote");
   const [evidenceContent, setEvidenceContent] = useState("");
   const [extraEvidence, setExtraEvidence] = useState<ErpApprovalCaseReviewEvidenceInput[]>([]);
+  const [fileEvidenceStatus, setFileEvidenceStatus] = useState("");
   const [result, setResult] = useState<ErpApprovalCaseReviewResponse | null>(null);
   const [caseTurn, setCaseTurn] = useState<ErpApprovalCaseTurnResponse | null>(null);
   const [error, setError] = useState("");
@@ -319,6 +342,58 @@ export function CaseReviewPanel() {
     ]);
     setEvidenceTitle("");
     setEvidenceContent("");
+  };
+
+  const addEvidenceFiles = async (files: FileList | null) => {
+    const selected = Array.from(files ?? []);
+    if (!selected.length) return;
+    setFileEvidenceStatus("正在读取本地文件证据...");
+    try {
+      const fileEvidence = await Promise.all(
+        selected.map(async (file) => {
+          const sha256 = await sha256File(file);
+          const canReadText = isTextEvidenceFile(file);
+          const extractedText = canReadText ? await file.text() : "";
+          const content = canReadText
+            ? [
+                `Local file evidence: ${file.name}`,
+                `File type: ${file.type || "unknown"}`,
+                `File size: ${file.size} bytes`,
+                `SHA-256: ${sha256}`,
+                "",
+                extractedText
+              ].join("\n")
+            : [
+                `Local file evidence: ${file.name}`,
+                `File type: ${file.type || "unknown"}`,
+                `File size: ${file.size} bytes`,
+                `SHA-256: ${sha256}`,
+                "",
+                "This local file was registered as evidence metadata only. PDF/image OCR or signature validation has not been performed in this workspace yet, so this file cannot satisfy blocking evidence until text is extracted and reviewed."
+              ].join("\n");
+          return {
+            title: file.name,
+            record_type: canReadText ? evidenceType : "attachment",
+            content,
+            source_id: `local_file://${sourceSlug(file.name)}/${sha256.slice(0, 12)}`,
+            metadata: {
+              file_name: file.name,
+              file_type: file.type || "unknown",
+              file_size: file.size,
+              sha256,
+              extraction_mode: canReadText ? "browser_text_read" : "metadata_only_requires_pdf_or_ocr_extraction",
+              authenticity_check: "sha256_recorded_only_not_full_forgery_detection"
+            }
+          };
+        })
+      );
+      setExtraEvidence((items) => [...items, ...fileEvidence]);
+      setFileEvidenceStatus(
+        `${fileEvidence.length} 个文件已加入本轮证据；PDF/图片目前只登记哈希和元数据，不会假装已经 OCR 或验真。`
+      );
+    } catch (err) {
+      setFileEvidenceStatus(err instanceof Error ? err.message : "读取本地文件失败");
+    }
   };
 
   const runReview = async () => {
@@ -398,6 +473,25 @@ export function CaseReviewPanel() {
               <FilePlus2 size={15} />
               加入证据
             </button>
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <label className="ui-button cursor-pointer">
+              <FilePlus2 size={15} />
+              上传本地文件证据
+              <input
+                className="sr-only"
+                multiple
+                onChange={(event) => void addEvidenceFiles(event.target.files)}
+                type="file"
+              />
+            </label>
+            <p className="text-xs leading-5 text-[var(--color-ink-muted)]">
+              文本、Markdown、JSON、CSV 会读取正文；PDF 或图片先登记文件名、大小和 SHA-256，暂不冒充 OCR 或真伪鉴定。
+            </p>
+            {fileEvidenceStatus ? (
+              <p className="text-xs leading-5 text-[var(--color-ink-soft)]">{fileEvidenceStatus}</p>
+            ) : null}
           </div>
 
           {extraEvidence.length ? (

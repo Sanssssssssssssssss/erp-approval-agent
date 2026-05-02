@@ -51,7 +51,29 @@ class _SequencedFakeModel:
         return _FakeResponse(self.contents[index])
 
 
+class _ExplodingModel:
+    def invoke(self, messages):
+        raise AssertionError("stage model should not be called for no-evidence case creation")
+
+
 class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
+    def test_case_creation_without_evidence_skips_stage_model_fast_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(_ExplodingModel()))
+            response = harness.handle_turn(
+                CaseTurnRequest(
+                    user_message=(
+                        "Review purchase requisition PR-P0-FASTPATH for replacement laptops. "
+                        "What materials are required?"
+                    )
+                )
+            )
+
+            self.assertEqual(response.patch.patch_type, "create_case")
+            self.assertFalse(response.patch.model_review["used"])
+            self.assertTrue(response.case_state.evidence_requirements)
+            self.assertFalse(any("execution-like wording" in warning for warning in response.patch.warnings))
+
     def test_long_case_lifecycle_tracks_valid_evidence_and_rejects_off_topic(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             harness = CaseHarness(Path(temp_dir))
@@ -474,7 +496,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
 
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertTrue(response.patch.model_review["used"])
-            self.assertEqual(len(model.messages), 10)
+            self.assertEqual(len(model.messages), 5)
             self.assertTrue(any("not valid JSON" in warning for warning in response.patch.warnings))
 
     def test_stage_model_off_topic_or_execution_output_cannot_pollute_case(self) -> None:
@@ -492,7 +514,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             ),
         ]
         with tempfile.TemporaryDirectory() as temp_dir:
-            model = _SequencedFakeModel(["{}"] * 5 + role_outputs)
+            model = _SequencedFakeModel(role_outputs)
             harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(model))
             first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-P1-OFFTOPIC."))
             response = harness.handle_turn(

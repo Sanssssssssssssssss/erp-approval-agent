@@ -219,7 +219,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             '{"turn_intent":"submit_evidence","patch_type":"accept_evidence","evidence_decision":"accepted","accepted_source_ids":["local_evidence://quote/pr-roles/turn-0002-1"],"dossier_patch":"报价材料通过模型审查。","reviewer_message":"报价可以写入案卷，但仍缺预算证明。","confidence":0.85}',
         ]
         with tempfile.TemporaryDirectory() as temp_dir:
-            model = _SequencedFakeModel(["{}"] * 5 + role_outputs)
+            model = _SequencedFakeModel(role_outputs)
             harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(model))
             first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-ROLES."))
             response = harness.handle_turn(
@@ -237,7 +237,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(len(model.messages), 10)
+            self.assertEqual(len(model.messages), 5)
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertIn("turn_classifier", response.patch.model_review["role_outputs"])
             self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])
