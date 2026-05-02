@@ -10,6 +10,7 @@
     "playwright:install": "playwright install chromium",
     "verify:chat-ui": "node scripts/verify-chat-ui.mjs",
     "verify:case-workspace": "node scripts/verify-frontend-ux.mjs",
+    "verify:case-clicks": "node scripts/verify-case-workspace-clicks.mjs",
     "verify:ux": "node scripts/verify-frontend-ux.mjs",
     "evaluate:erp-agent": "node scripts/evaluate-erp-agent-quality.mjs"
   },

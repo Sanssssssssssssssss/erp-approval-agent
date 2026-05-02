@@ -349,6 +349,16 @@ export function CaseReviewPanel() {
   const canSubmit = message.trim().length > 0 && !loading;
   const requestSummary = useMemo(() => result?.approval_request ?? {}, [result]);
 
+  const resetCaseWorkspace = () => {
+    setResult(null);
+    setCaseTurn(null);
+    setExtraEvidence([]);
+    setEvidenceTitle("");
+    setEvidenceContent("");
+    setFileEvidenceStatus("");
+    setError("");
+  };
+
   const addEvidence = () => {
     if (!evidenceContent.trim()) return;
     setExtraEvidence((items) => [
@@ -462,6 +472,9 @@ export function CaseReviewPanel() {
             </button>
             <button className="ui-button" onClick={() => setMessage(ONE_SENTENCE_TEST)} type="button">
               一句话防线测试
+            </button>
+            <button className="ui-button" onClick={resetCaseWorkspace} type="button">
+              新建案卷
             </button>
           </div>
 
