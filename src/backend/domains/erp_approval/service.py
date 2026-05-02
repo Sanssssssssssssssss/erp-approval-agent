@@ -386,7 +386,7 @@ def _apply_deterministic_request_hints(request: ApprovalRequest, raw_message: st
     raw = str(raw_message or "")
     updates: dict[str, Any] = {}
 
-    approval_id = _first_match(raw, r"\b(?:PR|PO|EXP|INV|VEND|CON|BUD)-?\d+\b")
+    approval_id = _first_match(raw, r"\b(?:PR|PO|EXP|INV|VEND|CON|BUD)(?:-[A-Za-z0-9][A-Za-z0-9-]*|\d+)\b")
     if approval_id and (not request.approval_id or request.approval_id != approval_id):
         updates["approval_id"] = approval_id
 
@@ -440,7 +440,7 @@ def _apply_deterministic_request_hints(request: ApprovalRequest, raw_message: st
 
 def _approval_type_from_text(text: str) -> str:
     lower = text.lower()
-    id_match = re.search(r"\b(PR|EXP|INV|VEND|CON|BUD)-?\d+\b", text, re.IGNORECASE)
+    id_match = re.search(r"\b(PR|EXP|INV|VEND|CON|BUD)(?:-[A-Za-z0-9][A-Za-z0-9-]*|\d+)\b", text, re.IGNORECASE)
     if id_match:
         prefix = id_match.group(1).upper()
         if prefix == "PR":

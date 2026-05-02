@@ -86,6 +86,23 @@ Result:
 - frontend production build passed.
 - `git diff --check` passed.
 
+Pressure/usability stress validation:
+
+```powershell
+backend\.venv\Scripts\python.exe -m backend.benchmarks.erp_approval_case_harness_stress `
+  --report reports\evaluations\case_harness_stress_latest.md `
+  --json reports\evaluations\case_harness_stress_latest.json
+```
+
+Result: 66 scenarios / 74 turns passed with 0 critical and 0 major failures.
+
+Stress fixes applied after first runs:
+
+- weak oral statements such as "预算肯定够" are rejected as local user assertions rather than accepted as budget evidence.
+- ERP ID parsing now supports alphanumeric IDs such as `VEND-STRESS-016` while avoiding false matches like the `INV` prefix in the word `invoice`.
+- first-turn `memo` wording no longer bypasses case creation/material collection.
+- mixed off-topic requests such as travel planning plus "顺便通过" are rejected without polluting the case.
+
 Frontend/browser verification:
 
 - Playwright created a case from the default PR-1001 prompt.

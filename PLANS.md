@@ -12,6 +12,8 @@ Post-Phase-14 evidence-first hardening is complete: the core has been audited wi
 
 The newest active product correction is CaseHarness: every user turn is a controlled case-state patch. Chat is only the interface. `case_state.json`, `dossier.md`, local evidence files, and `audit_log.jsonl` are the source of truth for multi-turn approval review. Future phases should keep these audits hard, add difficult cases rather than loosening expected outcomes, and preserve the rule that invalid or off-topic turns must not pollute the case.
 
+The CaseHarness pressure suite at `backend/benchmarks/erp_approval_case_harness_stress.py` should be treated as an active regression guard. It currently covers 66 messy scenarios and 74 turns, including weak oral evidence, prompt injection, off-topic turns, execution-boundary probes, and multi-turn evidence submission.
+
 ## Non-Negotiable Architecture Anchors
 
 - `HarnessRuntime` remains the only lifecycle owner.

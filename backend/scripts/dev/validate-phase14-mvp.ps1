@@ -41,6 +41,7 @@ $ErpTests = @(
   "backend.tests.test_erp_approval_case_review",
   "backend.tests.test_erp_approval_case_graph",
   "backend.tests.test_erp_approval_case_harness",
+  "backend.tests.test_erp_approval_case_harness_stress",
   "backend.tests.test_erp_approval_case_review_api",
   "backend.tests.test_erp_approval_strict_case_auditor",
   "backend.tests.test_erp_approval_evidence_case_audit_runner",
@@ -69,6 +70,11 @@ Write-Host "Running manual real-path ERP evidence smoke..."
   --report reports\evaluations\manual_agent_smoke_latest.md `
   --json reports\evaluations\manual_agent_smoke_latest.json
 
+Write-Host "Running CaseHarness pressure/usability stress suite..."
+& $Python -m backend.benchmarks.erp_approval_case_harness_stress `
+  --report reports\evaluations\case_harness_stress_latest.md `
+  --json reports\evaluations\case_harness_stress_latest.json
+
 Write-Host "Running legacy RFP/security compatibility tests..."
 & $Python -m unittest @LegacyTests
 
@@ -96,6 +102,7 @@ files = [
     "backend/benchmarks/generate_erp_approval_evidence_toy_cases.py",
     "backend/benchmarks/erp_approval_evidence_case_audit.py",
     "backend/benchmarks/erp_approval_manual_agent_smoke.py",
+    "backend/benchmarks/erp_approval_case_harness_stress.py",
     "src/backend/orchestration/compiler.py",
     "src/backend/orchestration/executor.py",
     "src/backend/orchestration/nodes/__init__.py",
@@ -109,6 +116,7 @@ files = [
     "backend/tests/test_erp_approval_case_review.py",
     "backend/tests/test_erp_approval_case_graph.py",
     "backend/tests/test_erp_approval_case_harness.py",
+    "backend/tests/test_erp_approval_case_harness_stress.py",
     "backend/tests/test_erp_approval_case_review_api.py",
     "backend/tests/test_erp_approval_strict_case_auditor.py",
     "backend/tests/test_erp_approval_evidence_case_audit_runner.py",

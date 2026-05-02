@@ -20,6 +20,13 @@ The latest local strict toy audit generated 82 fictional approval cases and pass
 
 This audit is local regression/self-critique only. It is not a production benchmark, process-mining result, or ERP integration proof.
 
+The latest CaseHarness pressure/usability stress suite generated 66 deliberately messy local scenarios and 74 turns, including one-sentence approvals, prompt injection, mixed off-topic requests, weak user assertions, incomplete evidence, complete mock context, execution-boundary probes, and multi-turn evidence submission. Latest reports:
+
+- `reports/evaluations/case_harness_stress_latest.md`
+- `reports/evaluations/case_harness_stress_latest.json`
+
+The stress suite found and fixed weak oral evidence acceptance, overly broad ERP ID parsing, first-turn memo intent misclassification, and mixed off-topic turn handling. It is a local usability/regression stress test, not a production benchmark.
+
 After manual real-path review, the mock ERP context now includes a visible fictional evidence pack under `knowledge/ERP Approval/sample_evidence`. The latest manual smoke report is `reports/evaluations/manual_agent_smoke_latest.md` and covers:
 
 - one-sentence direct-approval prompts: must not recommend approve.

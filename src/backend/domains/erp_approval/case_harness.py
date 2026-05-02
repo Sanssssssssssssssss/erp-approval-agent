@@ -183,6 +183,8 @@ class CaseHarness:
                 rejected.append(_rejected(item, now, ["材料内容为空，不能写入案卷。"]))
             elif item.record_type in {"local_note", "user_statement"}:
                 rejected.append(_rejected(item, now, ["这只是用户陈述或本地备注，不能满足阻断性证据要求。"]))
+            elif _looks_like_weak_user_statement(item):
+                rejected.append(_rejected(item, now, ["这更像口头说明或主观陈述，缺少正式记录编号、金额、状态或来源字段，不能替代 ERP/附件证据。"]))
             elif not supported_claims:
                 rejected.append(_rejected(item, now, ["未抽取到可支持必备证据清单的 claim，不能写入 accepted_evidence。"]))
             else:
@@ -294,16 +296,16 @@ def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool)
         return "off_topic"
     if has_evidence:
         return "submit_evidence"
-    if any(term in text for term in ("最终", "final", "memo", "报告", "提交人工", "reviewer memo")):
-        return "request_final_memo"
-    if any(term in text for term in ("需要什么", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")):
+    if any(term in text for term in ("需要什么", "哪些材料", "什么材料", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")):
         return "ask_required_materials"
     if any(term in text for term in ("撤回", "withdraw", "更正", "correct", "修正")):
         return "correct_previous_evidence"
-    if _looks_like_evidence_submission(text):
-        return "submit_evidence"
     if not has_case:
         return "create_case"
+    if any(term in text for term in ("最终", "final", "memo", "报告", "提交人工", "reviewer memo")):
+        return "request_final_memo"
+    if _looks_like_evidence_submission(text):
+        return "submit_evidence"
     if any(term in text for term in ("状态", "进度", "还差", "status")):
         return "ask_status"
     return "ask_status"
@@ -447,7 +449,7 @@ def _looks_like_evidence_submission(text: str) -> bool:
 
 
 def _looks_off_topic(text: str) -> bool:
-    return any(
+    off_topic = any(
         term in text
         for term in (
             "营销文案",
@@ -465,7 +467,67 @@ def _looks_off_topic(text: str) -> bool:
             "write code",
             "joke",
         )
-    ) and not _looks_like_evidence_submission(text)
+    )
+    if not off_topic:
+        return False
+    if any(term in text for term in ("顺便", "同时", "also", "while you")):
+        return True
+    return not _looks_like_evidence_submission(text)
+
+
+def _looks_like_weak_user_statement(item: CaseReviewEvidenceInput) -> bool:
+    if item.metadata.get("submitted_via") != "user_message":
+        return False
+    text = item.content.lower()
+    weak_terms = (
+        "肯定",
+        "问过",
+        "老板",
+        "同意",
+        "就当",
+        "相信我",
+        "不用",
+        "不需要",
+        "直接",
+        "verbal",
+        "boss",
+        "trust me",
+        "already approved",
+        "no citation",
+    )
+    structured_markers = (
+        "record",
+        "number",
+        "available budget",
+        "amount",
+        "status",
+        "quote",
+        "quotation",
+        "invoice",
+        "purchase order",
+        "po-",
+        "grn",
+        "goods receipt",
+        "vendor profile",
+        "receipt",
+        "tax id",
+        "bank account",
+        "sanctions check",
+        "记录",
+        "编号",
+        "金额",
+        "可用预算",
+        "状态",
+        "报价单",
+        "发票号",
+        "采购订单",
+        "收货记录",
+        "供应商档案",
+        "税号",
+        "银行账号",
+        "制裁检查",
+    )
+    return any(term in text for term in weak_terms) and not any(marker in text for marker in structured_markers)
 
 
 def _event(turn_id: str, case_id: str, event: str, now: str, details: dict[str, Any]) -> CaseAuditEvent:

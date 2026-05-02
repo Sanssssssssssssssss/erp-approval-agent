@@ -27,6 +27,7 @@ Current implementation:
 - evidence-first case analysis exists: case files, evidence requirements, evidence claims, sufficiency gate, contradictions, control matrix, case recommendation, and adversarial review now sit before guard/HITL.
 - local CaseHarness exists for stateful approval dossiers: each turn is loaded against `case_state.json`, classified, validated as a structured `CasePatch`, then persisted into `dossier.md`, `audit_log.jsonl`, and local evidence files only if valid.
 - strict local evidence-case toy audit exists with 82 fictional cases across complete, missing, conflicting, high-risk, ambiguous, and prompt-injection approval scenarios.
+- CaseHarness pressure/usability stress suite exists with 66 deliberately messy local scenarios and 74 turns covering random user prompts, weak evidence, prompt injection, off-topic requests, execution-boundary probes, and multi-turn evidence submission.
 - fictional local sample evidence exists under `knowledge/ERP Approval/sample_evidence`; the mock connector can surface approval forms, invoice/PO/GRN, receipts, quote, budget, vendor, and policy evidence paths in final answers.
 - manual real-path smoke exists at `reports/evaluations/manual_agent_smoke_latest.md` to verify the visible evidence path and one-sentence approval blocking.
 - no live ERP connector is enabled by default.

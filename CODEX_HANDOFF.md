@@ -6,6 +6,8 @@ Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP 
 
 The evidence-first core is also covered by a strict local toy-case audit: `backend/benchmarks/cases/erp_approval/evidence_case_toy_cases.json` currently contains 82 fictional cases, and `backend/benchmarks/erp_approval_evidence_case_audit.py` generates `reports/evaluations/evidence_case_audit_latest.md` plus JSON. This is regression/self-critique, not a benchmark or production accuracy claim.
 
+The CaseHarness turn discipline is covered by `backend/benchmarks/erp_approval_case_harness_stress.py`. It runs 66 deliberately messy local scenarios / 74 turns and writes `reports/evaluations/case_harness_stress_latest.md` plus JSON. Treat it as a usability/regression pressure suite for case-state handling, not a benchmark.
+
 The real user path now has a fictional local evidence pack under `knowledge/ERP Approval/sample_evidence`. Use it when checking whether answers visibly cite approval forms, invoice, PO, GRN, receipts, quote, budget, vendor, and policy evidence. `backend/benchmarks/erp_approval_manual_agent_smoke.py` generates `reports/evaluations/manual_agent_smoke_latest.md` and should remain a quick sanity check that the app is not just a one-line approval recommender.
 
 The newest post-Phase-14 direction is Harness-governed case state. Treat chat as a UI for an `ApprovalCase`, not as memory. Each user turn should be a controlled case patch:

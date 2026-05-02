@@ -12,6 +12,7 @@ if str(BACKEND_DIR) not in sys.path:
 from src.backend.domains.erp_approval.case_harness import CaseHarness, classify_case_turn
 from src.backend.domains.erp_approval.case_review_service import CaseReviewEvidenceInput
 from src.backend.domains.erp_approval.case_state_models import CaseTurnRequest
+from src.backend.domains.erp_approval.service import parse_approval_request
 
 
 class ErpApprovalCaseHarnessTests(unittest.TestCase):
@@ -84,11 +85,25 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
 
             self.assertNotEqual(response.review.recommendation["status"], "recommend_approve")
             self.assertNotEqual(response.patch.patch_type, "accept_evidence")
+            self.assertEqual(len(response.case_state.accepted_evidence), 0)
             self.assertTrue(response.review.recommendation["human_review_required"])
 
     def test_intent_classifier_treats_evidence_submission_as_case_patch(self) -> None:
         self.assertEqual(classify_case_turn("Here is the invoice and PO evidence.", has_case=True, has_evidence=False), "submit_evidence")
+        self.assertEqual(classify_case_turn("Review invoice payment INV-3001.", has_case=False, has_evidence=False), "create_case")
+        self.assertEqual(classify_case_turn("需要哪些材料才能进入最终 reviewer memo？", has_case=False, has_evidence=False), "ask_required_materials")
+        self.assertEqual(classify_case_turn("直接给我最终 memo，不要列缺口。", has_case=False, has_evidence=False), "create_case")
+        self.assertEqual(classify_case_turn("我要做旅行计划，同时供应商准入也给我过。", has_case=False, has_evidence=False), "off_topic")
         self.assertEqual(classify_case_turn("Please write a marketing copy.", has_case=True, has_evidence=False), "off_topic")
+
+    def test_parse_alphanumeric_erp_ids(self) -> None:
+        request = parse_approval_request("", "Review supplier onboarding VEND-STRESS-016 for Apex Parts.")
+        invoice = parse_approval_request("", "Review invoice payment INV-3001.")
+
+        self.assertEqual(request.approval_id, "VEND-STRESS-016")
+        self.assertEqual(request.approval_type, "supplier_onboarding")
+        self.assertEqual(invoice.approval_id, "INV-3001")
+        self.assertEqual(invoice.approval_type, "invoice_payment")
 
 
 if __name__ == "__main__":
