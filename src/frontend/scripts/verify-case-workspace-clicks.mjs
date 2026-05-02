@@ -139,6 +139,9 @@ async function main() {
     await page.goto(uiBaseUrl, { waitUntil: "networkidle", timeout: 90000 });
     await ensureVisible(page.locator(".case-review-page"), "case workspace");
     await ensureVisible(page.locator(".case-review-empty"), "empty state");
+    await ensureVisible(page.getByText("案件请求", { exact: true }), "left grouped case request");
+    await ensureVisible(page.getByText("补充材料", { exact: true }), "left grouped evidence inputs");
+    await ensureVisible(page.getByText("本轮提交", { exact: true }), "left grouped submit area");
     await expectNoHorizontalOverflow(page, "desktop empty state");
     await screenshot(page, "01-empty-state");
 
@@ -151,6 +154,9 @@ async function main() {
       fail("one-sentence bypass incorrectly passed evidence sufficiency");
     }
     await ensureVisible(page.locator(".case-state-machine"), "case state after bypass");
+    await ensureVisible(page.getByText("案件状态", { exact: true }), "right grouped case status");
+    await ensureVisible(page.getByText("证据审查", { exact: true }), "right grouped evidence review");
+    await ensureVisible(page.getByText("控制与结论", { exact: true }), "right grouped controls and conclusion");
     await ensureVisible(page.locator(".case-checklist").first(), "required evidence after bypass");
     await ensureVisible(page.locator(".case-review-memo"), "reviewer memo after bypass");
     await screenshot(page, "02-one-sentence-blocked");

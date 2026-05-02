@@ -136,6 +136,46 @@ function Section({
   );
 }
 
+function WorkspaceGroup({
+  eyebrow,
+  title,
+  children
+}: {
+  eyebrow: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="case-workspace-group">
+      <div className="case-workspace-group-header">
+        <span>{eyebrow}</span>
+        <h2>{title}</h2>
+      </div>
+      <div className="case-workspace-group-body">{children}</div>
+    </div>
+  );
+}
+
+function InputGroup({
+  step,
+  title,
+  children
+}: {
+  step: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="case-input-group">
+      <div className="case-input-group-title">
+        <span>{step}</span>
+        <strong>{title}</strong>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function RecommendationHeader({ result }: { result: ErpApprovalCaseReviewResponse }) {
   const recommendation = result.recommendation ?? {};
   const sufficiency = result.evidence_sufficiency ?? {};
@@ -460,98 +500,103 @@ export function CaseReviewPanel() {
             每一轮输入都会被 Harness 约束成一次 case patch。只有 validator 通过的证据会写入 case_state、dossier 和 audit_log。
           </p>
 
-          <label className="pixel-label mt-5 block">审批请求</label>
-          <textarea
-            className="case-review-textarea"
-            onChange={(event) => setMessage(event.target.value)}
-            value={message}
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button className="ui-button" onClick={() => setMessage(SAMPLE_REQUEST)} type="button">
-              PR-1001 示例
-            </button>
-            <button className="ui-button" onClick={() => setMessage(ONE_SENTENCE_TEST)} type="button">
-              一句话防线测试
-            </button>
-            <button className="ui-button" onClick={resetCaseWorkspace} type="button">
-              新建案卷
-            </button>
-          </div>
-
-          <div className="case-evidence-builder">
-            <p className="pixel-label">本轮补充材料</p>
-            <input
-              className="case-review-input-field"
-              onChange={(event) => setEvidenceTitle(event.target.value)}
-              placeholder="证据标题，例如：PR-1001 报价单"
-              value={evidenceTitle}
-            />
-            <select
-              className="case-review-input-field"
-              onChange={(event) => setEvidenceType(event.target.value)}
-              value={evidenceType}
-            >
-              {EVIDENCE_TYPES.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+          <InputGroup step="01" title="案件请求">
             <textarea
-              className="case-review-textarea case-review-textarea-small"
-              onChange={(event) => setEvidenceContent(event.target.value)}
-              placeholder="粘贴本地证据文本。示例：Quote Q-PR-1001-A from Acme Supplies for USD 24,500..."
-              value={evidenceContent}
+              className="case-review-textarea"
+              onChange={(event) => setMessage(event.target.value)}
+              value={message}
             />
-            <button className="ui-button" onClick={addEvidence} type="button">
-              <FilePlus2 size={15} />
-              加入证据
-            </button>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            <label className="ui-button cursor-pointer">
-              <FilePlus2 size={15} />
-              上传本地文件证据
-              <input
-                className="sr-only"
-                multiple
-                onChange={(event) => void addEvidenceFiles(event.target.files)}
-                type="file"
-              />
-            </label>
-            <p className="text-xs leading-5 text-[var(--color-ink-muted)]">
-              文本、Markdown、JSON、CSV 会读取正文；PDF 或图片先登记文件名、大小和 SHA-256，暂不冒充 OCR 或真伪鉴定。
-            </p>
-            {fileEvidenceStatus ? (
-              <p className="text-xs leading-5 text-[var(--color-ink-soft)]">{fileEvidenceStatus}</p>
-            ) : null}
-          </div>
-
-          {extraEvidence.length ? (
-            <div className="case-local-evidence-list">
-              {extraEvidence.map((item, index) => (
-                <div key={`${item.record_type}-${index}`}>
-                  <strong>{item.title || "本地证据"}</strong>
-                  <span>{item.record_type}</span>
-                  <button
-                    aria-label="移除证据"
-                    onClick={() => setExtraEvidence((items) => items.filter((_, itemIndex) => itemIndex !== index))}
-                    type="button"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button className="ui-button" onClick={() => setMessage(SAMPLE_REQUEST)} type="button">
+                PR-1001 示例
+              </button>
+              <button className="ui-button" onClick={() => setMessage(ONE_SENTENCE_TEST)} type="button">
+                一句话防线测试
+              </button>
+              <button className="ui-button" onClick={resetCaseWorkspace} type="button">
+                新建案卷
+              </button>
             </div>
-          ) : null}
+          </InputGroup>
 
-          {error ? <p className="case-error">{error}</p> : null}
-          <button className="ui-button ui-button-primary mt-4 w-full" disabled={!canSubmit} onClick={() => void runReview()} type="button">
-            <RotateCcw size={16} />
-            {loading ? "正在更新案卷..." : "提交本轮并更新案卷"}
-          </button>
-          <p className="mt-3 text-xs leading-5 text-[var(--color-ink-muted)]">
-            No ERP write action was executed. 本视图不会连接真实 ERP，不会执行通过、驳回、付款、路由或评论。
-          </p>
+          <InputGroup step="02" title="补充材料">
+            <div className="case-evidence-builder">
+              <p className="pixel-label">本轮补充材料</p>
+              <input
+                className="case-review-input-field"
+                onChange={(event) => setEvidenceTitle(event.target.value)}
+                placeholder="证据标题，例如：PR-1001 报价单"
+                value={evidenceTitle}
+              />
+              <select
+                className="case-review-input-field"
+                onChange={(event) => setEvidenceType(event.target.value)}
+                value={evidenceType}
+              >
+                {EVIDENCE_TYPES.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <textarea
+                className="case-review-textarea case-review-textarea-small"
+                onChange={(event) => setEvidenceContent(event.target.value)}
+                placeholder="粘贴本地证据文本。示例：Quote Q-PR-1001-A from Acme Supplies for USD 24,500..."
+                value={evidenceContent}
+              />
+              <button className="ui-button" onClick={addEvidence} type="button">
+                <FilePlus2 size={15} />
+                加入证据
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <label className="ui-button cursor-pointer">
+                <FilePlus2 size={15} />
+                上传本地文件证据
+                <input
+                  className="sr-only"
+                  multiple
+                  onChange={(event) => void addEvidenceFiles(event.target.files)}
+                  type="file"
+                />
+              </label>
+              <p className="text-xs leading-5 text-[var(--color-ink-muted)]">
+                文本、Markdown、JSON、CSV 会读取正文；PDF 或图片先登记文件名、大小和 SHA-256，暂不冒充 OCR 或真伪鉴定。
+              </p>
+              {fileEvidenceStatus ? (
+                <p className="text-xs leading-5 text-[var(--color-ink-soft)]">{fileEvidenceStatus}</p>
+              ) : null}
+            </div>
+
+            {extraEvidence.length ? (
+              <div className="case-local-evidence-list">
+                {extraEvidence.map((item, index) => (
+                  <div key={`${item.record_type}-${index}`}>
+                    <strong>{item.title || "本地证据"}</strong>
+                    <span>{item.record_type}</span>
+                    <button
+                      aria-label="移除证据"
+                      onClick={() => setExtraEvidence((items) => items.filter((_, itemIndex) => itemIndex !== index))}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </InputGroup>
+
+          <InputGroup step="03" title="本轮提交">
+            {error ? <p className="case-error">{error}</p> : null}
+            <button className="ui-button ui-button-primary w-full" disabled={!canSubmit} onClick={() => void runReview()} type="button">
+              <RotateCcw size={16} />
+              {loading ? "正在更新案卷..." : "提交本轮并更新案卷"}
+            </button>
+            <p className="mt-3 text-xs leading-5 text-[var(--color-ink-muted)]">
+              No ERP write action was executed. 本视图不会连接真实 ERP，不会执行通过、驳回、付款、路由或评论。
+            </p>
+          </InputGroup>
         </aside>
 
         <div className="case-review-output">
@@ -563,45 +608,51 @@ export function CaseReviewPanel() {
             </div>
           ) : (
             <>
-              <CaseStatePanel turn={caseTurn} />
-              <RecommendationHeader result={result} />
+              <WorkspaceGroup eyebrow="01" title="案件状态">
+                <CaseStatePanel turn={caseTurn} />
+                <RecommendationHeader result={result} />
 
-              <div className="case-review-request-strip">
-                <span>审批类型：{text(requestSummary.approval_type)}</span>
-                <span>审批单：{text(requestSummary.approval_id, "未识别")}</span>
-                <span>供应商：{text(requestSummary.vendor)}</span>
-                <span>金额：{text(requestSummary.amount)} {text(requestSummary.currency, "")}</span>
-              </div>
+                <div className="case-review-request-strip">
+                  <span>审批类型：{text(requestSummary.approval_type)}</span>
+                  <span>审批单：{text(requestSummary.approval_id, "未识别")}</span>
+                  <span>供应商：{text(requestSummary.vendor)}</span>
+                  <span>金额：{text(requestSummary.amount)} {text(requestSummary.currency, "")}</span>
+                </div>
+              </WorkspaceGroup>
 
-              <Section icon={<ListChecks size={18} />} title="必备证据清单">
-                <RequiredEvidence result={result} />
-              </Section>
+              <WorkspaceGroup eyebrow="02" title="证据审查">
+                <Section icon={<ListChecks size={18} />} title="必备证据清单">
+                  <RequiredEvidence result={result} />
+                </Section>
 
-              <Section icon={<FileSearch size={18} />} title="证据材料">
-                <EvidenceArtifacts result={result} />
-              </Section>
+                <Section icon={<FileSearch size={18} />} title="证据材料">
+                  <EvidenceArtifacts result={result} />
+                </Section>
 
-              <Section icon={<FileSearch size={18} />} title="证据 Claims">
-                <EvidenceClaims result={result} />
-              </Section>
+                <Section icon={<FileSearch size={18} />} title="证据 Claims">
+                  <EvidenceClaims result={result} />
+                </Section>
 
-              <Section icon={<AlertTriangle size={18} />} title="证据充分性">
-                <Sufficiency result={result} />
-              </Section>
+                <Section icon={<AlertTriangle size={18} />} title="证据充分性">
+                  <Sufficiency result={result} />
+                </Section>
+              </WorkspaceGroup>
 
-              <Section icon={<ListChecks size={18} />} title="控制矩阵">
-                <ControlMatrix result={result} />
-              </Section>
+              <WorkspaceGroup eyebrow="03" title="控制与结论">
+                <Section icon={<ListChecks size={18} />} title="控制矩阵">
+                  <ControlMatrix result={result} />
+                </Section>
 
-              <Section icon={<AlertTriangle size={18} />} title="冲突检测">
-                <p className={Boolean(result.contradictions.has_conflict) ? "case-conflict case-conflict-danger" : "case-conflict"}>
-                  {text(result.contradictions.explanation, "未发现明确结构化冲突。")}
-                </p>
-              </Section>
+                <Section icon={<AlertTriangle size={18} />} title="冲突检测">
+                  <p className={Boolean(result.contradictions.has_conflict) ? "case-conflict case-conflict-danger" : "case-conflict"}>
+                    {text(result.contradictions.explanation, "未发现明确结构化冲突。")}
+                  </p>
+                </Section>
 
-              <Section icon={<ClipboardCheck size={18} />} title="建议 / Reviewer memo">
-                <ReviewerMemo result={result} />
-              </Section>
+                <Section icon={<ClipboardCheck size={18} />} title="建议 / Reviewer memo">
+                  <ReviewerMemo result={result} />
+                </Section>
+              </WorkspaceGroup>
             </>
           )}
         </div>

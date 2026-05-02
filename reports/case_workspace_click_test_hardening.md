@@ -70,3 +70,27 @@ The first click-test run exposed a real UX problem: after running the one-senten
 ## Boundary
 
 No ERP write action was executed.
+
+## Grouping Follow-up
+
+The Case Workspace now has explicit visual grouping instead of one long mixed panel.
+
+Left-side input groups:
+
+- case request
+- supplemental evidence
+- current turn submission
+
+Right-side review groups:
+
+- case status
+- evidence review
+- controls and conclusion
+
+`src/frontend/scripts/verify-frontend-ux.mjs` was refreshed to match the current Case Workspace. It now waits for the real `/api/erp-approval/cases/turn` response, verifies grouped layout selectors, captures desktop/mobile screenshots, checks scroll and tab behavior, and fails on console errors, page errors, failed requests, or horizontal overflow.
+
+Additional screenshot output:
+
+```text
+src/frontend/output/playwright/case-workspace/
+```
