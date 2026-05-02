@@ -325,7 +325,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             contract,
             review=review,
         )
-        self.assertTrue(any("execution-like wording" in warning for warning in execution_text.warnings))
+        self.assertTrue(any("类似执行动作" in warning for warning in execution_text.warnings))
 
     def test_evidence_acceptance_keeps_user_statement_separate_from_strong_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -497,7 +497,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertTrue(response.patch.model_review["used"])
             self.assertEqual(len(model.messages), 5)
-            self.assertTrue(any("not valid JSON" in warning for warning in response.patch.warnings))
+        self.assertTrue(any("未返回可用结构化结果" in warning for warning in response.patch.warnings))
 
     def test_stage_model_off_topic_or_execution_output_cannot_pollute_case(self) -> None:
         role_outputs = [
@@ -535,7 +535,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             self.assertEqual(response.patch.turn_intent, "off_topic")
             self.assertEqual(response.patch.patch_type, "no_case_change")
             self.assertEqual(len(response.case_state.accepted_evidence), 0)
-            self.assertTrue(any("execution-like wording" in warning for warning in response.patch.warnings))
+            self.assertTrue(any("类似执行动作" in warning for warning in response.patch.warnings))
             self.assertIn("No ERP write action was executed", response.dossier)
 
 

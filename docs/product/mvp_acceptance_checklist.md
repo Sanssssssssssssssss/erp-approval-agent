@@ -28,8 +28,7 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] Trace ledger, proposal ledger, audit package workspace, reviewer notes, simulation ledger, connector diagnostics, fixture replay, and replay coverage are local-first artifacts.
 - [x] Frontend has read-only trace, analytics, audit, simulation, connector diagnostics, and replay coverage views.
 - [x] Frontend default view is `Case Review`, where the user submits an approval case, adds local text evidence, reruns evidence review, and sees required evidence, claims, sufficiency, control matrix, contradictions, and reviewer memo before any recommendation.
-- [x] Local `POST /api/erp-approval/case-review` is allowed as a local case-analysis endpoint only; it is not an ERP write/action endpoint.
-- [x] Local `POST /api/erp-approval/cases/turn` is allowed as a local CaseHarness endpoint only; it validates a structured `CasePatch`, updates local dossier artifacts, and is not an ERP write/action endpoint.
+- [x] Local `POST /api/erp-approval/cases/turn` is the single case workspace update endpoint; it validates a structured `CasePatch`, updates local dossier artifacts, and is not an ERP write/action endpoint.
 - [x] CaseHarness persists local `case_state.json`, `dossier.md`, `audit_log.jsonl`, and evidence text under `backend/storage/erp_approval/cases/<case_id>/`.
 - [x] Legacy RFP/security modules remain compatibility paths.
 

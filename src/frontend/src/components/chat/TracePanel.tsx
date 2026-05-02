@@ -231,7 +231,7 @@ export function TracePanel() {
                 需要时再打开 Audit Trace
               </h3>
               <p className="pixel-note mt-4 max-w-3xl">
-                检索、workflow tools、checkpoint 事件和 HITL 都集中在这里，不会挤占默认审批助理界面。
+                检索、workflow tools、checkpoint 事件和 HITL 都集中在这里，不会挤占默认案件工作台。
               </p>
             </div>
           </div>

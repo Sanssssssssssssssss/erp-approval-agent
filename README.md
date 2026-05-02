@@ -74,13 +74,12 @@ Completed:
 - manual real-path smoke report at `reports/evaluations/manual_agent_smoke_latest.md`; it verifies one-sentence prompts do not pass, PR-1001 remains blocked without quote evidence, and complete PR/expense/invoice samples display local evidence links before any recommendation.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend default `Case Review` workspace for evidence-first approval case review: case overview, required evidence checklist, evidence claims, evidence sufficiency, control matrix, contradictions, and reviewer memo.
-- local `POST /api/erp-approval/case-review` API for deterministic evidence-case review with optional local text evidence; it does not call real ERP, execute actions, or enter `capability_invoke`.
 - local CaseHarness state machine for multi-turn approval dossiers:
   - every user turn is treated as a controlled `CasePatch`, not free chat.
   - `POST /api/erp-approval/cases/turn` now runs inside `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`.
   - each case turn emits canonical harness trace events: `run.started`, `case.turn.started`, `case.patch.validated`, `case.state.persisted`, and `run.completed`.
-  - optional `ERP_CASE_STAGE_MODEL_ENABLED=true` lets the configured LLM act as bounded stage reviewers that propose a JSON `CasePatch`; roles are `turn_classifier`, `evidence_extractor`, `policy_interpreter`, `contradiction_reviewer`, and `reviewer_memo`.
-  - the stage model can be stricter than deterministic extraction, but it cannot accept evidence without `source_id` and supported claims.
+  - the configured LLM is the single product review path when local model settings are available. It acts as bounded stage reviewers that propose a JSON `CasePatch`; roles are `turn_classifier`, `evidence_extractor`, `policy_interpreter`, `contradiction_reviewer`, and `reviewer_memo`.
+  - deterministic code is not a second user-facing review path. It remains a validator, source/claim gate, test fallback, and no-ERP-write boundary.
   - validated evidence updates `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text files under `backend/storage/erp_approval/cases/<case_id>/`.
   - off-topic turns, weak user statements, and execution-like text cannot pollute the case state.
   - local `POST /api/erp-approval/cases/turn` runs one case-state update turn and returns the updated case, patch, review, dossier, audit events, and storage paths.
@@ -154,25 +153,16 @@ ERP approval APIs include read-only trace/proposal/audit lookups plus local audi
 - `GET /api/erp-approval/connectors/replay/fixtures`
 - `GET /api/erp-approval/connectors/replay/coverage`
 - `GET /api/erp-approval/connectors/replay`
-- `POST /api/erp-approval/case-review`
 - `POST /api/erp-approval/cases/turn`
 - `POST /api/erp-approval/action-simulations`
 - `POST /api/erp-approval/audit-packages`
 - `POST /api/erp-approval/audit-packages/{package_id}/notes`
 
-The local POST endpoints write only local case-review, case-state, audit workspace, or dry-run simulation artifacts. They are not ERP writes and do not execute action proposals. Case turns are HarnessRuntime-owned runs; they may write local dossier artifacts but must never emit `approval.*` events.
+The local POST endpoints write only local case-state, audit workspace, or dry-run simulation artifacts. They are not ERP writes and do not execute action proposals. Case turns are HarnessRuntime-owned runs; they may write local dossier artifacts but must never emit `approval.*` events.
 
 Optional connector environment variables are documented in `backend/.env.example`:
 
-Optional case stage model variable:
-
-```dotenv
-ERP_CASE_STAGE_MODEL_ENABLED=false
-```
-
-When set to `true`, `/api/erp-approval/cases/turn` asks the configured LLM to review the current submission through five bounded roles: turn classifier, evidence extractor, policy interpreter, contradiction reviewer, and reviewer memo drafter. Their outputs are aggregated into a proposed `CasePatch`. This is still not autonomous state mutation: `CasePatchValidator` enforces allowed intents, allowed patch types, source/claim requirements, and the no-ERP-write boundary.
-
-The local `backend/scripts/dev/start-dev.ps1` launcher enables `ERP_CASE_STAGE_MODEL_ENABLED=true` for the backend process by default unless you override the environment variable. Test and benchmark commands keep the model disabled unless explicitly configured, so validation stays deterministic.
+`/api/erp-approval/cases/turn` asks the configured LLM to review the current submission through five bounded roles: turn classifier, evidence extractor, policy interpreter, contradiction reviewer, and reviewer memo drafter. Their outputs are aggregated into a proposed `CasePatch`. This is still not autonomous state mutation: `CasePatchValidator` enforces allowed intents, allowed patch types, source/claim requirements, and the no-ERP-write boundary. If local model settings are unavailable, the same route fails safely into the local validation fallback so the workbench remains runnable; this fallback is not exposed as a separate product route.
 
 ```text
 ERP_CONNECTOR_PROVIDER=mock

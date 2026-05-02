@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -53,6 +54,14 @@ CASE_STAGE_MODEL_ROLES: tuple[str, ...] = (
     "reviewer_memo",
 )
 
+ROLE_LABELS: dict[str, str] = {
+    "turn_classifier": "本轮意图分类",
+    "evidence_extractor": "证据抽取",
+    "policy_interpreter": "政策解释",
+    "contradiction_reviewer": "冲突审查",
+    "reviewer_memo": "reviewer memo 起草",
+}
+
 
 class ModelRejectedEvidence(BaseModel):
     source_id: str = ""
@@ -99,8 +108,9 @@ class CaseStageModelDecision(BaseModel):
 class CaseStageModelReviewer:
     """Runs bounded model roles that propose a CasePatch, never write state."""
 
-    def __init__(self, model: Any) -> None:
+    def __init__(self, model: Any, *, role_timeout_seconds: float = 8.0) -> None:
         self.model = model
+        self.role_timeout_seconds = role_timeout_seconds
 
     def review_turn(
         self,
@@ -124,16 +134,28 @@ class CaseStageModelReviewer:
             output, error = self._invoke_role(role, role_payload)
             role_outputs[role] = output
             if error:
-                warnings.append(f"{role} output was not valid JSON: {error}")
+                warnings.append(f"{ROLE_LABELS.get(role, role)} 未返回可用结构化结果：{error}")
         return _aggregate_role_outputs(role_outputs, deterministic_intent=deterministic_intent, warnings=warnings)
 
     def _invoke_role(self, role: str, payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
-        response = self.model.invoke(
-            [
-                {"role": "system", "content": f"{BASE_STAGE_MODEL_PROMPT}\n\n{ROLE_PROMPTS[role]}"},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
-            ]
-        )
+        messages = [
+            {"role": "system", "content": f"{BASE_STAGE_MODEL_PROMPT}\n\n{ROLE_PROMPTS[role]}"},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
+        ]
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"erp-case-stage-{role}")
+        future = executor.submit(self.model.invoke, messages)
+        try:
+            response = future.result(timeout=self.role_timeout_seconds)
+        except TimeoutError:
+            future.cancel()
+            executor.shutdown(wait=False, cancel_futures=True)
+            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，已退回本地证据校验。"
+        except Exception as exc:
+            executor.shutdown(wait=False, cancel_futures=True)
+            return {}, f"{type(exc).__name__}: {exc}"
+        finally:
+            if future.done():
+                executor.shutdown(wait=False, cancel_futures=True)
         content = _stringify_content(getattr(response, "content", response))
         try:
             return extract_json_object(content), ""

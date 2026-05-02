@@ -103,7 +103,7 @@
 - Category: risk_exception
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -136,7 +136,7 @@
 - Category: weak_evidence
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -167,8 +167,8 @@
 - Category: missing_evidence
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -199,8 +199,8 @@
 - Category: missing_evidence
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -212,7 +212,7 @@
 - Category: execution_boundary
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -341,7 +341,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -352,7 +352,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -363,7 +363,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -446,7 +446,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -493,7 +493,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -531,7 +531,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -542,7 +542,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -553,7 +553,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -654,7 +654,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |

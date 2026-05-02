@@ -372,7 +372,7 @@ class CaseHarness:
                     model_rejections.setdefault(source_id, ["模型未确认该材料可作为本轮 accepted evidence。"])
             for source_id in allowed_sources:
                 if source_id not in accepted_by_source:
-                    warnings.append(f"模型尝试接受 {source_id}，但 deterministic gate 没有发现可支持 requirement 的 claim，已拒绝。")
+                    warnings.append(f"模型尝试接受 {source_id}，但本地证据门没有发现可支持必备要求的 claim，已拒绝。")
 
         if decision.evidence_decision in {"rejected", "needs_clarification"} and candidates and not model_rejections:
             model_rejections = {

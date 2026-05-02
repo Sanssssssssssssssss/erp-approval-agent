@@ -899,7 +899,7 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs?: number):
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("本轮案件更新超过等待时间。通常是模型审证调用太慢或后端正在处理旧请求；请稍后重试，或先关闭阶段模型后再启动。");
+      throw new Error("本轮案件更新超过等待时间。通常是模型审证调用太慢或后端正在处理旧请求；请稍后重试，或检查本地模型服务是否可用。");
     }
     throw buildConnectionError(apiBase, error);
   } finally {
@@ -1123,13 +1123,6 @@ export async function listErpApprovalProposalSimulations(proposalRecordId: strin
 
 export async function getErpApprovalConnectorConfig() {
   return request<ErpConnectorConfigResponse>("/erp-approval/connectors/config");
-}
-
-export async function reviewErpApprovalCase(payload: ErpApprovalCaseReviewRequest) {
-  return request<ErpApprovalCaseReviewResponse>("/erp-approval/case-review", {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
 }
 
 export async function applyErpApprovalCaseTurn(payload: ErpApprovalCaseTurnRequest) {

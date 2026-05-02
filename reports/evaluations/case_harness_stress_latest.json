@@ -254,13 +254,13 @@
           "next_question_count": 2,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -368,13 +368,13 @@
           "next_question_count": 9,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -474,7 +474,7 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         },
         {
@@ -494,14 +494,14 @@
           "next_question_count": 7,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -601,7 +601,7 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         },
         {
@@ -621,14 +621,14 @@
           "next_question_count": 3,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -654,13 +654,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1068,13 +1068,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1100,13 +1100,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1132,13 +1132,13 @@
           "next_question_count": 7,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1388,13 +1388,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1532,13 +1532,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1648,13 +1648,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1680,13 +1680,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1712,13 +1712,13 @@
           "next_question_count": 7,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -2024,13 +2024,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {

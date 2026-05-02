@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
-
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, ValidationError
 
@@ -38,10 +36,6 @@ from src.backend.domains.erp_approval import (
     redacted_connector_config,
     replay_provider_fixture,
     validate_simulation_request,
-)
-from src.backend.domains.erp_approval.case_review_service import (
-    CaseReviewRequest,
-    run_local_case_review,
 )
 from src.backend.domains.erp_approval.case_harness import CaseHarness
 from src.backend.domains.erp_approval.case_state_models import CASE_HARNESS_NON_ACTION_STATEMENT, CaseTurnRequest
@@ -112,9 +106,6 @@ def _case_harness() -> CaseHarness:
 
 
 def _case_stage_model_reviewer():
-    enabled = os.environ.get("ERP_CASE_STAGE_MODEL_ENABLED", "false").strip().lower()
-    if enabled not in {"1", "true", "yes", "on"}:
-        return None
     try:
         return CaseStageModelReviewer(agent_manager._build_chat_model())
     except Exception:
@@ -154,17 +145,6 @@ def _event_summary(event) -> dict:
         "ts": event.ts,
         "payload": payload,
     }
-
-
-@router.post("/erp-approval/case-review")
-async def review_erp_approval_case(request: CaseReviewRequest) -> dict:
-    if not request.user_message.strip():
-        raise HTTPException(status_code=400, detail="user_message is required")
-    payload = run_local_case_review(request, base_dir=_case_review_base_dir()).model_dump()
-    payload["operation_scope"] = "temporary_case_review_preview"
-    payload["persistence"] = "does_not_write_case_state"
-    payload["non_action_statement"] = payload.get("non_action_statement") or "No ERP write action was executed."
-    return payload
 
 
 @router.post("/erp-approval/cases/turn")

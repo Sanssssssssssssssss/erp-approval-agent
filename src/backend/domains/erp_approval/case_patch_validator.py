@@ -45,7 +45,7 @@ class CasePatchValidator:
             ]
         ).lower()
         if any(term in text for term in EXECUTION_TERMS):
-            warnings.append("patch text contains execution-like wording; retained as non-action review text only.")
+            warnings.append("本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。")
         claims_by_id = _claims_by_id(review)
         requirement_ids = _requirement_ids(review)
         for evidence in patch.accepted_evidence:

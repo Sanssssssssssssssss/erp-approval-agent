@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -43,6 +44,17 @@ class _SequencedFakeModel:
         self.messages.append(messages)
         index = min(len(self.messages) - 1, len(self.contents) - 1)
         return _FakeResponse(self.contents[index])
+
+
+class _SlowModel:
+    def __init__(self, delay_seconds: float) -> None:
+        self.delay_seconds = delay_seconds
+        self.messages = []
+
+    def invoke(self, messages):
+        self.messages.append(messages)
+        time.sleep(self.delay_seconds)
+        return _FakeResponse('{"patch_type":"accept_evidence","evidence_decision":"accepted"}')
 
 
 class ErpApprovalCaseHarnessTests(unittest.TestCase):
@@ -208,7 +220,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertTrue(response.patch.model_review["used"])
             self.assertNotEqual(response.patch.patch_type, "accept_evidence")
             self.assertEqual(len(response.case_state.accepted_evidence), 0)
-            self.assertTrue(any("deterministic gate" in warning for warning in response.patch.warnings))
+            self.assertTrue(any("本地证据门" in warning for warning in response.patch.warnings))
 
     def test_stage_model_runs_distinct_roles_and_records_role_outputs(self) -> None:
         role_outputs = [
@@ -243,6 +255,35 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])
             self.assertIn("purchase_requisition:budget_availability", response.patch.model_review["requirements_missing"])
             self.assertIn("报价不能替代预算证明。", response.patch.warnings)
+
+    def test_stage_model_timeout_does_not_block_case_turn(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model = _SlowModel(delay_seconds=0.08)
+            reviewer = CaseStageModelReviewer(model, role_timeout_seconds=0.01)
+            harness = CaseHarness(Path(temp_dir), stage_model=reviewer)
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-TIMEOUT."))
+
+            started = time.perf_counter()
+            response = harness.handle_turn(
+                CaseTurnRequest(
+                    case_id=first.case_state.case_id,
+                    user_message="Here is quote evidence.",
+                    extra_evidence=[
+                        CaseReviewEvidenceInput(
+                            title="PR-TIMEOUT quote",
+                            record_type="quote",
+                            source_id="local_evidence://quote/pr-timeout/turn-0002-1",
+                            content="Quote Q-PR-TIMEOUT-A from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                        )
+                    ],
+                )
+            )
+            elapsed = time.perf_counter() - started
+
+            self.assertLess(elapsed, 1.0)
+            self.assertTrue(response.patch.model_review["used"])
+            self.assertTrue(any("模型调用超过" in warning for warning in response.patch.model_review["warnings"]))
+            self.assertIn(response.patch.patch_type, {"accept_evidence", "reject_evidence", "answer_status"})
 
     def test_expected_turn_count_conflict_does_not_write_case_state(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

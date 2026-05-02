@@ -4,13 +4,11 @@ import dynamic from "next/dynamic";
 import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { ChatInput } from "@/components/chat/ChatInput";
 import { CaseReviewPanel } from "@/components/chat/CaseReviewPanel";
-import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Navbar } from "@/components/layout/Navbar";
-import { AppProvider, useChatStore, useSessionStore } from "@/lib/store";
+import { AppProvider, useChatStore } from "@/lib/store";
 
-type WorkspaceView = "case" | "chat" | "trace" | "assets" | "insights";
+type WorkspaceView = "case" | "trace" | "assets" | "insights";
 
 const TracePanel = dynamic(
   () => import("@/components/chat/TracePanel").then((module) => module.TracePanel),
@@ -88,13 +86,6 @@ function WorkspaceBottomBar({
           案件审查
         </button>
         <button
-          className={workspaceView === "chat" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
-          onClick={() => onViewChange("chat")}
-          type="button"
-        >
-          聊天流（不写案卷）
-        </button>
-        <button
           className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("trace")}
           type="button"
@@ -148,7 +139,6 @@ function Workspace() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("case");
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
-  const { sendMessage, isStreaming, isInitializing, isSessionLoading, connectionError } = useChatStore();
 
   return (
     <main className="h-screen overflow-hidden px-3 py-3">
@@ -158,8 +148,6 @@ function Workspace() {
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {workspaceView === "case" ? (
             <CaseReviewPanel />
-          ) : workspaceView === "chat" ? (
-            <ChatPanel />
           ) : workspaceView === "trace" ? (
             <TracePanel />
           ) : workspaceView === "assets" ? (
@@ -168,13 +156,6 @@ function Workspace() {
             <InsightsPanel />
           )}
         </div>
-
-        {workspaceView === "chat" ? (
-          <ChatInput
-            disabled={isStreaming || isInitializing || isSessionLoading || Boolean(connectionError)}
-            onSend={sendMessage}
-          />
-        ) : null}
 
         <WorkspaceBottomBar onViewChange={setWorkspaceView} workspaceView={workspaceView} />
       </div>

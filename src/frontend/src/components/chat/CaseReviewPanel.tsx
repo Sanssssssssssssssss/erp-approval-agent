@@ -53,6 +53,22 @@ const STAGE_LABELS: Record<string, string> = {
   blocked: "已阻断"
 };
 
+const PATCH_LABELS: Record<string, string> = {
+  create_case: "创建案卷",
+  accept_evidence: "接受证据",
+  reject_evidence: "退回材料",
+  answer_status: "答复状态",
+  final_memo: "最终 memo",
+  no_case_change: "未改案卷"
+};
+
+const EVIDENCE_DECISION_LABELS: Record<string, string> = {
+  accepted: "证据通过",
+  rejected: "证据退回",
+  needs_clarification: "需要澄清",
+  not_evidence: "非证据输入"
+};
+
 function text(value: unknown, fallback = "未提供") {
   const rendered = String(value ?? "").trim();
   return rendered || fallback;
@@ -182,7 +198,10 @@ function CaseStatePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) 
         </div>
         <div>
           <span>本轮 Patch</span>
-          <strong>{text(patch.patch_type)} / {text(patch.evidence_decision)}</strong>
+          <strong>
+            {PATCH_LABELS[text(patch.patch_type, "")] ?? text(patch.patch_type)} /{" "}
+            {EVIDENCE_DECISION_LABELS[text(patch.evidence_decision, "")] ?? text(patch.evidence_decision)}
+          </strong>
         </div>
       </div>
       <div className="case-two-col mt-3">
@@ -191,7 +210,7 @@ function CaseStatePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) 
           {accepted.length ? (
             <ul>{accepted.slice(-6).map((item) => <li key={text(item.source_id)}>{text(item.title || item.source_id)}</li>)}</ul>
           ) : (
-            <p className="case-empty">暂无 accepted evidence。</p>
+            <p className="case-empty">暂无已接受证据。</p>
           )}
         </div>
         <div>
@@ -199,7 +218,7 @@ function CaseStatePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) 
           {rejected.length ? (
             <ul>{rejected.slice(-6).map((item) => <li key={`${text(item.source_id)}-${text(item.rejected_at)}`}>{text(item.title || item.source_id)}</li>)}</ul>
           ) : (
-            <p className="case-empty">暂无 rejected evidence。</p>
+            <p className="case-empty">暂无被拒绝材料。</p>
           )}
         </div>
       </div>
