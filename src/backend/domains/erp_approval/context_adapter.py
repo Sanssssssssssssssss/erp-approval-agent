@@ -25,6 +25,23 @@ READ_ONLY_RECORD_TYPES = {
     "policy",
 }
 
+LOCAL_EVIDENCE_RECORD_TYPES = {
+    "quote",
+    "receipt",
+    "duplicate_check",
+    "limit_check",
+    "payment_terms",
+    "sanctions_check",
+    "tax_info",
+    "bank_info",
+    "beneficial_owner",
+    "due_diligence",
+    "budget_owner",
+    "finance_review",
+}
+
+CONTEXT_RECORD_TYPES = READ_ONLY_RECORD_TYPES | LOCAL_EVIDENCE_RECORD_TYPES
+
 
 class ErpContextQuery(BaseModel):
     approval_type: str = "unknown"
@@ -65,7 +82,7 @@ def build_context_bundle_from_records(
             record = item if isinstance(item, ApprovalContextRecord) else ApprovalContextRecord.model_validate(item)
         except Exception:
             continue
-        if record.record_type not in READ_ONLY_RECORD_TYPES:
+        if record.record_type not in CONTEXT_RECORD_TYPES:
             continue
         if not record.source_id or record.source_id in seen:
             continue

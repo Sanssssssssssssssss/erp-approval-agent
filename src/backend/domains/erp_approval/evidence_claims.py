@@ -236,7 +236,11 @@ def _approval_request_claims(case_file: ApprovalCaseFile, artifact: EvidenceArti
     _claim_if(case_file.business_purpose or "purpose" in lowered or "business purpose" in lowered or "用途" in text, claims, "business_purpose_present", "Business purpose exists.", artifact)
     _claim_if(artifact.metadata.get("line_items") or "line item" in lowered or "明细" in text, claims, "line_items_present", "Line item detail exists.", artifact)
     _claim_if(artifact.metadata.get("expense_date") or "expense date" in lowered or "发生日期" in text, claims, "expense_date_present", "Expense date exists.", artifact)
-    if any(term in lowered for term in ("no split", "split order check passed", "not split", "single requisition")) or any(term in text for term in ("未拆单", "无拆单", "单一申请")):
+    if (
+        artifact.metadata.get("split_order_check")
+        or any(term in lowered for term in ("no split", "split order check passed", "not split", "single requisition"))
+        or any(term in text for term in ("未拆单", "无拆单", "单一申请"))
+    ):
         claims.append(_claim("split_order_check_present", "Split-order check evidence exists and does not show splitting.", artifact))
     if case_file.approval_type == "budget_exception":
         claims.append(_claim("budget_exception_present", "Budget exception request exists.", artifact))

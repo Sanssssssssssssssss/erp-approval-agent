@@ -8,7 +8,7 @@ This repo is becoming a local-first, LLM-first, graph-driven approval agent work
 
 Historical infrastructure and observability work remains useful context. The active plan below is product migration toward ERP approval assistance.
 
-Post-Phase-14 evidence-first hardening is complete: the core has been audited with 82 fictional toy approval cases using a strict local reviewer harness. The audit is regression/self-critique only, not a production benchmark. Future phases should keep this audit hard and add new difficult cases rather than loosening expected outcomes.
+Post-Phase-14 evidence-first hardening is complete: the core has been audited with 82 fictional toy approval cases using a strict local reviewer harness. The audit is regression/self-critique only, not a production benchmark. A local sample evidence pack now lives under `knowledge/ERP Approval/sample_evidence`, and `reports/evaluations/manual_agent_smoke_latest.md` manually verifies the real agent path displays approval forms, invoice/PO/GRN, receipts, quote, budget, vendor, and policy evidence before recommendations. Future phases should keep these audits hard and add new difficult cases rather than loosening expected outcomes.
 
 ## Non-Negotiable Architecture Anchors
 

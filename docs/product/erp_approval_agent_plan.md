@@ -26,6 +26,8 @@ Current implementation:
 - Phase 14 final MVP closure, acceptance checklist, release boundary tests, final validation script, final report, and STOP rules exist.
 - evidence-first case analysis exists: case files, evidence requirements, evidence claims, sufficiency gate, contradictions, control matrix, case recommendation, and adversarial review now sit before guard/HITL.
 - strict local evidence-case toy audit exists with 82 fictional cases across complete, missing, conflicting, high-risk, ambiguous, and prompt-injection approval scenarios.
+- fictional local sample evidence exists under `knowledge/ERP Approval/sample_evidence`; the mock connector can surface approval forms, invoice/PO/GRN, receipts, quote, budget, vendor, and policy evidence paths in final answers.
+- manual real-path smoke exists at `reports/evaluations/manual_agent_smoke_latest.md` to verify the visible evidence path and one-sentence approval blocking.
 - no live ERP connector is enabled by default.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.

@@ -440,6 +440,21 @@ def _apply_deterministic_request_hints(request: ApprovalRequest, raw_message: st
 
 def _approval_type_from_text(text: str) -> str:
     lower = text.lower()
+    id_match = re.search(r"\b(PR|EXP|INV|VEND|CON|BUD)-?\d+\b", text, re.IGNORECASE)
+    if id_match:
+        prefix = id_match.group(1).upper()
+        if prefix == "PR":
+            return "purchase_requisition"
+        if prefix == "EXP":
+            return "expense"
+        if prefix == "INV":
+            return "invoice_payment"
+        if prefix == "VEND":
+            return "supplier_onboarding"
+        if prefix == "CON":
+            return "contract_exception"
+        if prefix == "BUD":
+            return "budget_exception"
     if any(token in text for token in ("采购申请", "采购审批")) or "purchase requisition" in lower or re.search(r"\bPR-\d+\b", text):
         return "purchase_requisition"
     if any(token in text for token in ("费用报销", "报销")) or "expense" in lower:

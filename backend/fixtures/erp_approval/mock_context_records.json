@@ -4,7 +4,7 @@
       "source_id": "mock_erp://approval_request/PR-1001",
       "title": "Purchase requisition PR-1001",
       "record_type": "approval_request",
-      "content": "PR-1001 requests USD 24,500 for replacement laptops for the Operations team. Requester: Lin Chen. Vendor: Acme Supplies. Cost center: OPS-CC-10.",
+      "content": "PR-1001 requests USD 24,500 for replacement laptops for the Operations team. Requester: Lin Chen. Vendor: Acme Supplies. Cost center: OPS-CC-10. Line item detail and split order check are present in local mock evidence. Quote evidence is intentionally missing for this case.",
       "metadata": {
         "approval_ids": ["PR-1001"],
         "approval_type": "purchase_requisition",
@@ -13,17 +13,31 @@
         "amount": 24500,
         "currency": "USD",
         "vendor_name": "Acme Supplies",
-        "cost_center": "OPS-CC-10"
+        "cost_center": "OPS-CC-10",
+        "line_items": [
+          {"item": "Laptop, 14 inch business model", "quantity": 10, "unit_price": 2250, "currency": "USD"},
+          {"item": "Docking station", "quantity": 10, "unit_price": 200, "currency": "USD"}
+        ],
+        "split_order_check": "passed",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1001_request.md"
+        ],
+        "purchase_link": "local://knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1001_request.md"
       }
     },
     {
       "source_id": "mock_erp://vendor/acme-supplies",
       "title": "Vendor Acme Supplies",
       "record_type": "vendor",
-      "content": "Acme Supplies is an active mock vendor with standard payment terms and no mock onboarding block.",
+      "content": "Acme Supplies is an active mock vendor. Supplier risk and sanctions checks are clear in local mock evidence.",
       "metadata": {
         "approval_ids": ["PR-1001"],
-        "vendor_name": "Acme Supplies"
+        "vendor_name": "Acme Supplies",
+        "supplier_status": "active",
+        "supplier_risk_status": "clear",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1001_vendor.md"
+        ]
       }
     },
     {
@@ -33,14 +47,87 @@
       "content": "Mock budget record for OPS-CC-10 shows remaining laptop refresh budget of USD 31,000 before PR-1001.",
       "metadata": {
         "approval_ids": ["PR-1001"],
-        "cost_center": "OPS-CC-10"
+        "cost_center": "OPS-CC-10",
+        "available_budget": 31000,
+        "currency": "USD",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1001_budget.md"
+        ]
+      }
+    },
+    {
+      "source_id": "mock_erp://approval_request/PR-1002",
+      "title": "Purchase requisition PR-1002",
+      "record_type": "approval_request",
+      "content": "PR-1002 requests USD 8,400 for replacement monitors for the support desk. Requester: Avery Zhou. Vendor: Contoso Office Supply. Cost center: IT-CC-20. Line item detail and split order check passed.",
+      "metadata": {
+        "approval_ids": ["PR-1002"],
+        "approval_type": "purchase_requisition",
+        "requester": "Avery Zhou",
+        "department": "IT",
+        "amount": 8400,
+        "currency": "USD",
+        "vendor_name": "Contoso Office Supply",
+        "cost_center": "IT-CC-20",
+        "line_items": [
+          {"item": "27 inch monitor", "quantity": 12, "unit_price": 650, "currency": "USD"},
+          {"item": "Display cable kit", "quantity": 12, "unit_price": 50, "currency": "USD"}
+        ],
+        "split_order_check": "passed",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1002_request.md"
+        ],
+        "purchase_link": "local://knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1002_request.md"
+      }
+    },
+    {
+      "source_id": "mock_erp://vendor/contoso-office-supply",
+      "title": "Vendor Contoso Office Supply",
+      "record_type": "vendor",
+      "content": "Contoso Office Supply is an active mock vendor. Supplier risk and sanctions checks are clear in local mock evidence.",
+      "metadata": {
+        "approval_ids": ["PR-1002"],
+        "vendor_name": "Contoso Office Supply",
+        "supplier_status": "active",
+        "supplier_risk_status": "clear"
+      }
+    },
+    {
+      "source_id": "mock_erp://budget/IT-CC-20",
+      "title": "Budget IT-CC-20",
+      "record_type": "budget",
+      "content": "Mock budget record for IT-CC-20 shows remaining hardware refresh budget of USD 19,000 before PR-1002.",
+      "metadata": {
+        "approval_ids": ["PR-1002"],
+        "cost_center": "IT-CC-20",
+        "available_budget": 19000,
+        "currency": "USD",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1002_budget.md"
+        ]
+      }
+    },
+    {
+      "source_id": "mock_doc://quote/PR-1002-Q1",
+      "title": "Quote Q-PR-1002-A",
+      "record_type": "quote",
+      "content": "Fictional quote Q-PR-1002-A from Contoso Office Supply supports PR-1002 for USD 8,400.",
+      "metadata": {
+        "approval_ids": ["PR-1002"],
+        "quote_id": "Q-PR-1002-A",
+        "amount": 8400,
+        "currency": "USD",
+        "vendor_name": "Contoso Office Supply",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1002_quote.md"
+        ]
       }
     },
     {
       "source_id": "mock_erp://approval_request/EXP-2001",
       "title": "Expense approval EXP-2001",
       "record_type": "approval_request",
-      "content": "EXP-2001 requests reimbursement of USD 842 for client travel. Receipt image and business purpose are attached in mock data.",
+      "content": "EXP-2001 requests reimbursement of USD 842 for client travel. Receipt, business purpose, expense date, duplicate expense check, and amount limit check are present in local mock evidence.",
       "metadata": {
         "approval_ids": ["EXP-2001"],
         "approval_type": "expense",
@@ -48,47 +135,145 @@
         "department": "Sales",
         "amount": 842,
         "currency": "USD",
-        "cost_center": "SALES-CC-02"
+        "cost_center": "SALES-CC-02",
+        "business_purpose": "Client travel",
+        "expense_date": "2026-04-12"
+      }
+    },
+    {
+      "source_id": "mock_doc://receipt/EXP-2001",
+      "title": "Receipt EXP-2001",
+      "record_type": "receipt",
+      "content": "Fictional receipt for EXP-2001, amount USD 842, expense date 2026-04-12, purpose client travel.",
+      "metadata": {
+        "approval_ids": ["EXP-2001"],
+        "amount": 842,
+        "currency": "USD",
+        "expense_date": "2026-04-12",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/expenses/EXP-2001_receipt.md"
+        ]
+      }
+    },
+    {
+      "source_id": "mock_erp://duplicate_check/EXP-2001",
+      "title": "Duplicate expense check EXP-2001",
+      "record_type": "duplicate_check",
+      "content": "Local mock duplicate expense check for EXP-2001 is clear; no duplicate reimbursement request found.",
+      "metadata": {
+        "approval_ids": ["EXP-2001"],
+        "check_result": "clear"
+      }
+    },
+    {
+      "source_id": "mock_policy://expense_limit_check/EXP-2001",
+      "title": "Expense limit check EXP-2001",
+      "record_type": "limit_check",
+      "content": "Local mock amount limit check shows EXP-2001 is within the ordinary manager review threshold.",
+      "metadata": {
+        "approval_ids": ["EXP-2001"],
+        "limit_check": "passed"
       }
     },
     {
       "source_id": "mock_erp://approval_request/INV-3001",
       "title": "Invoice payment INV-3001",
       "record_type": "approval_request",
-      "content": "INV-3001 requests payment of USD 18,000 to Northwind Components. Mock invoice review references PO-7788 and GRN-8899.",
+      "content": "INV-3001 requests payment of USD 18,000 to Northwind Components. Local evidence contains invoice INV-3001, PO-7788, GRN-8899, vendor record, payment terms, and duplicate payment check.",
       "metadata": {
         "approval_ids": ["INV-3001"],
         "approval_type": "invoice_payment",
         "vendor_name": "Northwind Components",
         "amount": 18000,
-        "currency": "USD"
+        "currency": "USD",
+        "requester": "AP Analyst",
+        "department": "Finance",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md"
+        ],
+        "invoice_link": "local://knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md"
+      }
+    },
+    {
+      "source_id": "mock_erp://vendor/northwind-components",
+      "title": "Vendor Northwind Components",
+      "record_type": "vendor",
+      "content": "Northwind Components is an active mock vendor with no onboarding block and no risk block in local mock evidence.",
+      "metadata": {
+        "approval_ids": ["INV-3001"],
+        "vendor_name": "Northwind Components",
+        "supplier_status": "active",
+        "supplier_risk_status": "clear"
       }
     },
     {
       "source_id": "mock_erp://purchase_order/PO-7788",
       "title": "Purchase order PO-7788",
       "record_type": "purchase_order",
-      "content": "PO-7788 is a mock purchase order for USD 18,000 matching Northwind Components.",
+      "content": "PO-7788 is a mock purchase order for USD 18,000 matching Northwind Components and invoice INV-3001.",
       "metadata": {
-        "approval_ids": ["INV-3001"]
+        "approval_ids": ["INV-3001"],
+        "purchase_order_id": "PO-7788",
+        "po_amount": 18000,
+        "vendor_name": "Northwind Components",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/invoices/INV-3001_po.md"
+        ],
+        "po_link": "local://knowledge/ERP Approval/sample_evidence/invoices/INV-3001_po.md"
       }
     },
     {
       "source_id": "mock_erp://goods_receipt/GRN-8899",
       "title": "Goods receipt GRN-8899",
       "record_type": "goods_receipt",
-      "content": "GRN-8899 is a mock goods receipt showing the ordered components were received.",
+      "content": "GRN-8899 is a mock goods receipt showing the ordered components for PO-7788 were received and match invoice INV-3001.",
       "metadata": {
-        "approval_ids": ["INV-3001"]
+        "approval_ids": ["INV-3001"],
+        "goods_receipt_id": "GRN-8899",
+        "received_status": "complete",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/invoices/INV-3001_grn.md"
+        ],
+        "grn_link": "local://knowledge/ERP Approval/sample_evidence/invoices/INV-3001_grn.md"
       }
     },
     {
       "source_id": "mock_erp://invoice/INV-3001",
       "title": "Invoice INV-3001",
       "record_type": "invoice",
-      "content": "Invoice INV-3001 is a mock invoice for USD 18,000 and references PO-7788.",
+      "content": "Invoice INV-3001 is a mock invoice for USD 18,000 from Northwind Components and references PO-7788.",
       "metadata": {
-        "approval_ids": ["INV-3001"]
+        "approval_ids": ["INV-3001"],
+        "invoice_id": "INV-3001",
+        "invoice_amount": 18000,
+        "vendor_name": "Northwind Components",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md"
+        ],
+        "invoice_link": "local://knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md"
+      }
+    },
+    {
+      "source_id": "mock_erp://payment_terms/INV-3001",
+      "title": "Payment terms INV-3001",
+      "record_type": "payment_terms",
+      "content": "Payment terms for INV-3001 are Net 30 and match the mock supplier terms.",
+      "metadata": {
+        "approval_ids": ["INV-3001"],
+        "payment_terms": "Net 30"
+      }
+    },
+    {
+      "source_id": "mock_erp://duplicate_check/INV-3001",
+      "title": "Duplicate payment check INV-3001",
+      "record_type": "duplicate_check",
+      "content": "Local mock duplicate payment check for INV-3001 is clear; no duplicate invoice or paid voucher found.",
+      "metadata": {
+        "approval_ids": ["INV-3001"],
+        "check_result": "clear",
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/invoices/INV-3001_duplicate_payment_check.md"
+        ]
       }
     },
     {
@@ -109,7 +294,54 @@
       "content": "BrightPath Logistics is a mock vendor candidate. Tax and banking details are present; sanctions screening is pending legal/procurement confirmation.",
       "metadata": {
         "approval_ids": ["VEND-4001"],
-        "vendor_name": "BrightPath Logistics"
+        "vendor_name": "BrightPath Logistics",
+        "supplier_status": "pending"
+      }
+    },
+    {
+      "source_id": "mock_doc://tax_info/VEND-4001",
+      "title": "Tax information VEND-4001",
+      "record_type": "tax_info",
+      "content": "Fictional tax information is present for BrightPath Logistics.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"]
+      }
+    },
+    {
+      "source_id": "mock_doc://bank_info/VEND-4001",
+      "title": "Bank information VEND-4001",
+      "record_type": "bank_info",
+      "content": "Fictional bank information is present for BrightPath Logistics.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"]
+      }
+    },
+    {
+      "source_id": "mock_doc://sanctions_check/VEND-4001",
+      "title": "Sanctions check VEND-4001",
+      "record_type": "sanctions_check",
+      "content": "Sanctions screening for BrightPath Logistics is pending, so supplier onboarding cannot be recommended for approval.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"],
+        "status": "pending"
+      }
+    },
+    {
+      "source_id": "mock_doc://beneficial_owner/VEND-4001",
+      "title": "Beneficial owner check VEND-4001",
+      "record_type": "beneficial_owner",
+      "content": "Fictional beneficial-owner evidence is present for BrightPath Logistics.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"]
+      }
+    },
+    {
+      "source_id": "mock_doc://due_diligence/VEND-4001",
+      "title": "Procurement due diligence VEND-4001",
+      "record_type": "due_diligence",
+      "content": "Fictional procurement due-diligence evidence is present for BrightPath Logistics.",
+      "metadata": {
+        "approval_ids": ["VEND-4001"]
       }
     },
     {
@@ -126,7 +358,7 @@
       "source_id": "mock_erp://contract/CON-5001",
       "title": "Contract CON-5001",
       "record_type": "contract",
-      "content": "Contract CON-5001 contains a mock non-standard liability cap and termination clause exception.",
+      "content": "Contract CON-5001 contains a mock non-standard liability cap, exception clause, payment terms, termination clause, standard terms comparison, and legal review requirement.",
       "metadata": {
         "approval_ids": ["CON-5001"]
       }
@@ -139,7 +371,8 @@
       "metadata": {
         "approval_ids": ["BUD-6001"],
         "approval_type": "budget_exception",
-        "cost_center": "FIN-CC-77"
+        "cost_center": "FIN-CC-77",
+        "budget_owner": "Finance Ops"
       }
     },
     {
@@ -149,7 +382,18 @@
       "content": "Mock budget record for FIN-CC-77 shows insufficient uncommitted funds for BUD-6001 without finance exception approval.",
       "metadata": {
         "approval_ids": ["BUD-6001"],
-        "cost_center": "FIN-CC-77"
+        "cost_center": "FIN-CC-77",
+        "budget_owner": "Finance Ops"
+      }
+    },
+    {
+      "source_id": "mock_erp://budget_owner/FIN-CC-77",
+      "title": "Budget owner FIN-CC-77",
+      "record_type": "budget_owner",
+      "content": "Finance Ops is the mock budget owner for FIN-CC-77.",
+      "metadata": {
+        "approval_ids": ["BUD-6001"],
+        "budget_owner": "Finance Ops"
       }
     },
     {
@@ -165,16 +409,19 @@
       "source_id": "mock_policy://procurement_policy",
       "title": "Procurement policy",
       "record_type": "policy",
-      "content": "Mock procurement policy: purchase requisitions should include vendor, amount, cost center, business purpose, and budget evidence.",
+      "content": "Mock procurement policy: purchase requisitions require approval request, line items, vendor, supplier risk status, amount, cost center, business purpose, budget evidence, quote or price basis, approval matrix, and split order check before a pass recommendation can be considered.",
       "metadata": {
-        "applies_to": ["purchase_requisition", "contract_exception"]
+        "applies_to": ["purchase_requisition", "contract_exception"],
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/policies/procurement_policy_excerpt.md"
+        ]
       }
     },
     {
       "source_id": "mock_policy://expense_policy",
       "title": "Expense policy",
       "record_type": "policy",
-      "content": "Mock expense policy: reimbursement should include receipt evidence, business purpose, amount, department, requester, and exception review when policy evidence is incomplete.",
+      "content": "Mock expense policy: reimbursement should include receipt evidence, business purpose, amount, department, requester, expense date, duplicate expense check, and exception review when policy evidence is incomplete.",
       "metadata": {
         "applies_to": ["expense"]
       }
@@ -183,9 +430,12 @@
       "source_id": "mock_policy://invoice_payment_policy",
       "title": "Invoice/payment policy",
       "record_type": "policy",
-      "content": "Mock invoice/payment policy: payment review should compare purchase order, goods receipt, invoice, vendor identity, amount, and approval authority.",
+      "content": "Mock invoice/payment policy: payment review should compare purchase order, goods receipt, invoice, vendor identity, amount, payment terms, duplicate payment check, and approval authority.",
       "metadata": {
-        "applies_to": ["invoice_payment"]
+        "applies_to": ["invoice_payment"],
+        "evidence_files": [
+          "knowledge/ERP Approval/sample_evidence/policies/invoice_payment_policy_excerpt.md"
+        ]
       }
     },
     {

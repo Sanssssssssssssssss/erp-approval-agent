@@ -57,19 +57,23 @@ APPROVAL_TYPE_CN = {
 
 def build_case_file(request: ApprovalRequest, context: ApprovalContextBundle) -> ApprovalCaseFile:
     context_source_ids = [record.source_id for record in context.records if record.source_id]
-    case_id = f"erp-case:{request.approval_id or 'unidentified'}"
+    context_header = _approval_request_header(context)
+    approval_type = _first_non_empty(request.approval_type if request.approval_type != "unknown" else "", context_header.get("approval_type"), "unknown")
+    approval_id = _first_non_empty(request.approval_id, context_header.get("approval_id"))
+    case_id = f"erp-case:{approval_id or 'unidentified'}"
     return ApprovalCaseFile(
         case_id=case_id,
-        approval_type=request.approval_type,
-        approval_id=request.approval_id,
+        approval_type=approval_type,
+        approval_id=approval_id,
         request_header=request.model_dump(),
-        requester=request.requester,
-        department=request.department,
-        amount=request.amount,
-        currency=request.currency,
-        vendor=request.vendor,
-        cost_center=request.cost_center,
-        business_purpose=request.business_purpose,
+        line_items=_line_items_from_context(context_header),
+        requester=_first_non_empty(request.requester, context_header.get("requester")),
+        department=_first_non_empty(request.department, context_header.get("department")),
+        amount=request.amount if request.amount is not None else _float_or_none(context_header.get("amount")),
+        currency=_first_non_empty(request.currency, context_header.get("currency")),
+        vendor=_first_non_empty(request.vendor, context_header.get("vendor_name"), context_header.get("vendor")),
+        cost_center=_first_non_empty(request.cost_center, context_header.get("cost_center")),
+        business_purpose=_first_non_empty(request.business_purpose, context_header.get("business_purpose"), context_header.get("purpose")),
         source_request=request.raw_request,
         context_source_ids=context_source_ids,
         non_action_statement=CASE_ANALYSIS_NON_ACTION_STATEMENT,
@@ -207,6 +211,11 @@ def adversarial_review_case(
     if recommendation.citations and all(str(citation).startswith("user_statement://") for citation in recommendation.citations):
         issues.append("不能只依赖用户陈述作为强证据。")
         risks.append("user_statement 被当作强证据。")
+    prompt_boundary_issues = _prompt_boundary_issues(case_file.source_request)
+    if prompt_boundary_issues:
+        issues.extend(prompt_boundary_issues)
+        risks.append("用户输入包含越权或 prompt-injection 风险，不能覆盖证据链和政策边界。")
+        corrections.append("忽略用户关于跳过政策、跳过 citation、直接批准或执行 ERP 动作的指令。")
     if recommendation.proposed_next_action in {"none"} and recommendation.status in {"request_more_info", "escalate", "blocked"}:
         issues.append("next action 过弱，无法处理缺证据或风险。")
     for claim in case_file.evidence_claims:
@@ -266,6 +275,12 @@ def render_case_analysis(
         lines.append(f"- {marker} `{requirement.requirement_id}` {requirement.label} ({requirement.required_level}, {blocking})")
         if requirement.satisfied_by_claim_ids:
             lines.append(f"  - 支持 claims：{', '.join(requirement.satisfied_by_claim_ids[:6])}")
+    lines.extend(["", "## 证据材料与链接 / Evidence artifacts and links", ""])
+    artifact_lines = _render_evidence_artifact_lines(case_file)
+    if artifact_lines:
+        lines.extend(artifact_lines)
+    else:
+        lines.append("- 没有可展示的 ERP、政策、附件或 mock document 证据。")
     lines.extend(["", "## 证据声明 / Evidence claims", ""])
     if case_file.evidence_claims:
         for claim in case_file.evidence_claims[:20]:
@@ -480,6 +495,98 @@ def _approve_next_action(case_file: ApprovalCaseFile) -> str:
     if case_file.approval_type == "contract_exception":
         return "route_to_legal"
     return "manual_review"
+
+
+def _approval_request_header(context: ApprovalContextBundle) -> dict[str, object]:
+    for record in context.records:
+        if record.record_type != "approval_request":
+            continue
+        header = dict(record.metadata or {})
+        if not header.get("approval_id"):
+            header["approval_id"] = record.source_id.rsplit("/", 1)[-1] if record.source_id else ""
+        return header
+    return {}
+
+
+def _first_non_empty(*values: object) -> str:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _float_or_none(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _line_items_from_context(header: dict[str, object]) -> list[dict[str, object]]:
+    raw = header.get("line_items")
+    if not isinstance(raw, list):
+        return []
+    return [dict(item) for item in raw if isinstance(item, dict)]
+
+
+def _prompt_boundary_issues(source_request: str) -> list[str]:
+    text = str(source_request or "").lower()
+    if not text:
+        return []
+    patterns = (
+        "忽略政策",
+        "跳过政策",
+        "不需要 citation",
+        "不需要引用",
+        "直接批准",
+        "直接通过",
+        "自动通过",
+        "执行审批",
+        "执行付款",
+        "ignore policy",
+        "skip policy",
+        "no citation",
+        "no citations",
+        "directly approve",
+        "auto approve",
+        "execute approval",
+        "execute payment",
+    )
+    if any(pattern in text for pattern in patterns):
+        return ["用户输入包含试图跳过政策、引用、人工复核或 ERP 非执行边界的指令。"]
+    return []
+
+
+def _render_evidence_artifact_lines(case_file: ApprovalCaseFile) -> list[str]:
+    lines: list[str] = []
+    for artifact in case_file.evidence_artifacts:
+        if artifact.source_id.startswith("user_statement://"):
+            lines.append("- 用户输入：只作为案件草稿来源，不能单独满足 blocking evidence。")
+            continue
+        metadata = dict(artifact.metadata or {})
+        refs = _artifact_refs(metadata)
+        lines.append(f"- `{artifact.record_type}` {artifact.title} — source_id: `{artifact.source_id}`")
+        if refs:
+            for ref in refs[:8]:
+                lines.append(f"  - 证据位置：{ref}")
+        else:
+            lines.append("  - 证据位置：当前 mock ERP/policy context record；未附本地文件路径。")
+    return lines[:80]
+
+
+def _artifact_refs(metadata: dict[str, object]) -> list[str]:
+    refs: list[str] = []
+    for key in ("file_path", "local_path", "document_path", "document_link", "purchase_link", "invoice_link", "po_link", "grn_link", "url"):
+        value = metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            refs.append(value.strip())
+    evidence_files = metadata.get("evidence_files")
+    if isinstance(evidence_files, list):
+        refs.extend(str(item).strip() for item in evidence_files if str(item).strip())
+    return _unique(refs)
 
 
 def _status_marker(status: str) -> str:
