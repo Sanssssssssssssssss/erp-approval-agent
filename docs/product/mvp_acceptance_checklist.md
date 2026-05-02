@@ -19,6 +19,7 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] Evidence sufficiency, contradiction detection, control matrix, and adversarial review run before guard/HITL.
 - [x] Strict local evidence-case toy audit covers at least 80 fictional cases and reports 0 critical/major failures in the latest run.
 - [x] CaseHarness pressure/usability stress suite covers at least 60 deliberately messy local scenarios and reports 0 critical/major failures in the latest run.
+- [x] Scored CaseHarness maturity benchmark covers at least 300 local cases and reports 0 critical/major failures in the latest run.
 - [x] Local sample evidence pack exists under `knowledge/ERP Approval/sample_evidence` so approval forms, invoice/PO/GRN, receipts, quotes, budget, vendor, and policy evidence can be shown in the answer.
 - [x] Manual real-path smoke report verifies one-sentence prompts do not pass and complete sample cases cite visible local evidence paths.
 - [x] ERP context is read-only and defaults to mock.
@@ -68,6 +69,7 @@ The script runs:
 - strict evidence-case toy audit generation and execution.
 - manual real-path ERP evidence smoke generation and execution.
 - CaseHarness pressure/usability stress suite generation and execution.
+- scored CaseHarness maturity benchmark generation and execution.
 - legacy RFP/security compatibility tests.
 - `py_compile` over Phase 14 touched Python files.
 - LangGraph compiler smoke.

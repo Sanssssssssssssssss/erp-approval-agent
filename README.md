@@ -69,6 +69,7 @@ Completed:
 - Phase 14 final MVP closure, acceptance checklist, STOP rules, release boundary tests, final validation script, and `GRAPH_VERSION=phase14`.
 - strict local evidence-case toy audit over 82 fictional enterprise approval cases; latest report at `reports/evaluations/evidence_case_audit_latest.md`.
 - CaseHarness pressure/usability stress suite over 66 deliberately messy local scenarios and 74 turns; latest report at `reports/evaluations/case_harness_stress_latest.md`.
+- scored CaseHarness maturity benchmark over 321 local cases and 417 turns; each case receives a 100-point rubric score and grade in `reports/evaluations/case_harness_maturity_benchmark_latest.md`.
 - local sample evidence pack for visible approval materials at `knowledge/ERP Approval/sample_evidence`, including fictional approval forms, invoice, PO, GRN, receipt, quote, budget, vendor, and policy excerpts.
 - manual real-path smoke report at `reports/evaluations/manual_agent_smoke_latest.md`; it verifies one-sentence prompts do not pass, PR-1001 remains blocked without quote evidence, and complete PR/expense/invoice samples display local evidence links before any recommendation.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.

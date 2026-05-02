@@ -103,6 +103,23 @@ Stress fixes applied after first runs:
 - first-turn `memo` wording no longer bypasses case creation/material collection.
 - mixed off-topic requests such as travel planning plus "顺便通过" are rejected without polluting the case.
 
+Scored maturity benchmark:
+
+```powershell
+backend\.venv\Scripts\python.exe -m backend.benchmarks.erp_approval_case_harness_benchmark `
+  --report reports\evaluations\case_harness_maturity_benchmark_latest.md `
+  --json reports\evaluations\case_harness_maturity_benchmark_latest.json `
+  --cases-out backend\benchmarks\cases\erp_approval\case_harness_maturity_benchmark.json
+```
+
+Result: 321 cases / 417 turns, average score 99.85, p10 score 100.00, 321 A grades, 0 critical and 0 major failures.
+
+Benchmark-driven fixes applied:
+
+- weak evidence containing ERP-like keywords such as `GRN`, bank, budget, or legal review is still rejected when the text says evidence is lost, oral, pending, or "will provide later".
+- material-guidance detection handles prompts like "需要哪些 PO/GRN/Invoice 材料".
+- mixed off-topic prompts such as "看股票，再把供应商准入过了" are rejected as off-topic rather than creating a case.
+
 Frontend/browser verification:
 
 - Playwright created a case from the default PR-1001 prompt.

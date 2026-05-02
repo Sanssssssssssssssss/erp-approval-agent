@@ -8,6 +8,8 @@ The evidence-first core is also covered by a strict local toy-case audit: `backe
 
 The CaseHarness turn discipline is covered by `backend/benchmarks/erp_approval_case_harness_stress.py`. It runs 66 deliberately messy local scenarios / 74 turns and writes `reports/evaluations/case_harness_stress_latest.md` plus JSON. Treat it as a usability/regression pressure suite for case-state handling, not a benchmark.
 
+The scored maturity benchmark is `backend/benchmarks/erp_approval_case_harness_benchmark.py`. It generates 321 local cases / 417 turns and writes `reports/evaluations/case_harness_maturity_benchmark_latest.md`, JSON, and `backend/benchmarks/cases/erp_approval/case_harness_maturity_benchmark.json`. Each case receives a 100-point rubric score. Treat this as a local fictional/mock maturity benchmark, not production accuracy.
+
 The real user path now has a fictional local evidence pack under `knowledge/ERP Approval/sample_evidence`. Use it when checking whether answers visibly cite approval forms, invoice, PO, GRN, receipts, quote, budget, vendor, and policy evidence. `backend/benchmarks/erp_approval_manual_agent_smoke.py` generates `reports/evaluations/manual_agent_smoke_latest.md` and should remain a quick sanity check that the app is not just a one-line approval recommender.
 
 The newest post-Phase-14 direction is Harness-governed case state. Treat chat as a UI for an `ApprovalCase`, not as memory. Each user turn should be a controlled case patch:

@@ -14,6 +14,8 @@ The newest active product correction is CaseHarness: every user turn is a contro
 
 The CaseHarness pressure suite at `backend/benchmarks/erp_approval_case_harness_stress.py` should be treated as an active regression guard. It currently covers 66 messy scenarios and 74 turns, including weak oral evidence, prompt injection, off-topic turns, execution-boundary probes, and multi-turn evidence submission.
 
+The scored maturity benchmark at `backend/benchmarks/erp_approval_case_harness_benchmark.py` should be treated as the heavier local benchmark. It scores 321 fictional/mock cases and 417 turns with a 100-point rubric per case. It is useful for regression and product maturity tracking, but must not be described as production approval accuracy.
+
 ## Non-Negotiable Architecture Anchors
 
 - `HarnessRuntime` remains the only lifecycle owner.

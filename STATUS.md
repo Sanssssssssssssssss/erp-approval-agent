@@ -27,6 +27,14 @@ The latest CaseHarness pressure/usability stress suite generated 66 deliberately
 
 The stress suite found and fixed weak oral evidence acceptance, overly broad ERP ID parsing, first-turn memo intent misclassification, and mixed off-topic turn handling. It is a local usability/regression stress test, not a production benchmark.
 
+The latest scored CaseHarness maturity benchmark generated 321 local cases and 417 turns. Every case is scored on a 100-point rubric covering case lifecycle, evidence handling, recommendation boundary, human-review/non-action boundary, guidance, dossier, and control matrix. Latest reports:
+
+- `reports/evaluations/case_harness_maturity_benchmark_latest.md`
+- `reports/evaluations/case_harness_maturity_benchmark_latest.json`
+- `backend/benchmarks/cases/erp_approval/case_harness_maturity_benchmark.json`
+
+Latest score: average 99.85, p10 100.00, 321 A grades, 0 critical failures, and 0 major failures. This remains a local maturity benchmark over fictional/mock cases, not production approval accuracy.
+
 After manual real-path review, the mock ERP context now includes a visible fictional evidence pack under `knowledge/ERP Approval/sample_evidence`. The latest manual smoke report is `reports/evaluations/manual_agent_smoke_latest.md` and covers:
 
 - one-sentence direct-approval prompts: must not recommend approve.

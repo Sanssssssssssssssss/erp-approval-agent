@@ -296,7 +296,7 @@ def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool)
         return "off_topic"
     if has_evidence:
         return "submit_evidence"
-    if any(term in text for term in ("需要什么", "哪些材料", "什么材料", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")):
+    if any(term in text for term in ("需要什么", "哪些材料", "什么材料", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")) or ("需要" in text and "材料" in text):
         return "ask_required_materials"
     if any(term in text for term in ("撤回", "withdraw", "更正", "correct", "修正")):
         return "correct_previous_evidence"
@@ -430,9 +430,13 @@ def _looks_like_evidence_submission(text: str) -> bool:
             "材料",
             "附件",
             "发票",
+            "收据",
+            "票据",
             "预算",
             "报价",
             "合同",
+            "法务",
+            "记录",
             "供应商",
             "准入",
             "制裁",
@@ -470,7 +474,7 @@ def _looks_off_topic(text: str) -> bool:
     )
     if not off_topic:
         return False
-    if any(term in text for term in ("顺便", "同时", "also", "while you")):
+    if any(term in text for term in ("顺便", "同时", "再把", "also", "while you")):
         return True
     return not _looks_like_evidence_submission(text)
 
@@ -485,16 +489,47 @@ def _looks_like_weak_user_statement(item: CaseReviewEvidenceInput) -> bool:
         "老板",
         "同意",
         "就当",
+        "口头",
+        "丢了",
+        "之后补",
+        "以后补",
+        "下个月会补",
+        "暂时没有文件",
+        "没有文件",
+        "没法上传",
         "相信我",
         "不用",
         "不需要",
         "直接",
         "verbal",
+        "lost",
+        "pending",
+        "no file",
+        "no document",
+        "will provide later",
         "boss",
         "trust me",
         "already approved",
         "no citation",
     )
+    hard_reject_terms = (
+        "口头",
+        "丢了",
+        "之后补",
+        "以后补",
+        "下个月会补",
+        "暂时没有文件",
+        "没有文件",
+        "没法上传",
+        "verbal",
+        "lost",
+        "pending",
+        "no file",
+        "no document",
+        "will provide later",
+    )
+    if any(term in text for term in hard_reject_terms):
+        return True
     structured_markers = (
         "record",
         "number",

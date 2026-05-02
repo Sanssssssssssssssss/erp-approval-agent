@@ -40,6 +40,7 @@ $ErpTests = @(
   "backend.tests.test_erp_approval_control_matrix",
   "backend.tests.test_erp_approval_case_review",
   "backend.tests.test_erp_approval_case_graph",
+  "backend.tests.test_erp_approval_case_harness_benchmark",
   "backend.tests.test_erp_approval_case_harness",
   "backend.tests.test_erp_approval_case_harness_stress",
   "backend.tests.test_erp_approval_case_review_api",
@@ -75,6 +76,12 @@ Write-Host "Running CaseHarness pressure/usability stress suite..."
   --report reports\evaluations\case_harness_stress_latest.md `
   --json reports\evaluations\case_harness_stress_latest.json
 
+Write-Host "Running scored CaseHarness maturity benchmark..."
+& $Python -m backend.benchmarks.erp_approval_case_harness_benchmark `
+  --report reports\evaluations\case_harness_maturity_benchmark_latest.md `
+  --json reports\evaluations\case_harness_maturity_benchmark_latest.json `
+  --cases-out backend\benchmarks\cases\erp_approval\case_harness_maturity_benchmark.json
+
 Write-Host "Running legacy RFP/security compatibility tests..."
 & $Python -m unittest @LegacyTests
 
@@ -103,6 +110,7 @@ files = [
     "backend/benchmarks/erp_approval_evidence_case_audit.py",
     "backend/benchmarks/erp_approval_manual_agent_smoke.py",
     "backend/benchmarks/erp_approval_case_harness_stress.py",
+    "backend/benchmarks/erp_approval_case_harness_benchmark.py",
     "src/backend/orchestration/compiler.py",
     "src/backend/orchestration/executor.py",
     "src/backend/orchestration/nodes/__init__.py",
@@ -115,6 +123,7 @@ files = [
     "backend/tests/test_erp_approval_control_matrix.py",
     "backend/tests/test_erp_approval_case_review.py",
     "backend/tests/test_erp_approval_case_graph.py",
+    "backend/tests/test_erp_approval_case_harness_benchmark.py",
     "backend/tests/test_erp_approval_case_harness.py",
     "backend/tests/test_erp_approval_case_harness_stress.py",
     "backend/tests/test_erp_approval_case_review_api.py",
