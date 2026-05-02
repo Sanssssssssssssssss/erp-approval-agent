@@ -20,6 +20,7 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] Strict local evidence-case toy audit covers at least 80 fictional cases and reports 0 critical/major failures in the latest run.
 - [x] CaseHarness pressure/usability stress suite covers at least 60 deliberately messy local scenarios and reports 0 critical/major failures in the latest run.
 - [x] Scored CaseHarness maturity benchmark covers at least 300 local cases and reports 0 critical/major failures in the latest run.
+- [x] BPI Challenge 2019 purchase-to-pay event-log material can be used as local read-only evidence stress input; latest 300-case sample evaluation reports false-approve count 0 and records remaining P2P process-semantics weaknesses in `reports/evaluations/bpi2019_evidence_sample_eval_latest.md`.
 - [x] Local sample evidence pack exists under `knowledge/ERP Approval/sample_evidence` so approval forms, invoice/PO/GRN, receipts, quotes, budget, vendor, and policy evidence can be shown in the answer.
 - [x] Manual real-path smoke report verifies one-sentence prompts do not pass and complete sample cases cite visible local evidence paths.
 - [x] ERP context is read-only and defaults to mock.
@@ -47,6 +48,7 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] Analytics are based on structured trace records, not final-answer parsing.
 - [x] Fixture replay and coverage are local mapper diagnostics, not live ERP tests.
 - [x] No benchmark or process-mining claim is made.
+- [x] BPI 2019 local sample evaluation is treated as evidence stress/self-critique only, not a production benchmark or live ERP integration proof.
 
 ## Final Validation
 
