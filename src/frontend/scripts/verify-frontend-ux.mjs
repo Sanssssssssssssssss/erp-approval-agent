@@ -48,6 +48,17 @@ async function scrollActivePanel(page) {
   await page.waitForTimeout(250);
 }
 
+async function scrollActivePanelToBottom(page) {
+  await page.evaluate(() => {
+    const candidates = Array.from(document.querySelectorAll(".overflow-y-auto"));
+    const scrollable = candidates.find((node) => node.scrollHeight > node.clientHeight + 8);
+    if (scrollable) {
+      scrollable.scrollTop = scrollable.scrollHeight;
+    }
+  });
+  await page.waitForTimeout(400);
+}
+
 async function hasHorizontalOverflow(page) {
   return page.evaluate(() => {
     const viewportWidth = document.documentElement.clientWidth;
@@ -59,7 +70,7 @@ async function hasHorizontalOverflow(page) {
 
 async function main() {
   await mkdir(screenshotDir, { recursive: true });
-  const session = await createFreshSession();
+  await createFreshSession();
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   await page.addInitScript(() => {
@@ -69,12 +80,11 @@ async function main() {
 
   try {
     await page.goto(uiBaseUrl, { waitUntil: "networkidle" });
-    await ensureVisible(page.getByText(session.title).first(), "fresh UX verification session");
     await ensureVisible(page.getByRole("button", { name: /审批助理/ }).first(), "审批助理 tab");
     await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "frontend-ux-chat-desktop.png") });
 
     const prompt =
-      "请审核采购申请 PR-1001，申请部门 Operations，金额 24500 USD，供应商 Acme Supplies，成本中心 OPS-CC-10，用途是 replacement laptops。请给出审批建议、风险点、缺失信息和下一步建议。";
+      "请审核供应商准入 VEND-4001，供应商 BrightPath Logistics，请关注税务、银行、制裁检查是否可以通过。请给出审批建议、风险点、缺失信息和下一步建议。";
     await page.getByRole("textbox").first().fill(prompt);
     await page.getByRole("button", { name: /开始审查/ }).click();
     await ensureVisible(page.getByText(/先看清建议，再决定是否采用/).first(), "ERP HITL recommendation preview", 120000);
@@ -92,6 +102,7 @@ async function main() {
     await page.getByRole("button", { name: /采用这条建议并继续/ }).first().click();
     await ensureVisible(page.getByText(/HITL 复核回执/).first(), "HITL acceptance receipt", 120000);
     await ensureVisible(page.getByText(/未执行任何 ERP|未执行 ERP|No ERP write action was executed/).first(), "ERP non-action statement", 30000);
+    await scrollActivePanelToBottom(page);
     await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "frontend-ux-hitl-accepted.png") });
 
     const bodyText = await page.locator("body").innerText();

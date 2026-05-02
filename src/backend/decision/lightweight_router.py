@@ -72,7 +72,7 @@ WEB_LOOKUP_PATTERNS = (
 WORKSPACE_PATH_PATTERNS = (
     re.compile(r"(knowledge/|workspace/|memory/|storage/|backend/)", re.IGNORECASE),
     re.compile(r"\b(repo|repository|workspace|backend|local file|local folder)\b", re.IGNORECASE),
-    re.compile(r"(本地|工作区|仓库|目录|文件夹|文件路径)"),
+    re.compile(r"(本地|工作区|仓库|代码库|项目|工程|目录|文件夹|文件路径|文件里|代码里)"),
 )
 
 READ_FILE_PATTERNS = (
@@ -95,7 +95,12 @@ MCP_WEB_PATTERNS = (
 SEARCH_FILE_PATTERNS = (
     re.compile(r"\b(list|find|search|locate|where is|which file|what file)\b", re.IGNORECASE),
     re.compile(r"\b(files?\s+under|under\s+backend/|under\s+workspace/|under\s+knowledge/)\b", re.IGNORECASE),
-    re.compile(r"(列出|查找|搜索|定位|在哪|哪个文件|哪份文件|哪份报告|来源路径)"),
+    re.compile(r"(列出|查找|搜索|定位|在哪|哪些文件|哪个文件|哪份文件|哪份报告|来源路径)"),
+)
+
+NON_APPROVAL_WORKSPACE_LOOKUP_PATTERNS = (
+    re.compile(r"(不要走审批判断|不走审批判断|不要审批判断|不是审批|别走审批|只搜索|只查文件|项目里搜索|代码里搜索|在哪些文件里出现)"),
+    re.compile(r"\b(do not|don't|dont|without)\b.{0,20}\b(approval|approve|erp approval)\b", re.IGNORECASE),
 )
 
 MODIFY_OR_RUN_PATTERNS = (
@@ -312,7 +317,7 @@ def _has_explicit_workspace_anchor(message: str) -> bool:
     return bool(
         re.search(r"(knowledge/|workspace/|memory/|storage/|backend/)", normalized, re.IGNORECASE)
         or any(token in normalized for token in ("repo", "repository", "config.py", "readme", "user.md"))
-        or any(token in message for token in ("工作区", "仓库", "本地文件", "后端代码"))
+        or any(token in message for token in ("工作区", "仓库", "代码库", "项目", "工程", "本地文件", "后端代码", "文件里", "代码里"))
     )
 
 
@@ -323,6 +328,8 @@ def _is_knowledge_request(message: str) -> bool:
 
 def _is_erp_approval_request(message: str) -> bool:
     normalized = str(message or "").strip()
+    if any(pattern.search(normalized) for pattern in NON_APPROVAL_WORKSPACE_LOOKUP_PATTERNS):
+        return False
     return any(pattern.search(normalized) for pattern in ERP_APPROVAL_PATTERNS)
 
 

@@ -43,6 +43,20 @@ class ErpApprovalRoutingTests(unittest.TestCase):
         self.assertEqual(decision.intent, "workspace_file_ops")
         self.assertEqual(decision.allowed_tools, ("terminal",))
 
+    def test_deterministic_route_does_not_hijack_explicit_project_search(self) -> None:
+        message = "请在项目里搜索 invoice_payment_policy 在哪些文件里出现，不要走审批判断。"
+        decision = deterministic_route(
+            message=message,
+            strategy=parse_execution_strategy(message),
+            tool_names=("fetch_url", "python_repl", "read_file", "terminal"),
+            is_knowledge_query=False,
+            prefer_tool_agent=True,
+        )
+
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.intent, "workspace_file_ops")
+        self.assertEqual(decision.allowed_tools, ("terminal",))
+
     def test_deterministic_route_respects_no_retrieval_constraint(self) -> None:
         message = "\u8bf7\u5ba1\u6838\u91c7\u8d2d\u7533\u8bf7\uff0c\u4f46\u4e0d\u8981\u68c0\u7d22\u3002"
         decision = deterministic_route(

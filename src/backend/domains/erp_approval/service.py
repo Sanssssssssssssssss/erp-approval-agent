@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from difflib import SequenceMatcher
 from typing import Any
 
 from pydantic import ValidationError
@@ -99,8 +100,10 @@ def parse_approval_request(text: str, raw_user_message: str) -> ApprovalRequest:
         request = ApprovalRequest.model_validate(payload)
     except (TypeError, ValueError, ValidationError):
         request = ApprovalRequest(raw_request=str(raw_user_message or text or ""), business_purpose=str(raw_user_message or text or "")[:500])
-    if not request.raw_request:
-        request = request.model_copy(update={"raw_request": str(raw_user_message or text or "")})
+    if str(raw_user_message or "").strip():
+        request = request.model_copy(update={"raw_request": str(raw_user_message or "")})
+    elif not request.raw_request:
+        request = request.model_copy(update={"raw_request": str(text or "")})
     return _apply_deterministic_request_hints(request, str(raw_user_message or text or ""))
 
 
@@ -122,12 +125,79 @@ def parse_recommendation(text: str) -> ApprovalRecommendation:
         )
 
 
+def build_contextual_fallback_recommendation(
+    request: ApprovalRequest,
+    context: ApprovalContextBundle,
+) -> ApprovalRecommendation:
+    """Build a conservative, context-grounded fallback when model JSON parsing fails."""
+
+    source_ids = [record.source_id for record in context.records]
+    by_type = {record.record_type: [] for record in context.records}
+    for record in context.records:
+        by_type.setdefault(record.record_type, []).append(record)
+
+    approval_id = request.approval_id or "未识别审批单"
+    if request.approval_type == "contract_exception":
+        return ApprovalRecommendation(
+            status="escalate",
+            confidence=0.45,
+            summary=f"合同例外 {approval_id} 涉及非标准责任上限或终止条款，建议升级法务复核。",
+            rationale=[
+                "合同例外通常需要法务判断条款风险，Agent 不能替代最终法律审批。",
+                "当前上下文包含合同例外记录和审批矩阵/采购政策，可形成升级复核建议。",
+            ],
+            missing_information=[],
+            risk_flags=["非标准责任条款可能扩大公司义务或损失暴露。", "终止条款例外需要法务确认。"],
+            citations=_preferred_citations(source_ids, ("contract", "approval_request", "approval_matrix", "procurement_policy")),
+            proposed_next_action="route_to_legal",
+            human_review_required=True,
+        )
+    if request.approval_type == "invoice_payment" and all(by_type.get(key) for key in ("purchase_order", "goods_receipt", "invoice")):
+        return ApprovalRecommendation(
+            status="recommend_approve",
+            confidence=0.72,
+            summary=f"发票付款 {approval_id} 已找到 PO、GRN 和 invoice 三单记录，当前证据支持建议通过付款复核。",
+            rationale=[
+                "上下文同时包含采购订单、收货记录和发票记录，可支持三单匹配复核。",
+                "发票付款政策要求比对 PO、GRN、invoice、供应商和金额。",
+            ],
+            missing_information=[],
+            risk_flags=["仍需人工确认这是建议而非付款执行。"],
+            citations=_preferred_citations(source_ids, ("purchase_order", "goods_receipt", "invoice", "invoice_payment_policy")),
+            proposed_next_action="route_to_finance",
+            human_review_required=True,
+        )
+    if request.approval_type == "budget_exception":
+        return ApprovalRecommendation(
+            status="escalate",
+            confidence=0.5,
+            summary=f"预算例外 {approval_id} 需要财务复核，不能由 Agent 自动判断通过。",
+            rationale=["预算例外或资金不足需要财务审核。"],
+            missing_information=[],
+            risk_flags=["可能存在资金不足或预算例外风险。"],
+            citations=_preferred_citations(source_ids, ("budget", "budget_policy", "approval_matrix")),
+            proposed_next_action="route_to_finance",
+            human_review_required=True,
+        )
+    return ApprovalRecommendation(
+        status="request_more_info",
+        confidence=0.0,
+        summary=f"{approval_id} 的模型输出没有形成可解析 JSON，系统已按保守策略要求补充信息。",
+        rationale=["模型调用已完成，但输出无法解析为结构化审批建议，因此不能直接展示为审批结论。"],
+        missing_information=["可解析的结构化审批建议 JSON"],
+        risk_flags=["模型输出格式异常"],
+        citations=_preferred_citations(source_ids, ("approval_request", "approval_matrix")),
+        proposed_next_action="request_more_info",
+        human_review_required=True,
+    )
+
+
 def guard_recommendation(
     request: ApprovalRequest,
     context: ApprovalContextBundle,
     recommendation: ApprovalRecommendation,
 ) -> tuple[ApprovalRecommendation, ApprovalGuardResult]:
-    del request
+    recommendation = repair_recommendation_with_context(request, context, recommendation)
     warnings: list[str] = []
     updates: dict[str, Any] = {}
     original_status = recommendation.status
@@ -196,6 +266,53 @@ def guard_recommendation(
         human_review_required=guarded.human_review_required,
     )
     return guarded, guard
+
+
+def repair_recommendation_with_context(
+    request: ApprovalRequest,
+    context: ApprovalContextBundle,
+    recommendation: ApprovalRecommendation,
+) -> ApprovalRecommendation:
+    """Normalize fragile LLM output before deterministic guard checks.
+
+    The LLM is allowed to reason first, but source IDs, object IDs, and blocking
+    missing-information semantics must be tightened deterministically.
+    """
+
+    alias_map = _context_identifier_alias_map(request, context)
+    context_source_ids = [record.source_id for record in context.records]
+
+    def normalize_text(value: str) -> str:
+        return _translate_business_terms(_replace_known_identifiers(_normalize_request_references(str(value or ""), request), alias_map))
+
+    missing_information = [normalize_text(item) for item in recommendation.missing_information]
+    risk_flags = [normalize_text(item) for item in recommendation.risk_flags]
+    if recommendation.status == "recommend_approve" and missing_information:
+        blocking_missing: list[str] = []
+        non_blocking_notes: list[str] = []
+        for item in missing_information:
+            if _is_non_blocking_missing_item(item, request, context):
+                non_blocking_notes.append(item)
+            else:
+                blocking_missing.append(item)
+        missing_information = blocking_missing
+        risk_flags = [*risk_flags, *[f"后续人工复核关注：{item}" for item in non_blocking_notes]]
+
+    citations = _repair_citations(recommendation.citations, context_source_ids, alias_map)
+    updates = {
+        "summary": _enrich_summary_with_request_fields(request, normalize_text(recommendation.summary)),
+        "rationale": [normalize_text(item) for item in recommendation.rationale],
+        "missing_information": missing_information,
+        "risk_flags": risk_flags,
+        "citations": citations,
+    }
+    if (
+        recommendation.status == "recommend_approve"
+        and not missing_information
+        and recommendation.proposed_next_action == "request_more_info"
+    ):
+        updates["proposed_next_action"] = _default_next_action_for_recommend_approve(request)
+    return recommendation.model_copy(update=updates)
 
 
 def validate_approval_recommendation(
@@ -285,16 +402,20 @@ def _apply_deterministic_request_hints(request: ApprovalRequest, raw_message: st
     if requester and not request.requester:
         updates["requester"] = requester.strip()
 
-    vendor = _first_group(raw, r"(?:供应商|vendor)\s*[:：]?\s*([A-Za-z0-9_\-\u4e00-\u9fff &.]+?)(?:[,，。；;]|成本中心|用途|金额|$)")
-    if vendor and (not request.vendor or request.vendor.lower() not in raw.lower()):
+    vendor = _last_group(raw, r"(?:供应商|vendor)\s*[:：]?\s*([A-Za-z0-9_\-\u4e00-\u9fff &.]+?)(?:[,，。；;]|成本中心|用途|金额|请关注|$)")
+    if vendor and request.vendor != vendor.strip():
         updates["vendor"] = vendor.strip()
 
     cost_center = _first_group(raw, r"(?:成本中心|cost\s*center)\s*[:：]?\s*([A-Za-z0-9_\-]+)")
     if cost_center and not request.cost_center:
         updates["cost_center"] = cost_center.strip()
 
-    purpose = _first_group(raw, r"(?:用途是|用途|business purpose)\s*[:：]?\s*([^,，。；;]+)")
-    if purpose and not request.business_purpose:
+    purpose = _first_group(raw, r"(?:用途是|用途|用于|business purpose)\s*[:：]?\s*([^,，。；;]+)")
+    if purpose and (
+        not request.business_purpose
+        or request.business_purpose.strip() == raw.strip()
+        or len(request.business_purpose.strip()) > max(120, len(purpose.strip()) * 3)
+    ):
         updates["business_purpose"] = purpose.strip()
 
     amount_match = re.search(
@@ -302,8 +423,10 @@ def _apply_deterministic_request_hints(request: ApprovalRequest, raw_message: st
         raw,
         re.IGNORECASE,
     ) or re.search(r"(?:USD|US\$|\$)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(USD|CNY|RMB|EUR|GBP)?", raw, re.IGNORECASE)
-    if amount_match and request.amount is None:
-        updates["amount"] = float(amount_match.group(1).replace(",", ""))
+    if amount_match:
+        raw_amount = float(amount_match.group(1).replace(",", ""))
+        if request.amount is None or abs(float(request.amount) - raw_amount) > 0.001:
+            updates["amount"] = raw_amount
     if amount_match and not request.currency:
         currency = (amount_match.group(2) or ("USD" if "$" in amount_match.group(0) else "")).upper()
         if currency == "RMB":
@@ -340,6 +463,11 @@ def _first_match(text: str, pattern: str) -> str:
 def _first_group(text: str, pattern: str) -> str:
     match = re.search(pattern, text, re.IGNORECASE)
     return match.group(1).strip() if match else ""
+
+
+def _last_group(text: str, pattern: str) -> str:
+    matches = list(re.finditer(pattern, text, re.IGNORECASE))
+    return matches[-1].group(1).strip() if matches else ""
 
 
 def _recommendation_summary_cn(request: ApprovalRequest, recommendation: ApprovalRecommendation) -> str:
@@ -402,6 +530,32 @@ def _friendly_text(text: str) -> str:
     return rendered
 
 
+def _translate_business_terms(text: str) -> str:
+    rendered = str(text or "")
+    replacements = {
+        "client travel": "客户差旅",
+        "replacement laptops": "更换笔记本电脑",
+        "accelerated implementation support": "加速实施支持",
+    }
+    for source, target in replacements.items():
+        rendered = re.sub(re.escape(source), target, rendered, flags=re.IGNORECASE)
+    return rendered
+
+
+def _enrich_summary_with_request_fields(request: ApprovalRequest, summary: str) -> str:
+    rendered = str(summary or "").strip()
+    additions: list[str] = []
+    if request.department and request.department not in rendered:
+        additions.append(f"申请部门：{request.department}")
+    if request.vendor and request.vendor not in rendered:
+        additions.append(f"供应商：{request.vendor}")
+    if request.cost_center and request.cost_center not in rendered:
+        additions.append(f"成本中心：{request.cost_center}")
+    if not additions:
+        return rendered
+    return f"{rendered}（{'; '.join(additions)}）" if rendered else "；".join(additions)
+
+
 def _normalize_request_references(text: str, request: ApprovalRequest) -> str:
     value = str(text or "")
     approval_id = str(request.approval_id or "").strip()
@@ -412,3 +566,128 @@ def _normalize_request_references(text: str, request: ApprovalRequest) -> str:
     truncated = f"{prefix}-{digits[:-1]}"
     pattern = re.compile(rf"\b{re.escape(truncated)}\b(?!\d)", re.IGNORECASE)
     return pattern.sub(approval_id, value)
+
+
+def _context_identifier_alias_map(request: ApprovalRequest, context: ApprovalContextBundle) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    identifiers = [str(request.approval_id or "").strip()]
+    for record in context.records:
+        source_id = str(record.source_id or "").strip()
+        if source_id:
+            identifiers.append(source_id.rsplit("/", 1)[-1])
+        metadata = dict(record.metadata or {})
+        for value in metadata.values():
+            if isinstance(value, str):
+                identifiers.append(value.strip())
+            elif isinstance(value, list):
+                identifiers.extend(str(item).strip() for item in value if str(item or "").strip())
+    for identifier in identifiers:
+        if not identifier:
+            continue
+        match = re.match(r"^([A-Za-z]+)-(\d{3,})$", identifier)
+        if match:
+            prefix, digits = match.groups()
+            aliases[f"{prefix}-{digits[:-1]}"] = identifier
+        normalized_vendor = identifier.strip().lower().replace(" ", "-").replace("_", "-")
+        if normalized_vendor and normalized_vendor != identifier:
+            aliases[normalized_vendor] = identifier
+    return aliases
+
+
+def _replace_known_identifiers(text: str, alias_map: dict[str, str]) -> str:
+    rendered = str(text or "")
+    for alias, canonical in sorted(alias_map.items(), key=lambda item: len(item[0]), reverse=True):
+        if not alias or not canonical or alias == canonical:
+            continue
+        pattern = re.compile(rf"(?<![A-Za-z0-9_-]){re.escape(alias)}(?![A-Za-z0-9_-])", re.IGNORECASE)
+        rendered = pattern.sub(canonical, rendered)
+    return rendered
+
+
+def _repair_citations(
+    citations: list[str],
+    context_source_ids: list[str],
+    alias_map: dict[str, str],
+) -> list[str]:
+    repaired: list[str] = []
+    seen: set[str] = set()
+    context_set = set(context_source_ids)
+    for item in citations:
+        candidate = _replace_known_identifiers(str(item or "").strip(), alias_map)
+        if not candidate:
+            continue
+        if candidate not in context_set:
+            candidate = _closest_context_source_id(candidate, context_source_ids) or candidate
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            repaired.append(candidate)
+    return repaired
+
+
+def _closest_context_source_id(candidate: str, context_source_ids: list[str]) -> str:
+    normalized_candidate = _source_id_similarity_key(candidate)
+    best_score = 0.0
+    best_source = ""
+    for source_id in context_source_ids:
+        score = SequenceMatcher(None, normalized_candidate, _source_id_similarity_key(source_id)).ratio()
+        if score > best_score:
+            best_score = score
+            best_source = source_id
+    return best_source if best_score >= 0.84 else ""
+
+
+def _source_id_similarity_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def _is_non_blocking_missing_item(
+    item: str,
+    request: ApprovalRequest,
+    context: ApprovalContextBundle,
+) -> bool:
+    value = str(item or "").strip().lower()
+    if not value:
+        return True
+    context_text = "\n".join(
+        [
+            str(request.model_dump()),
+            *[record.content for record in context.records],
+            *[json.dumps(record.metadata, ensure_ascii=False) for record in context.records],
+        ]
+    ).lower()
+    if any(term in value for term in ("direct manager", "manager confirmation", "经理", "直接经理", "审批人", "approver")):
+        return True
+    if any(term in value for term in ("approval matrix", "审批矩阵", "threshold", "阈值", "审批层级")):
+        return True
+    if any(term in value for term in ("po generation", "purchase order generation", "采购订单生成", "生成后的", "future po")):
+        return True
+    if any(term in value for term in ("requester", "申请人")) and any(term in context_text for term in ("requester", "申请人")):
+        return True
+    return False
+
+
+def _default_next_action_for_recommend_approve(request: ApprovalRequest) -> str:
+    if request.approval_type == "invoice_payment":
+        return "route_to_finance"
+    if request.approval_type == "purchase_requisition":
+        return "route_to_procurement"
+    if request.approval_type == "expense":
+        return "route_to_manager"
+    if request.approval_type == "supplier_onboarding":
+        return "route_to_procurement"
+    if request.approval_type == "contract_exception":
+        return "route_to_legal"
+    if request.approval_type == "budget_exception":
+        return "route_to_finance"
+    return "manual_review"
+
+
+def _preferred_citations(source_ids: list[str], keywords: tuple[str, ...]) -> list[str]:
+    selected: list[str] = []
+    for keyword in keywords:
+        for source_id in source_ids:
+            if keyword in source_id and source_id not in selected:
+                selected.append(source_id)
+    if selected:
+        return selected
+    return source_ids[:3]

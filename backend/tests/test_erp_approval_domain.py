@@ -13,6 +13,7 @@ from src.backend.domains.erp_approval.context_adapter import ErpContextQuery, Mo
 from src.backend.domains.erp_approval.mock_context import build_mock_context
 from src.backend.domains.erp_approval.schemas import ApprovalRecommendation, ApprovalRequest
 from src.backend.domains.erp_approval.service import (
+    build_contextual_fallback_recommendation,
     extract_json_object,
     guard_recommendation,
     parse_approval_request,
@@ -57,6 +58,19 @@ class ErpApprovalDomainTests(unittest.TestCase):
         self.assertTrue(recommendation.human_review_required)
         self.assertIn("有效的结构化审批建议", recommendation.missing_information)
 
+    def test_contextual_fallback_for_contract_exception_is_actionable(self) -> None:
+        request = ApprovalRequest(approval_type="contract_exception", approval_id="CON-5001")
+        context = MockErpContextAdapter(base_dir=BACKEND_DIR).fetch_context(
+            ErpContextQuery(approval_type="contract_exception", approval_id="CON-5001")
+        )
+
+        recommendation = build_contextual_fallback_recommendation(request, context)
+
+        self.assertEqual(recommendation.status, "escalate")
+        self.assertEqual(recommendation.proposed_next_action, "route_to_legal")
+        self.assertIn("mock_erp://contract/CON-5001", recommendation.citations)
+        self.assertIn("法务", recommendation.summary)
+
     def test_parse_approval_request_uses_chinese_deterministic_hints(self) -> None:
         request = parse_approval_request(
             '{"approval_type":"purchase_requisition","approval_id":"PR-100","raw_request":"PR-100"}',
@@ -69,6 +83,32 @@ class ErpApprovalDomainTests(unittest.TestCase):
         self.assertEqual(request.currency, "USD")
         self.assertEqual(request.vendor, "Acme Supplies")
         self.assertEqual(request.cost_center, "OPS-CC-10")
+
+    def test_parse_approval_request_preserves_explicit_ids_and_amounts_over_model_drift(self) -> None:
+        request = parse_approval_request(
+            json.dumps(
+                {
+                    "approval_type": "purchase_requisition",
+                    "approval_id": "PR-999",
+                    "amount": 9800,
+                    "currency": "USD",
+                    "raw_request": "PR-999",
+                }
+            ),
+            "请审核采购申请 PR-9999，金额 98000 USD，供应商 Unknown Vendor，用途是 emergency hardware。",
+        )
+
+        self.assertEqual(request.approval_id, "PR-9999")
+        self.assertEqual(request.amount, 98000)
+        self.assertIn("PR-9999", request.raw_request)
+
+    def test_parse_approval_request_prefers_last_vendor_anchor(self) -> None:
+        request = parse_approval_request(
+            '{"approval_type":"supplier_onboarding","approval_id":"VEND-4001","vendor":"准入 VEND-4001"}',
+            "请审核供应商准入 VEND-4001，供应商 BrightPath Logistics，请关注税务、银行、制裁检查是否可以通过。",
+        )
+
+        self.assertEqual(request.vendor, "BrightPath Logistics")
 
     def test_guard_downgrades_approve_with_missing_information(self) -> None:
         request = ApprovalRequest(approval_type="expense", approval_id="EXP-1")
@@ -149,6 +189,49 @@ class ErpApprovalDomainTests(unittest.TestCase):
         self.assertEqual(guarded.status, "escalate")
         self.assertTrue(guarded.human_review_required)
         self.assertTrue(any("Unknown citation" in warning for warning in guard.warnings))
+
+    def test_guard_repairs_nearby_context_citations_before_validation(self) -> None:
+        request = ApprovalRequest(approval_type="purchase_requisition", approval_id="PR-1001", vendor="Acme Supplies")
+        context = MockErpContextAdapter(base_dir=BACKEND_DIR).fetch_context(
+            ErpContextQuery(approval_type="purchase_requisition", approval_id="PR-1001", vendor="Acme Supplies")
+        )
+        recommendation = ApprovalRecommendation(
+            status="recommend_approve",
+            confidence=0.9,
+            summary="PR-100 can proceed based on Acme Supplies budget evidence.",
+            citations=["mock_erp://approval_request/PR-100", "mock_erp://vendor/acme-suplies"],
+            proposed_next_action="route_to_procurement",
+            human_review_required=False,
+        )
+
+        guarded, guard = guard_recommendation(request, context, recommendation)
+
+        self.assertEqual(guarded.status, "recommend_approve")
+        self.assertIn("mock_erp://approval_request/PR-1001", guarded.citations)
+        self.assertIn("mock_erp://vendor/acme-supplies", guarded.citations)
+        self.assertFalse(any("Unknown citation" in warning for warning in guard.warnings))
+
+    def test_guard_keeps_approve_when_only_non_blocking_followup_is_missing(self) -> None:
+        request = ApprovalRequest(approval_type="purchase_requisition", approval_id="PR-1001")
+        context = MockErpContextAdapter(base_dir=BACKEND_DIR).fetch_context(
+            ErpContextQuery(approval_type="purchase_requisition", approval_id="PR-1001")
+        )
+        recommendation = ApprovalRecommendation(
+            status="recommend_approve",
+            confidence=0.86,
+            summary="证据支持建议通过。",
+            missing_information=["后续审批人姓名"],
+            citations=["mock_erp://approval_request/PR-1001", "mock_policy://approval_matrix"],
+            proposed_next_action="request_more_info",
+            human_review_required=False,
+        )
+
+        guarded, guard = guard_recommendation(request, context, recommendation)
+
+        self.assertEqual(guarded.status, "recommend_approve")
+        self.assertEqual(guarded.missing_information, [])
+        self.assertEqual(guarded.proposed_next_action, "route_to_procurement")
+        self.assertFalse(guard.downgraded)
 
     def test_guard_replaces_final_execution_action_with_manual_review(self) -> None:
         request = ApprovalRequest(approval_type="purchase_requisition", approval_id="PR-1001")

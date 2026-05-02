@@ -144,6 +144,7 @@ from src.backend.domains.erp_approval.action_simulation_ledger import (
     default_action_simulation_path,
 )
 from src.backend.domains.erp_approval.service import (
+    build_contextual_fallback_recommendation,
     extract_json_object,
     guard_recommendation,
     parse_approval_request,
@@ -251,6 +252,7 @@ __all__ = [
     "default_saved_audit_package_path",
     "default_trace_path",
     "build_action_proposals",
+    "build_contextual_fallback_recommendation",
     "extract_json_object",
     "guard_recommendation",
     "load_erp_connector_config_from_env",

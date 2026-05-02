@@ -37,6 +37,7 @@ from src.backend.domains.erp_approval import (
     build_action_proposals,
     build_connector_registry_from_env,
     build_context_bundle_from_records,
+    build_contextual_fallback_recommendation,
     build_proposal_records_from_state,
     build_trace_record_from_state,
     default_proposal_ledger_path,
@@ -866,6 +867,8 @@ class HarnessLangGraphOrchestrator:
             raw_recommendation = ""
             usage = None
         recommendation = parse_recommendation(raw_recommendation)
+        if "模型输出未能解析" in recommendation.risk_flags:
+            recommendation = build_contextual_fallback_recommendation(request, context)
         result = {
             "erp_request": self._model_dump(request),
             "erp_context": self._model_dump(context),
