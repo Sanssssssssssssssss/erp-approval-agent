@@ -198,6 +198,30 @@ def _aggregate_role_outputs(
     confidence_values = [value for value in confidence_values if value is not None]
     confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
 
+    turn_intent = _first_string(turn_classifier.get("turn_intent"), reviewer_memo.get("turn_intent"), deterministic_intent)
+    if turn_intent == "off_topic":
+        accepted = []
+        evidence_decision = "not_evidence"
+        patch_type = "no_case_change"
+        if rejected:
+            evidence_decision = "rejected"
+        return CaseStageModelDecision(
+            turn_intent=turn_intent,
+            patch_type=patch_type,
+            evidence_decision=evidence_decision,
+            accepted_source_ids=accepted,
+            rejected_evidence=rejected,
+            requirements_satisfied=requirements_satisfied,
+            requirements_missing=requirements_missing,
+            next_questions=next_questions,
+            warnings=role_warnings,
+            dossier_patch=_first_string(reviewer_memo.get("dossier_patch"), evidence_extractor.get("dossier_patch")),
+            reviewer_message=_first_string(reviewer_memo.get("reviewer_message"), evidence_extractor.get("reviewer_message")),
+            confidence=confidence,
+            role_outputs=role_outputs,
+            non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
+        )
+
     evidence_decision = _first_string(
         reviewer_memo.get("evidence_decision"),
         evidence_extractor.get("evidence_decision"),
@@ -218,7 +242,7 @@ def _aggregate_role_outputs(
         patch_type = "reject_evidence"
 
     return CaseStageModelDecision(
-        turn_intent=_first_string(reviewer_memo.get("turn_intent"), turn_classifier.get("turn_intent"), deterministic_intent),
+        turn_intent=turn_intent,
         patch_type=patch_type,
         evidence_decision=evidence_decision,
         accepted_source_ids=accepted,

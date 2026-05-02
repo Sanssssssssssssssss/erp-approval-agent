@@ -611,7 +611,7 @@ def _dossier_patch(
 
 
 def _looks_like_evidence_submission(text: str) -> bool:
-    return any(
+    if any(
         term in text
         for term in (
             "证明",
@@ -630,14 +630,15 @@ def _looks_like_evidence_submission(text: str) -> bool:
             "制裁",
             "银行",
             "税务",
-            "po",
             "grn",
             "invoice",
             "quote",
             "budget record",
             "vendor record",
         )
-    )
+    ):
+        return True
+    return bool(re.search(r"\bpo[-_\s][a-z0-9]{2,}\b|\bpo\d{2,}\b|\bpo\b", text))
 
 
 def _looks_off_topic(text: str) -> bool:

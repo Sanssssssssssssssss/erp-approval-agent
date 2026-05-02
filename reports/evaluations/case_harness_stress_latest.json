@@ -7,7 +7,7 @@
     "critical": 0,
     "major": 0,
     "minor": 0,
-    "usability_notes": 21,
+    "usability_notes": 79,
     "failures_by_stage": {},
     "failed_categories": {},
     "recommend_approve_turns": 3,
@@ -37,11 +37,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-002",
@@ -65,11 +69,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-003",
@@ -93,7 +101,9 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         },
         {
           "turn_index": 2,
@@ -111,11 +121,16 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-004",
@@ -139,7 +154,9 @@
           "blocking_gap_count": 2,
           "next_question_count": 1,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         },
         {
           "turn_index": 2,
@@ -158,12 +175,15 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
             "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
         "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
       ]
     },
@@ -190,12 +210,14 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
             "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
         "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
       ]
     },
@@ -222,12 +244,14 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
             "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
         "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
       ]
     },
@@ -286,13 +310,15 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
-            "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。"
+            "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。",
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。"
+        "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
       ]
     },
     {
@@ -318,13 +344,15 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
-            "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。"
+            "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。",
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。"
+        "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
       ]
     },
     {
@@ -349,7 +377,9 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         },
         {
           "turn_index": 2,
@@ -374,6 +404,7 @@
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
         "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
       ]
     },
@@ -399,7 +430,9 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         },
         {
           "turn_index": 2,
@@ -417,11 +450,16 @@
           "blocking_gap_count": 9,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-012",
@@ -445,11 +483,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-013",
@@ -526,11 +568,15 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-015",
@@ -554,7 +600,9 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         },
         {
           "turn_index": 2,
@@ -572,11 +620,16 @@
           "blocking_gap_count": 7,
           "next_question_count": 7,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-016",
@@ -685,7 +738,9 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         },
         {
           "turn_index": 2,
@@ -703,11 +758,16 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.",
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-001",
@@ -731,11 +791,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-002",
@@ -759,11 +823,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-003",
@@ -787,11 +855,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-004",
@@ -815,11 +887,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-005",
@@ -843,11 +919,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-006",
@@ -871,11 +951,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-007",
@@ -899,11 +983,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-008",
@@ -927,11 +1015,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-009",
@@ -955,11 +1047,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-010",
@@ -983,11 +1079,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-011",
@@ -1011,11 +1111,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-012",
@@ -1039,11 +1143,15 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-013",
@@ -1163,11 +1271,15 @@
           "blocking_gap_count": 5,
           "next_question_count": 3,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-017",
@@ -1191,11 +1303,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-018",
@@ -1219,11 +1335,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-019",
@@ -1247,11 +1367,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-020",
@@ -1275,11 +1399,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-021",
@@ -1303,11 +1431,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-022",
@@ -1331,11 +1463,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-023",
@@ -1359,11 +1495,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-024",
@@ -1419,11 +1559,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-026",
@@ -1447,11 +1591,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-027",
@@ -1475,11 +1623,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-028",
@@ -1503,11 +1655,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-029",
@@ -1563,11 +1719,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-031",
@@ -1591,11 +1751,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-032",
@@ -1619,11 +1783,15 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-033",
@@ -1743,11 +1911,15 @@
           "blocking_gap_count": 5,
           "next_question_count": 3,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-037",
@@ -1771,11 +1943,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-038",
@@ -1799,11 +1975,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-039",
@@ -1827,11 +2007,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-040",
@@ -1855,11 +2039,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-041",
@@ -1883,11 +2071,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-042",
@@ -1911,11 +2103,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-043",
@@ -1939,11 +2135,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-044",
@@ -1967,11 +2167,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-045",
@@ -1995,11 +2199,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-046",
@@ -2055,11 +2263,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-048",
@@ -2083,11 +2295,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only."
+      ]
     }
   ],
   "non_action_statement": "CaseHarness stress test only. No ERP write action was executed."

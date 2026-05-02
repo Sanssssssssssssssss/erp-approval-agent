@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from src.backend.domains.erp_approval.case_state_models import ApprovalCaseState, CasePatch, CaseTurnContract
@@ -40,6 +41,7 @@ class CasePatchValidator:
                 patch.dossier_patch,
                 " ".join(patch.rejection_reasons),
                 " ".join(patch.next_questions),
+                _stringify_model_review(patch.model_review),
             ]
         ).lower()
         if any(term in text for term in EXECUTION_TERMS):
@@ -117,6 +119,15 @@ def _requirement_ids(review: Any | None) -> set[str]:
             if requirement_id:
                 output.add(requirement_id)
     return output
+
+
+def _stringify_model_review(model_review: dict[str, Any] | None) -> str:
+    if not model_review:
+        return ""
+    try:
+        return json.dumps(model_review, ensure_ascii=False, sort_keys=True)
+    except TypeError:
+        return str(model_review)
 
 
 def contract_for_state(state: ApprovalCaseState) -> CaseTurnContract:

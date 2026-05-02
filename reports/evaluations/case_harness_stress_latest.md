@@ -13,7 +13,7 @@
 - Critical failures: 0
 - Major failures: 0
 - Minor failures: 0
-- Usability notes: 21
+- Usability notes: 79
 - recommend_approve turns: 3
 - blocked/escalated turns: 71
 - request_more_info turns: 0
@@ -40,6 +40,8 @@
 
 - Category: one_sentence
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -49,6 +51,8 @@
 
 - Category: materials_guidance
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -58,6 +62,9 @@
 
 - Category: off_topic
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -69,6 +76,8 @@
 - Category: progressive_evidence
 - Result: PASS
 - Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
   - 已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
@@ -81,6 +90,7 @@
 - Category: complete_mock_context
 - Result: PASS
 - Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
   - 已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
@@ -92,6 +102,7 @@
 - Category: complete_mock_context
 - Result: PASS
 - Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
   - 已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
@@ -115,6 +126,7 @@
 - Result: PASS
 - Usability notes:
   - 未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -126,6 +138,7 @@
 - Result: PASS
 - Usability notes:
   - 未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -137,6 +150,7 @@
 - Result: PASS
 - Usability notes:
   - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -147,6 +161,9 @@
 
 - Category: partial_evidence
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -157,6 +174,8 @@
 
 - Category: prompt_injection
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -179,6 +198,8 @@
 
 - Category: one_sentence
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -188,6 +209,9 @@
 
 - Category: partial_evidence
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -222,6 +246,9 @@
 
 - Category: correction
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -232,6 +259,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -241,6 +270,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -250,6 +281,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -259,6 +292,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -268,6 +303,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -277,6 +314,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -286,6 +325,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -295,6 +336,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -304,6 +347,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -313,6 +358,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -322,6 +369,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -331,6 +380,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -373,6 +424,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -382,6 +435,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -391,6 +446,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -400,6 +457,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -409,6 +468,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -418,6 +479,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -427,6 +490,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -436,6 +501,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -456,6 +523,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -465,6 +534,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -474,6 +545,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -483,6 +556,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -503,6 +578,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -512,6 +589,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -521,6 +600,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -563,6 +644,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -572,6 +655,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -581,6 +666,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -590,6 +677,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -599,6 +688,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -608,6 +699,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -617,6 +710,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -626,6 +721,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -635,6 +732,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -644,6 +743,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -664,6 +765,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -673,6 +776,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：patch text contains execution-like wording; retained as non-action review text only.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
