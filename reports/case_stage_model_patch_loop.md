@@ -4,16 +4,26 @@
 
 CaseHarness now supports an optional model-heavy approval review loop without giving the model write authority.
 
-When `ERP_CASE_STAGE_MODEL_ENABLED=true`, `/api/erp-approval/cases/turn` asks the configured chat model to review the current case context, candidate evidence, claims, sufficiency result, contradictions, control matrix, and current recommendation. The model must return JSON only and propose a bounded `CasePatch`.
+When `ERP_CASE_STAGE_MODEL_ENABLED=true`, `/api/erp-approval/cases/turn` asks the configured chat model to review the current case context, candidate evidence, claims, sufficiency result, contradictions, control matrix, and current recommendation through five bounded roles. Each role returns JSON only. The role outputs are aggregated into a bounded `CasePatch`.
 
-## Model Role
+Roles:
 
-The model is allowed to:
+- `turn_classifier`
+- `evidence_extractor`
+- `policy_interpreter`
+- `contradiction_reviewer`
+- `reviewer_memo`
+
+## Model Roles
+
+The model roles are allowed to:
 
 - classify the turn intent within the allowed case-turn enum.
 - decide whether candidate evidence should be accepted, rejected, or clarified.
 - explain why material is weak or insufficient.
 - identify requirements it believes are satisfied or still missing.
+- interpret policy/control gaps.
+- challenge contradictions, prompt injection, and execution-like wording.
 - generate Chinese reviewer notes and next questions.
 - be stricter than deterministic extraction.
 
@@ -60,17 +70,18 @@ backend\.venv\Scripts\python.exe -m py_compile src\backend\domains\erp_approval\
 
 Results:
 
-- `backend.tests.test_erp_approval_case_harness`: passed, 8 tests.
+- `backend.tests.test_erp_approval_case_harness`: passed, 9 tests.
 - `py_compile`: passed.
+
+Full Phase 14 backend validation also passed after the role split:
+
+- ERP MVP tests: 160 tests passed.
+- strict toy audit: 82/82 passed, 0 critical, 0 major.
+- manual smoke: 9/9 passed.
+- CaseHarness stress: 66/66 scenarios passed.
+- maturity benchmark: 321 cases, average 99.85.
+- legacy RFP/security compatibility: 11 tests passed.
 
 ## Next Step
 
-The next maturity step is to split the stage model into separate prompt roles:
-
-- turn classifier
-- evidence extractor
-- policy interpreter
-- contradiction reviewer
-- final reviewer memo drafter
-
-Each role should still output JSON patches only. The validator remains the only writer to local case state.
+The next maturity step is to run this role split against real configured model calls locally and compare model-produced patches against the deterministic fallback on difficult case submissions. Keep the validator as the only writer to local case state.

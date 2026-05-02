@@ -48,7 +48,7 @@ Evidence-first behavior:
 - one-sentence input creates a case draft only.
 - each user turn can now be processed through a local CaseHarness state machine: the turn loads `case_state.json`, classifies intent, assembles a bounded case context, validates a `CasePatch`, updates `dossier.md`, appends `audit_log.jsonl`, and then responds.
 - `POST /api/erp-approval/cases/turn` is HarnessRuntime-owned: it runs through `run_with_executor`, emits `case.turn.started`, `case.patch.validated`, and `case.state.persisted`, and completes as a canonical harness run.
-- when `ERP_CASE_STAGE_MODEL_ENABLED=true`, the configured LLM reviews the bounded case context and proposes a structured `CasePatch`; source/claim/action validation still controls persistence.
+- when `ERP_CASE_STAGE_MODEL_ENABLED=true`, the configured LLM runs bounded roles for turn classification, evidence extraction, policy interpretation, contradiction review, and reviewer memo drafting; the aggregated structured `CasePatch` still goes through source/claim/action validation before persistence.
 - chat is treated as the interface to an `ApprovalCase`; it is not the source of truth.
 - off-topic turns and invalid patches are rejected without changing accepted evidence.
 - blocking ERP/policy/attachment evidence gaps prevent `recommend_approve`.

@@ -79,7 +79,7 @@ Completed:
   - every user turn is treated as a controlled `CasePatch`, not free chat.
   - `POST /api/erp-approval/cases/turn` now runs inside `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`.
   - each case turn emits canonical harness trace events: `run.started`, `case.turn.started`, `case.patch.validated`, `case.state.persisted`, and `run.completed`.
-  - optional `ERP_CASE_STAGE_MODEL_ENABLED=true` lets the configured LLM act as a bounded stage reviewer that proposes a JSON `CasePatch`; the validator still decides whether the patch can write to local case state.
+  - optional `ERP_CASE_STAGE_MODEL_ENABLED=true` lets the configured LLM act as bounded stage reviewers that propose a JSON `CasePatch`; roles are `turn_classifier`, `evidence_extractor`, `policy_interpreter`, `contradiction_reviewer`, and `reviewer_memo`.
   - the stage model can be stricter than deterministic extraction, but it cannot accept evidence without `source_id` and supported claims.
   - validated evidence updates `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text files under `backend/storage/erp_approval/cases/<case_id>/`.
   - off-topic turns, weak user statements, and execution-like text cannot pollute the case state.
@@ -170,7 +170,7 @@ Optional case stage model variable:
 ERP_CASE_STAGE_MODEL_ENABLED=false
 ```
 
-When set to `true`, `/api/erp-approval/cases/turn` asks the configured LLM to review the current submission and propose a bounded `CasePatch`. This is still not autonomous state mutation: `CasePatchValidator` enforces allowed intents, allowed patch types, source/claim requirements, and the no-ERP-write boundary.
+When set to `true`, `/api/erp-approval/cases/turn` asks the configured LLM to review the current submission through five bounded roles: turn classifier, evidence extractor, policy interpreter, contradiction reviewer, and reviewer memo drafter. Their outputs are aggregated into a proposed `CasePatch`. This is still not autonomous state mutation: `CasePatchValidator` enforces allowed intents, allowed patch types, source/claim requirements, and the no-ERP-write boundary.
 
 ```text
 ERP_CONNECTOR_PROVIDER=mock

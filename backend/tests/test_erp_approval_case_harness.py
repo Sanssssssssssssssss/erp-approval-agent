@@ -31,6 +31,17 @@ class _FakeModel:
         return _FakeResponse(self.content)
 
 
+class _SequencedFakeModel:
+    def __init__(self, contents: list[str]) -> None:
+        self.contents = list(contents)
+        self.messages = []
+
+    def invoke(self, messages):
+        self.messages.append(messages)
+        index = min(len(self.messages) - 1, len(self.contents) - 1)
+        return _FakeResponse(self.contents[index])
+
+
 class ErpApprovalCaseHarnessTests(unittest.TestCase):
     def test_create_case_persists_state_dossier_and_audit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -195,6 +206,40 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertNotEqual(response.patch.patch_type, "accept_evidence")
             self.assertEqual(len(response.case_state.accepted_evidence), 0)
             self.assertTrue(any("deterministic gate" in warning for warning in response.patch.warnings))
+
+    def test_stage_model_runs_distinct_roles_and_records_role_outputs(self) -> None:
+        role_outputs = [
+            '{"turn_intent":"submit_evidence","patch_type":"accept_evidence","warnings":[],"confidence":0.7}',
+            '{"evidence_decision":"accepted","accepted_source_ids":["local_evidence://quote/pr-roles/turn-0002-1"],"requirements_satisfied":["purchase_requisition:quote_or_price_basis"],"warnings":[],"confidence":0.8}',
+            '{"requirements_missing":["purchase_requisition:budget_availability"],"next_questions":["请补充预算可用性证明。"],"warnings":["报价不能替代预算证明。"],"confidence":0.9}',
+            '{"warnings":["未发现本轮报价与现有案卷冲突。"],"confidence":0.75}',
+            '{"turn_intent":"submit_evidence","patch_type":"accept_evidence","evidence_decision":"accepted","accepted_source_ids":["local_evidence://quote/pr-roles/turn-0002-1"],"dossier_patch":"报价材料通过模型审查。","reviewer_message":"报价可以写入案卷，但仍缺预算证明。","confidence":0.85}',
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            model = _SequencedFakeModel(["{}"] * 5 + role_outputs)
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(model))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-ROLES."))
+            response = harness.handle_turn(
+                CaseTurnRequest(
+                    case_id=first.case_state.case_id,
+                    user_message="Here is quote evidence.",
+                    extra_evidence=[
+                        CaseReviewEvidenceInput(
+                            title="PR-ROLES quote",
+                            record_type="quote",
+                            source_id="local_evidence://quote/pr-roles/turn-0002-1",
+                            content="Quote Q-PR-ROLES-A from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                        )
+                    ],
+                )
+            )
+
+            self.assertEqual(len(model.messages), 10)
+            self.assertEqual(response.patch.patch_type, "accept_evidence")
+            self.assertIn("turn_classifier", response.patch.model_review["role_outputs"])
+            self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])
+            self.assertIn("purchase_requisition:budget_availability", response.patch.model_review["requirements_missing"])
+            self.assertIn("报价不能替代预算证明。", response.patch.warnings)
 
     def test_intent_classifier_treats_evidence_submission_as_case_patch(self) -> None:
         self.assertEqual(classify_case_turn("Here is the invoice and PO evidence.", has_case=True, has_evidence=False), "submit_evidence")
