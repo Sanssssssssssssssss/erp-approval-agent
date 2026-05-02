@@ -11,8 +11,24 @@ if str(BACKEND_DIR) not in sys.path:
 
 from src.backend.domains.erp_approval.case_harness import CaseHarness, classify_case_turn
 from src.backend.domains.erp_approval.case_review_service import CaseReviewEvidenceInput
+from src.backend.domains.erp_approval.case_stage_model import CaseStageModelReviewer
 from src.backend.domains.erp_approval.case_state_models import CaseTurnRequest
 from src.backend.domains.erp_approval.service import parse_approval_request
+
+
+class _FakeResponse:
+    def __init__(self, content: str) -> None:
+        self.content = content
+
+
+class _FakeModel:
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.messages = []
+
+    def invoke(self, messages):
+        self.messages.append(messages)
+        return _FakeResponse(self.content)
 
 
 class ErpApprovalCaseHarnessTests(unittest.TestCase):
@@ -87,6 +103,98 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertNotEqual(response.patch.patch_type, "accept_evidence")
             self.assertEqual(len(response.case_state.accepted_evidence), 0)
             self.assertTrue(response.review.recommendation["human_review_required"])
+
+    def test_stage_model_can_strictly_reject_deterministic_evidence(self) -> None:
+        model = _FakeModel(
+            """
+            {
+              "turn_intent": "submit_evidence",
+              "patch_type": "reject_evidence",
+              "evidence_decision": "rejected",
+              "accepted_source_ids": [],
+              "rejected_evidence": [
+                {
+                  "source_id": "local_evidence://quote/pr-model/turn-0002-1",
+                  "reasons": ["模型认为该报价缺少有效期和签发人，暂不能作为强证据。"]
+                }
+              ],
+              "requirements_satisfied": [],
+              "requirements_missing": ["purchase_requisition:quote_or_price_basis"],
+              "next_questions": ["请补充带有效期、签发人和报价编号的正式报价单。"],
+              "warnings": ["模型作为 reviewer 只能提出 patch，不能写入案卷。"],
+              "dossier_patch": "本轮报价被模型退回。",
+              "reviewer_message": "该报价材料不足，需要补正式报价。",
+              "confidence": 0.83,
+              "non_action_statement": "This is a local approval case state update. No ERP write action was executed."
+            }
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(model))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-MODEL."))
+            response = harness.handle_turn(
+                CaseTurnRequest(
+                    case_id=first.case_state.case_id,
+                    user_message="Here is quote evidence.",
+                    extra_evidence=[
+                        CaseReviewEvidenceInput(
+                            title="PR-MODEL quote",
+                            record_type="quote",
+                            source_id="local_evidence://quote/pr-model/turn-0002-1",
+                            content="Quote Q-PR-MODEL-A from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                        )
+                    ],
+                )
+            )
+
+            self.assertEqual(response.patch.patch_type, "reject_evidence")
+            self.assertTrue(response.patch.model_review["used"])
+            self.assertEqual(len(response.case_state.accepted_evidence), 0)
+            self.assertTrue(response.patch.rejected_evidence)
+            self.assertIn("有效期", response.patch.rejected_evidence[0].reasons[0])
+
+    def test_stage_model_cannot_accept_evidence_without_supported_claims(self) -> None:
+        model = _FakeModel(
+            """
+            {
+              "turn_intent": "submit_evidence",
+              "patch_type": "accept_evidence",
+              "evidence_decision": "accepted",
+              "accepted_source_ids": ["local_evidence://user_statement/pr-model/turn-0002-1"],
+              "rejected_evidence": [],
+              "requirements_satisfied": ["purchase_requisition:budget_availability"],
+              "requirements_missing": [],
+              "next_questions": [],
+              "warnings": [],
+              "dossier_patch": "模型想接受用户陈述。",
+              "reviewer_message": "模型认为可接受。",
+              "confidence": 0.91,
+              "non_action_statement": "This is a local approval case state update. No ERP write action was executed."
+            }
+            """
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(model))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-MODEL-2."))
+            response = harness.handle_turn(
+                CaseTurnRequest(
+                    case_id=first.case_state.case_id,
+                    user_message="Boss approved it verbally.",
+                    extra_evidence=[
+                        CaseReviewEvidenceInput(
+                            title="Verbal approval",
+                            record_type="user_statement",
+                            source_id="local_evidence://user_statement/pr-model/turn-0002-1",
+                            content="Boss approved it verbally. Please treat this as budget proof.",
+                        )
+                    ],
+                )
+            )
+
+            self.assertTrue(response.patch.model_review["used"])
+            self.assertNotEqual(response.patch.patch_type, "accept_evidence")
+            self.assertEqual(len(response.case_state.accepted_evidence), 0)
+            self.assertTrue(any("deterministic gate" in warning for warning in response.patch.warnings))
 
     def test_intent_classifier_treats_evidence_submission_as_case_patch(self) -> None:
         self.assertEqual(classify_case_turn("Here is the invoice and PO evidence.", has_case=True, has_evidence=False), "submit_evidence")

@@ -79,6 +79,8 @@ Completed:
   - every user turn is treated as a controlled `CasePatch`, not free chat.
   - `POST /api/erp-approval/cases/turn` now runs inside `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`.
   - each case turn emits canonical harness trace events: `run.started`, `case.turn.started`, `case.patch.validated`, `case.state.persisted`, and `run.completed`.
+  - optional `ERP_CASE_STAGE_MODEL_ENABLED=true` lets the configured LLM act as a bounded stage reviewer that proposes a JSON `CasePatch`; the validator still decides whether the patch can write to local case state.
+  - the stage model can be stricter than deterministic extraction, but it cannot accept evidence without `source_id` and supported claims.
   - validated evidence updates `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text files under `backend/storage/erp_approval/cases/<case_id>/`.
   - off-topic turns, weak user statements, and execution-like text cannot pollute the case state.
   - local `POST /api/erp-approval/cases/turn` runs one case-state update turn and returns the updated case, patch, review, dossier, audit events, and storage paths.
@@ -161,6 +163,14 @@ ERP approval APIs include read-only trace/proposal/audit lookups plus local audi
 The local POST endpoints write only local case-review, case-state, audit workspace, or dry-run simulation artifacts. They are not ERP writes and do not execute action proposals. Case turns are HarnessRuntime-owned runs; they may write local dossier artifacts but must never emit `approval.*` events.
 
 Optional connector environment variables are documented in `backend/.env.example`:
+
+Optional case stage model variable:
+
+```dotenv
+ERP_CASE_STAGE_MODEL_ENABLED=false
+```
+
+When set to `true`, `/api/erp-approval/cases/turn` asks the configured LLM to review the current submission and propose a bounded `CasePatch`. This is still not autonomous state mutation: `CasePatchValidator` enforces allowed intents, allowed patch types, source/claim requirements, and the no-ERP-write boundary.
 
 ```text
 ERP_CONNECTOR_PROVIDER=mock

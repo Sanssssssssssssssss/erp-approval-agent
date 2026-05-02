@@ -62,6 +62,7 @@ class CaseTurnExecutor:
                 "rejected_evidence_count": len(patch.rejected_evidence),
                 "missing_requirement_count": len(patch.requirements_missing),
                 "warning_count": len(patch.warnings),
+                "stage_model_used": bool((patch.model_review or {}).get("used")),
                 "non_action_statement": patch.non_action_statement,
             },
         )

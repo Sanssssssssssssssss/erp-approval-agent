@@ -84,6 +84,7 @@ class CasePatch(BaseModel):
     next_questions: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     allowed_to_apply: bool = False
+    model_review: dict[str, Any] = Field(default_factory=dict)
     non_action_statement: str = CASE_HARNESS_NON_ACTION_STATEMENT
 
 

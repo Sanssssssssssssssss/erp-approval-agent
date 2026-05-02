@@ -16,6 +16,7 @@ from src.backend.domains.erp_approval.case_review_service import (
     CaseReviewResponse,
     run_local_case_review,
 )
+from src.backend.domains.erp_approval.case_stage_model import CaseStageModelDecision
 from src.backend.domains.erp_approval.case_state_models import (
     ApprovalCaseState,
     CaseAcceptedEvidence,
@@ -33,11 +34,12 @@ from src.backend.domains.erp_approval.service import parse_approval_request
 class CaseHarness:
     """Owns local approval case state transitions for each user turn."""
 
-    def __init__(self, base_dir: Path | str) -> None:
+    def __init__(self, base_dir: Path | str, *, stage_model: Any | None = None) -> None:
         self.base_dir = Path(base_dir)
         self.store = CaseMemoryStore(base_dir)
         self.context_assembler = CaseContextAssembler()
         self.validator = CasePatchValidator()
+        self.stage_model = stage_model
 
     def handle_turn(self, request: CaseTurnRequest) -> CaseTurnResponse:
         now = _now()
@@ -53,7 +55,22 @@ class CaseHarness:
 
         candidates = self._candidate_evidence(request, state, turn_id, intent)
         provisional_review = self._review(state, request.user_message, candidates)
+        model_decision, model_error = self._review_with_stage_model(
+            context_pack=context_pack,
+            candidates=candidates,
+            review=provisional_review,
+            deterministic_intent=intent,
+        )
+        intent = self._intent_from_stage_model(intent, model_decision, contract)
         accepted, rejected, warnings = self._review_candidate_evidence(candidates, provisional_review, now)
+        accepted, rejected, warnings = self._apply_stage_model_decision(
+            candidates=candidates,
+            accepted=accepted,
+            rejected=rejected,
+            warnings=warnings,
+            decision=model_decision,
+            now=now,
+        )
         final_candidates = candidates if accepted else []
         final_review = provisional_review if accepted else self._review(state, request.user_message, [])
         patch = self._build_patch(
@@ -65,6 +82,8 @@ class CaseHarness:
             review=final_review,
             warnings=warnings,
             created_new=existing_state is None,
+            model_decision=model_decision,
+            model_error=model_error,
         )
         patch = self.validator.validate(state, patch, contract)
 
@@ -79,6 +98,22 @@ class CaseHarness:
             events.append(_event(turn_id, state.case_id, "evidence_rejected", now, {"source_ids": [item.source_id for item in patch.rejected_evidence], "reasons": patch.rejection_reasons}))
         if intent == "off_topic":
             events.append(_event(turn_id, state.case_id, "off_topic_rejected", now, {"message_preview": request.user_message[:240]}))
+        if model_decision is not None:
+            events.append(
+                _event(
+                    turn_id,
+                    state.case_id,
+                    "case_stage_model_reviewed",
+                    now,
+                    {
+                        "turn_intent": model_decision.turn_intent,
+                        "patch_type": model_decision.patch_type,
+                        "evidence_decision": model_decision.evidence_decision,
+                        "confidence": model_decision.confidence,
+                        "error": model_error,
+                    },
+                )
+            )
 
         if patch.allowed_to_apply:
             state = self._apply_patch(state, patch, final_review, now, turn_id, mutate_case=intent != "off_topic")
@@ -162,6 +197,47 @@ class CaseHarness:
         request_data["extra_evidence"] = [item.model_dump() for item in evidence]
         return run_local_case_review(CaseReviewRequest.model_validate(request_data), base_dir=self.base_dir)
 
+    def _review_with_stage_model(
+        self,
+        *,
+        context_pack: dict[str, Any],
+        candidates: list[CaseReviewEvidenceInput],
+        review: CaseReviewResponse,
+        deterministic_intent: CaseTurnIntent,
+    ) -> tuple[CaseStageModelDecision | None, str]:
+        if self.stage_model is None:
+            return None, ""
+        try:
+            return (
+                self.stage_model.review_turn(
+                    context_pack=context_pack,
+                    candidates=candidates,
+                    review=review,
+                    deterministic_intent=deterministic_intent,
+                ),
+                "",
+            )
+        except Exception as exc:  # pragma: no cover - live model/runtime dependent
+            return (
+                CaseStageModelDecision(
+                    warnings=["阶段模型调用失败，已退回 deterministic fallback。"],
+                    reviewer_message="阶段模型调用失败，本轮仍由 deterministic evidence gate 处理。",
+                ),
+                f"{type(exc).__name__}: {exc}",
+            )
+
+    def _intent_from_stage_model(
+        self,
+        deterministic_intent: CaseTurnIntent,
+        decision: CaseStageModelDecision | None,
+        contract,
+    ) -> CaseTurnIntent:
+        if decision is None or not decision.turn_intent:
+            return deterministic_intent
+        if decision.turn_intent in contract.allowed_intents:
+            return decision.turn_intent  # type: ignore[return-value]
+        return deterministic_intent
+
     def _review_candidate_evidence(
         self,
         candidates: list[CaseReviewEvidenceInput],
@@ -206,6 +282,58 @@ class CaseHarness:
                 )
         return accepted, rejected, warnings
 
+    def _apply_stage_model_decision(
+        self,
+        *,
+        candidates: list[CaseReviewEvidenceInput],
+        accepted: list[CaseAcceptedEvidence],
+        rejected: list[CaseRejectedEvidence],
+        warnings: list[str],
+        decision: CaseStageModelDecision | None,
+        now: str,
+    ) -> tuple[list[CaseAcceptedEvidence], list[CaseRejectedEvidence], list[str]]:
+        if decision is None:
+            return accepted, rejected, warnings
+        warnings = _unique(warnings + list(decision.warnings))
+        candidate_by_source = {item.source_id: item for item in candidates}
+        accepted_by_source = {item.source_id: item for item in accepted}
+        rejected_by_source = {item.source_id: item for item in rejected}
+        model_rejections = {
+            item.source_id: item.reasons or ["模型判断该材料不足以写入 accepted_evidence。"]
+            for item in decision.rejected_evidence
+            if item.source_id
+        }
+
+        if decision.turn_intent == "off_topic":
+            model_rejections = {
+                item.source_id: ["模型判断本轮输入与当前审批案件无关，不能污染案卷。"]
+                for item in candidates
+            }
+
+        if decision.accepted_source_ids:
+            allowed_sources = set(decision.accepted_source_ids)
+            for source_id in list(accepted_by_source):
+                if source_id not in allowed_sources:
+                    model_rejections.setdefault(source_id, ["模型未确认该材料可作为本轮 accepted evidence。"])
+            for source_id in allowed_sources:
+                if source_id not in accepted_by_source:
+                    warnings.append(f"模型尝试接受 {source_id}，但 deterministic gate 没有发现可支持 requirement 的 claim，已拒绝。")
+
+        if decision.evidence_decision in {"rejected", "needs_clarification"} and candidates and not model_rejections:
+            model_rejections = {
+                item.source_id: [decision.reviewer_message or "模型要求补充澄清，本轮材料暂不写入 accepted_evidence。"]
+                for item in candidates
+            }
+
+        for source_id, reasons in model_rejections.items():
+            accepted_by_source.pop(source_id, None)
+            if source_id in candidate_by_source:
+                rejected_by_source[source_id] = _rejected(candidate_by_source[source_id], now, reasons)
+
+        for source_id, item in accepted_by_source.items():
+            item.metadata["stage_model_review"] = "accepted" if source_id in decision.accepted_source_ids else "not_overridden"
+        return list(accepted_by_source.values()), list(rejected_by_source.values()), _unique(warnings)
+
     def _build_patch(
         self,
         *,
@@ -217,6 +345,8 @@ class CaseHarness:
         review: CaseReviewResponse,
         warnings: list[str],
         created_new: bool,
+        model_decision: CaseStageModelDecision | None,
+        model_error: str,
     ) -> CasePatch:
         if intent == "off_topic":
             patch_type = "no_case_change"
@@ -251,6 +381,11 @@ class CaseHarness:
             rejection_reasons=_unique([reason for item in rejected for reason in item.reasons]),
             next_questions=list(review.evidence_sufficiency.get("next_questions") or []),
             warnings=warnings,
+            model_review=(
+                model_decision.to_patch_metadata(used=True, error=model_error)
+                if model_decision is not None
+                else {"used": False, "error": "", "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT}
+            ),
         )
 
     def _apply_patch(

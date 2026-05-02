@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, ValidationError
@@ -44,6 +45,7 @@ from src.backend.domains.erp_approval.case_review_service import (
 )
 from src.backend.domains.erp_approval.case_harness import CaseHarness
 from src.backend.domains.erp_approval.case_state_models import CASE_HARNESS_NON_ACTION_STATEMENT, CaseTurnRequest
+from src.backend.domains.erp_approval.case_stage_model import CaseStageModelReviewer
 from src.backend.domains.erp_approval.case_turn_executor import CaseTurnExecutor
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
@@ -106,7 +108,17 @@ def _case_review_base_dir():
 
 
 def _case_harness() -> CaseHarness:
-    return CaseHarness(_case_review_base_dir())
+    return CaseHarness(_case_review_base_dir(), stage_model=_case_stage_model_reviewer())
+
+
+def _case_stage_model_reviewer():
+    enabled = os.environ.get("ERP_CASE_STAGE_MODEL_ENABLED", "false").strip().lower()
+    if enabled not in {"1", "true", "yes", "on"}:
+        return None
+    try:
+        return CaseStageModelReviewer(agent_manager._build_chat_model())
+    except Exception:
+        return None
 
 
 def _harness_runtime():
