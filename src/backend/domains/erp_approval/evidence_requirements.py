@@ -69,7 +69,7 @@ def requirement_matrix_for_approval_type(approval_type: str, amount: float | Non
             _requirement(approval_type, "purchase_order", "采购订单", "需要 PO 记录。", record_types=["purchase_order"]),
             _requirement(approval_type, "goods_receipt", "收货记录", "需要 GRN/收货记录。", record_types=["goods_receipt"]),
             _requirement(approval_type, "vendor_record", "供应商记录", "需要供应商主数据。", record_types=["vendor"]),
-            _requirement(approval_type, "contract_or_payment_terms", "合同或付款条款", "需要合同或付款条款。", record_types=["contract"], required_level="conditional"),
+            _requirement(approval_type, "contract_or_payment_terms", "合同或付款条款", "需要合同或付款条款。", record_types=["contract"]),
             _requirement(approval_type, "three_way_match", "三单匹配", "需要 PO/GRN/Invoice 三单匹配证据。", record_types=["purchase_order", "goods_receipt", "invoice"]),
             _requirement(approval_type, "duplicate_payment_check", "重复付款检查", "需要重复付款排查。", artifact_types=["erp_record", "mock_document"]),
             _requirement(approval_type, "invoice_payment_policy", "发票付款政策", "需要付款政策。", record_types=["policy"], policy_refs=["invoice_payment_policy"]),
@@ -82,7 +82,7 @@ def requirement_matrix_for_approval_type(approval_type: str, amount: float | Non
             _requirement(approval_type, "sanctions_check", "制裁检查", "需要制裁筛查结果。", record_types=["vendor"], artifact_types=["mock_document"]),
             _requirement(approval_type, "beneficial_owner_check", "受益所有人检查", "需要所有权/受益人尽调。", artifact_types=["mock_document"]),
             _requirement(approval_type, "procurement_due_diligence", "采购尽调", "需要采购尽调记录。", artifact_types=["mock_document"]),
-            _requirement(approval_type, "contract_or_nda_or_dpa", "合同/NDA/DPA", "需要合同、NDA 或 DPA 等文件。", record_types=["contract"], required_level="conditional"),
+            _requirement(approval_type, "contract_or_nda_or_dpa", "合同/NDA/DPA", "需要合同、NDA 或 DPA 等文件。", record_types=["contract"]),
             _requirement(approval_type, "supplier_onboarding_policy", "供应商准入政策", "需要准入政策。", record_types=["policy"], policy_refs=["supplier_onboarding_policy"]),
         ]
     if approval_type == "contract_exception":
@@ -92,7 +92,7 @@ def requirement_matrix_for_approval_type(approval_type: str, amount: float | Non
             _requirement(approval_type, "standard_terms", "标准条款", "需要标准条款作为对照。", artifact_types=["policy_record", "mock_document"], record_types=["policy"]),
             _requirement(approval_type, "legal_policy", "法务政策", "需要法务/合同政策。", record_types=["policy"], policy_refs=["legal_policy"]),
             _requirement(approval_type, "liability_clause", "责任条款", "需要责任上限条款。", record_types=["contract"]),
-            _requirement(approval_type, "payment_terms", "付款条款", "需要付款条款影响分析。", record_types=["contract"], required_level="conditional"),
+            _requirement(approval_type, "payment_terms", "付款条款", "需要付款条款影响分析。", record_types=["contract"]),
             _requirement(approval_type, "termination_clause", "终止条款", "需要终止条款影响分析。", record_types=["contract"]),
             _requirement(approval_type, "legal_review_required", "法务复核要求", "合同例外必须法务复核。", record_types=["policy", "contract"]),
         ]

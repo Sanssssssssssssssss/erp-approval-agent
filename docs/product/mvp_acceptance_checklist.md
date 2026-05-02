@@ -17,6 +17,7 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] ERP approval path is evidence-first, LLM-assisted, and graph-governed.
 - [x] One-sentence input creates a case draft only; missing blocking evidence prevents `recommend_approve`.
 - [x] Evidence sufficiency, contradiction detection, control matrix, and adversarial review run before guard/HITL.
+- [x] Strict local evidence-case toy audit covers at least 80 fictional cases and reports 0 critical/major failures in the latest run.
 - [x] ERP context is read-only and defaults to mock.
 - [x] Recommendation HITL gate reviews the agent recommendation only.
 - [x] Action proposals remain proposed-only and `executable=false`.
@@ -56,6 +57,7 @@ For backend-only validation:
 The script runs:
 
 - ERP approval unit and release boundary tests.
+- strict evidence-case toy audit generation and execution.
 - legacy RFP/security compatibility tests.
 - `py_compile` over Phase 14 touched Python files.
 - LangGraph compiler smoke.

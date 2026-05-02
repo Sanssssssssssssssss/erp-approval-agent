@@ -4,6 +4,8 @@ Treat this repository as ERP Approval Agent Workbench. It is not a generic agent
 
 Phase 0 semantic migration is complete. Phase 1 added the minimal LLM-first ERP approval graph skeleton. Phase 2 added read-only mock ERP context adapters. Phase 3 added a durable ERP recommendation review HITL gate. Phase 4 added guarded ERP action proposal drafts. Phase 5 added a local ERP approval trace ledger and read-only analytics foundation. Phase 6 added read-only trace explorer filters, detail lookup, JSON/CSV export, and trend summaries. Phase 7 added a proposed-only action proposal ledger and read-only audit packages. Phase 8 added a local audit package workspace with saved manifests and append-only reviewer notes. Phase 9 added a local mock action simulation sandbox and simulation ledger. Phase 10 added a read-only ERP connector interface and registry that defaults to mock. Phase 11 hardened connector env loading, opt-in gates, diagnostics, redaction, health/profile APIs, and representative provider payload mapping fixtures. Phase 12 added local connector fixture replay and frontend diagnostics UX. Phase 13 expanded mapping fixtures across read-only ERP context operations and added a local replay coverage matrix. Phase 14 closes the MVP boundary with documentation consistency, acceptance checklist, release boundary tests, final validation script, final report, and `GRAPH_VERSION=phase14`. The current core is evidence-first: case files, evidence requirements, evidence claims, sufficiency, contradiction checks, control matrix, and adversarial review come before recommendation. Future work should treat `erp_approval` as an implemented backend graph path, while preserving mock-only/read-only/proposed-only/read-only-analytics/local-audit/local-simulation/connector-interface-only boundaries.
 
+The evidence-first core is also covered by a strict local toy-case audit: `backend/benchmarks/cases/erp_approval/evidence_case_toy_cases.json` currently contains 82 fictional cases, and `backend/benchmarks/erp_approval_evidence_case_audit.py` generates `reports/evaluations/evidence_case_audit_latest.md` plus JSON. This is regression/self-critique, not a benchmark or production accuracy claim.
+
 ## First Read
 
 - [README.md](README.md)
@@ -118,6 +120,7 @@ Trace analytics rules:
 - non-mock connectors require explicit read-only opt-in, and opt-in still does not enable network access by itself.
 - connector fixture replay must stay local-only and must not call HTTP connector network methods.
 - connector replay coverage is a mapper readiness diagnostic, not a benchmark or live ERP integration proof.
+- strict evidence-case toy audit should be kept hard; do not make expected outcomes looser to hide failures.
 
 ## Phase 14 STOP Rules
 

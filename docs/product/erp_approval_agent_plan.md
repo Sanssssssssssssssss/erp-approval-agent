@@ -25,6 +25,7 @@ Current implementation:
 - Phase 13 read-only connector mapping coverage expansion and local replay coverage matrix exist.
 - Phase 14 final MVP closure, acceptance checklist, release boundary tests, final validation script, final report, and STOP rules exist.
 - evidence-first case analysis exists: case files, evidence requirements, evidence claims, sufficiency gate, contradictions, control matrix, case recommendation, and adversarial review now sit before guard/HITL.
+- strict local evidence-case toy audit exists with 82 fictional cases across complete, missing, conflicting, high-risk, ambiguous, and prompt-injection approval scenarios.
 - no live ERP connector is enabled by default.
 - no real approval write action exists.
 - no real comment/request-more-info/routing write action exists.
@@ -79,6 +80,8 @@ bootstrap
 ```
 
 The current graph is evidence-first: a one-sentence prompt creates a case draft, then deterministic evidence requirements, claims, sufficiency, contradiction detection, control matrix checks, case recommendation, and adversarial review run before guard/HITL. Blocking evidence gaps prevent `recommend_approve`. Phase 3 uses the existing LangGraph checkpoint/HITL resume mechanism to review agent recommendations. Phase 4 adds proposed-only action drafts after review. Phase 5 writes a local structured trace record during finalization and exposes read-only analytics summaries. Phase 6 adds trace filters, detail lookup, JSON/CSV export, and date-bucket trend summaries. Phase 7 writes proposed-only action proposal records and builds temporary read-only audit packages. Phase 8 saves local audit package manifests and append-only reviewer notes. Phase 9 records local dry-run simulations of proposed future action paths. Phase 10 routes context through a read-only connector registry that defaults to mock. Phase 11 hardens connector configuration with typed env loading, explicit read-only opt-in, redacted diagnostics, provider health/profile APIs, and fixture-based schema mapping examples. Phase 12 adds local fixture replay diagnostics for provider profile and mapper readiness without network access. Phase 13 expands those local fixtures across approval request, vendor, budget, purchase order, invoice, goods receipt, contract, and policy operations, then summarizes mapper readiness in a replay coverage matrix. Phase 14 closes the MVP boundary and adds no new connector, simulation, audit workspace, mapper diagnostic, profile note, benchmark, live ERP, or ERP write-action scope.
+
+The post-Phase-14 evidence-first audit runner is local-only. It exercises the deterministic domain pipeline and strict reviewer rules against fictional toy cases, then reports root causes by stage. It is designed to find lax approval behavior such as one-sentence approvals, missing evidence not blocked, unsupported citations, weak conflict detection, or execution-like proposals. It is not a benchmark and must not be described as production approval accuracy.
 
 ## Prompt-Engineering Direction
 

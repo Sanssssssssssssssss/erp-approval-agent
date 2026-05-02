@@ -44,6 +44,7 @@ TYPE_CONTROL_REQUIREMENTS: dict[str, dict[str, str]] = {
         "payment_terms_check": "contract_or_payment_terms",
     },
     "supplier_onboarding": {
+        "supplier_risk_clear": "vendor_profile",
         "tax_info_present": "tax_info",
         "bank_info_present": "bank_info",
         "sanctions_check": "sanctions_check",

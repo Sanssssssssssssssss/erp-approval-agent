@@ -144,10 +144,21 @@ def draft_recommendation_from_case(case_file: ApprovalCaseFile) -> ApprovalRecom
         status = "request_more_info"
         next_action = "request_more_info"
     elif control_matrix.passed and citations and not case_file.contradictions.has_conflict:
-        status = "recommend_approve"
-        next_action = _approve_next_action(case_file)
-        summary = "当前证据链和控制矩阵均通过，可形成建议通过，但仍不执行 ERP 动作。"
-        confidence = max(confidence, 0.78)
+        if case_file.approval_type == "contract_exception":
+            status = "escalate"
+            next_action = "route_to_legal"
+            summary = "合同例外即使证据完整，也必须进入法务复核；当前仅形成复核建议，不执行 ERP 动作。"
+            confidence = max(confidence, 0.76)
+        elif case_file.approval_type == "budget_exception":
+            status = "escalate"
+            next_action = "route_to_finance"
+            summary = "预算例外即使证据完整，也必须进入财务复核；当前仅形成复核建议，不执行 ERP 动作。"
+            confidence = max(confidence, 0.76)
+        else:
+            status = "recommend_approve"
+            next_action = _approve_next_action(case_file)
+            summary = "当前证据链和控制矩阵均通过，可形成建议通过，但仍不执行 ERP 动作。"
+            confidence = max(confidence, 0.78)
     elif control_matrix.failed_check_ids:
         status = "escalate"
         next_action = _escalation_next_action(case_file)

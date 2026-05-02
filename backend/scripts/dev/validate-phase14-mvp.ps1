@@ -39,7 +39,9 @@ $ErpTests = @(
   "backend.tests.test_erp_approval_evidence_sufficiency",
   "backend.tests.test_erp_approval_control_matrix",
   "backend.tests.test_erp_approval_case_review",
-  "backend.tests.test_erp_approval_case_graph"
+  "backend.tests.test_erp_approval_case_graph",
+  "backend.tests.test_erp_approval_strict_case_auditor",
+  "backend.tests.test_erp_approval_evidence_case_audit_runner"
 )
 
 $LegacyTests = @(
@@ -51,6 +53,13 @@ $LegacyTests = @(
 
 Write-Host "Running ERP approval MVP test suite..."
 & $Python -m unittest @ErpTests
+
+Write-Host "Regenerating and running strict evidence-case toy audit..."
+& $Python -m backend.benchmarks.generate_erp_approval_evidence_toy_cases
+& $Python -m backend.benchmarks.erp_approval_evidence_case_audit `
+  --cases backend\benchmarks\cases\erp_approval\evidence_case_toy_cases.json `
+  --report reports\evaluations\evidence_case_audit_latest.md `
+  --json reports\evaluations\evidence_case_audit_latest.json
 
 Write-Host "Running legacy RFP/security compatibility tests..."
 & $Python -m unittest @LegacyTests
@@ -66,7 +75,10 @@ files = [
     "src/backend/domains/erp_approval/evidence_sufficiency.py",
     "src/backend/domains/erp_approval/control_matrix.py",
     "src/backend/domains/erp_approval/case_review.py",
+    "src/backend/domains/erp_approval/strict_case_auditor.py",
     "src/backend/domains/erp_approval/__init__.py",
+    "backend/benchmarks/generate_erp_approval_evidence_toy_cases.py",
+    "backend/benchmarks/erp_approval_evidence_case_audit.py",
     "src/backend/orchestration/compiler.py",
     "src/backend/orchestration/executor.py",
     "src/backend/orchestration/nodes/__init__.py",
@@ -79,6 +91,8 @@ files = [
     "backend/tests/test_erp_approval_control_matrix.py",
     "backend/tests/test_erp_approval_case_review.py",
     "backend/tests/test_erp_approval_case_graph.py",
+    "backend/tests/test_erp_approval_strict_case_auditor.py",
+    "backend/tests/test_erp_approval_evidence_case_audit_runner.py",
     "backend/tests/test_erp_approval_connector_config.py",
     "backend/tests/test_erp_approval_release_boundary.py",
 ]

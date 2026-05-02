@@ -8,6 +8,8 @@ This repo is becoming a local-first, LLM-first, graph-driven approval agent work
 
 Historical infrastructure and observability work remains useful context. The active plan below is product migration toward ERP approval assistance.
 
+Post-Phase-14 evidence-first hardening is complete: the core has been audited with 82 fictional toy approval cases using a strict local reviewer harness. The audit is regression/self-critique only, not a production benchmark. Future phases should keep this audit hard and add new difficult cases rather than loosening expected outcomes.
+
 ## Non-Negotiable Architecture Anchors
 
 - `HarnessRuntime` remains the only lifecycle owner.

@@ -2,7 +2,7 @@
 
 ## Current Active Phase
 
-Phase 14: Final MVP Closure.
+Phase 14: Final MVP Closure plus strict evidence-case toy audit.
 
 Phase 0 product-semantic migration is complete. Phase 1 added the LLM-first ERP approval graph skeleton, Phase 2 added the read-only mock ERP context adapter, Phase 3 added durable recommendation review through the existing HITL checkpoint/resume mechanism, Phase 4 added proposed-only ERP action drafts, Phase 5 added a local structured trace ledger plus read-only analytics summary, Phase 6 added trace explorer filters, detail lookup, export, and trend summaries, Phase 7 added a proposed-only action proposal ledger plus read-only audit packages, Phase 8 added saved audit package manifests plus append-only reviewer notes, Phase 9 added a local mock action simulation sandbox, Phase 10 added a read-only ERP connector interface plus connector registry, Phase 11 hardened connector configuration, Phase 12 added local connector replay diagnostics, Phase 13 added multi-entity replay coverage, and Phase 14 closes the MVP boundary:
 
@@ -11,6 +11,14 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 ```
 
 The current active capability is Phase 14 plus an evidence-first case-agent refactor. No connector, simulation, audit workspace, mapper diagnostic, profile note, benchmark, live ERP, or ERP write-action scope is added. ERP context retrieval still goes through a read-only connector interface and registry with typed env loading, explicit read-only opt-in gates, redacted diagnostics, healthcheck/profile APIs, representative provider payload fixtures, local fixture replay, and local replay coverage. The default connector remains mock, disabled, and no-network. SAP S/4HANA OData, Dynamics 365 F&O OData, Oracle Fusion REST, and custom HTTP JSON profiles are disabled metadata/skeletons only.
+
+The latest local strict toy audit generated 82 fictional approval cases and passed with 0 critical and 0 major failures. Reports:
+
+- `reports/evaluations/evidence_case_audit_latest.md`
+- `reports/evaluations/evidence_case_audit_latest.json`
+- `reports/evidence_case_toy_audit_self_critique.md`
+
+This audit is local regression/self-critique only. It is not a production benchmark, process-mining result, or ERP integration proof.
 
 Evidence-first behavior:
 
