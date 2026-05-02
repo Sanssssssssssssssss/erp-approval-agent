@@ -8,6 +8,17 @@ The evidence-first core is also covered by a strict local toy-case audit: `backe
 
 The real user path now has a fictional local evidence pack under `knowledge/ERP Approval/sample_evidence`. Use it when checking whether answers visibly cite approval forms, invoice, PO, GRN, receipts, quote, budget, vendor, and policy evidence. `backend/benchmarks/erp_approval_manual_agent_smoke.py` generates `reports/evaluations/manual_agent_smoke_latest.md` and should remain a quick sanity check that the app is not just a one-line approval recommender.
 
+The newest post-Phase-14 direction is Harness-governed case state. Treat chat as a UI for an `ApprovalCase`, not as memory. Each user turn should be a controlled case patch:
+
+- load `case_state.json` first.
+- assemble a bounded case context.
+- classify the turn intent.
+- let the model or deterministic reviewer propose a structured `CasePatch`.
+- validate the patch before writing.
+- only then update `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text.
+
+The local CaseHarness API is `POST /api/erp-approval/cases/turn`. It may write local dossier artifacts under `backend/storage/erp_approval/cases/<case_id>/`, but it must never write to ERP, call `capability_invoke`, or emit `approval.*` events.
+
 ## First Read
 
 - [README.md](README.md)
@@ -79,6 +90,7 @@ Current capabilities:
 
 - LLM-first ERP intake and reasoning prompts.
 - evidence-first case file, evidence requirements, evidence claims, evidence sufficiency gate, control matrix, and adversarial review.
+- local CaseHarness state machine for multi-turn approval dossiers, with validated `CasePatch` writes to `case_state.json`, `dossier.md`, and `audit_log.jsonl`.
 - mock ERP/policy context.
 - deterministic recommendation guard via `human_review_required`.
 - durable ERP recommendation HITL review using existing checkpoint/resume semantics.

@@ -423,6 +423,46 @@ export type ErpApprovalCaseReviewResponse = {
   non_action_statement: string;
 };
 
+export type ErpApprovalCaseTurnRequest = {
+  case_id?: string;
+  user_message: string;
+  extra_evidence?: ErpApprovalCaseReviewEvidenceInput[];
+  requested_by?: string;
+};
+
+export type ErpApprovalCaseState = {
+  case_id: string;
+  approval_type: string;
+  approval_id: string;
+  stage: string;
+  created_at: string;
+  updated_at: string;
+  turn_count: number;
+  dossier_version: number;
+  accepted_evidence: Array<Record<string, unknown>>;
+  rejected_evidence: Array<Record<string, unknown>>;
+  evidence_requirements: Array<Record<string, unknown>>;
+  claims: Array<Record<string, unknown>>;
+  contradictions: Record<string, unknown>;
+  evidence_sufficiency: Record<string, unknown>;
+  control_matrix: Record<string, unknown>;
+  recommendation: Record<string, unknown>;
+  missing_items: string[];
+  next_questions: string[];
+  non_action_statement: string;
+};
+
+export type ErpApprovalCaseTurnResponse = {
+  case_state: ErpApprovalCaseState;
+  contract: Record<string, unknown>;
+  patch: Record<string, unknown>;
+  review: ErpApprovalCaseReviewResponse;
+  dossier: string;
+  audit_events: Array<Record<string, unknown>>;
+  storage_paths: Record<string, string>;
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -1075,6 +1115,13 @@ export async function getErpApprovalConnectorConfig() {
 
 export async function reviewErpApprovalCase(payload: ErpApprovalCaseReviewRequest) {
   return request<ErpApprovalCaseReviewResponse>("/erp-approval/case-review", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function applyErpApprovalCaseTurn(payload: ErpApprovalCaseTurnRequest) {
+  return request<ErpApprovalCaseTurnResponse>("/erp-approval/cases/turn", {
     method: "POST",
     body: JSON.stringify(payload)
   });

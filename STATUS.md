@@ -31,12 +31,16 @@ After manual real-path review, the mock ERP context now includes a visible ficti
 Evidence-first behavior:
 
 - one-sentence input creates a case draft only.
+- each user turn can now be processed through a local CaseHarness state machine: the turn loads `case_state.json`, classifies intent, assembles a bounded case context, validates a `CasePatch`, updates `dossier.md`, appends `audit_log.jsonl`, and then responds.
+- chat is treated as the interface to an `ApprovalCase`; it is not the source of truth.
+- off-topic turns and invalid patches are rejected without changing accepted evidence.
 - blocking ERP/policy/attachment evidence gaps prevent `recommend_approve`.
 - deterministic evidence sufficiency and control-matrix checks run before recommendation drafting.
 - adversarial review downgrades unsupported or over-strong recommendations.
 - final answers render required evidence, evidence claims, sufficiency, contradictions, control checks, risk, adversarial review, recommendation, and the non-action boundary.
 - default frontend experience is now `Case Review`, not chat: users submit a case, add local text evidence, rerun review, and inspect required evidence, claims, sufficiency, control matrix, contradictions, recommendation, and reviewer memo.
 - local `POST /api/erp-approval/case-review` runs the same evidence-first pipeline without live ERP, action execution, `approval.*` events, or `capability_invoke`.
+- local `POST /api/erp-approval/cases/turn` updates an approval case state machine; it writes only local dossier artifacts and never writes to ERP.
 
 ## Active Product Direction
 

@@ -7,9 +7,10 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import {
+  applyErpApprovalCaseTurn,
   type ErpApprovalCaseReviewEvidenceInput,
   type ErpApprovalCaseReviewResponse,
-  reviewErpApprovalCase
+  type ErpApprovalCaseTurnResponse
 } from "@/lib/api";
 
 const SAMPLE_REQUEST =
@@ -40,6 +41,15 @@ const STATUS_LABELS: Record<string, string> = {
   recommend_reject: "建议拒绝",
   request_more_info: "需要补充证据",
   escalate: "升级人工复核",
+  blocked: "已阻断"
+};
+
+const STAGE_LABELS: Record<string, string> = {
+  draft: "草稿",
+  collecting_evidence: "收集中",
+  escalation_review: "升级复核",
+  ready_for_final_review: "可生成最终 memo",
+  final_memo_ready: "memo 已生成",
   blocked: "已阻断"
 };
 
@@ -120,6 +130,63 @@ function RecommendationHeader({ result }: { result: ErpApprovalCaseReviewRespons
         </div>
       </div>
     </div>
+  );
+}
+
+function CaseStatePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
+  if (!turn) return null;
+  const state = turn.case_state;
+  const patch = turn.patch ?? {};
+  const accepted = state.accepted_evidence ?? [];
+  const rejected = state.rejected_evidence ?? [];
+  return (
+    <section className="case-review-section case-state-machine">
+      <h3>
+        <ClipboardCheck size={18} />
+        案卷状态机
+      </h3>
+      <div className="case-state-grid">
+        <div>
+          <span>case_id</span>
+          <strong>{state.case_id}</strong>
+        </div>
+        <div>
+          <span>当前阶段</span>
+          <strong>{STAGE_LABELS[state.stage] ?? state.stage}</strong>
+        </div>
+        <div>
+          <span>轮次 / 案卷版本</span>
+          <strong>{state.turn_count} / {state.dossier_version}</strong>
+        </div>
+        <div>
+          <span>本轮 Patch</span>
+          <strong>{text(patch.patch_type)} / {text(patch.evidence_decision)}</strong>
+        </div>
+      </div>
+      <div className="case-two-col mt-3">
+        <div>
+          <p className="pixel-label">已接受证据</p>
+          {accepted.length ? (
+            <ul>{accepted.slice(-6).map((item) => <li key={text(item.source_id)}>{text(item.title || item.source_id)}</li>)}</ul>
+          ) : (
+            <p className="case-empty">暂无 accepted evidence。</p>
+          )}
+        </div>
+        <div>
+          <p className="pixel-label">被拒绝材料</p>
+          {rejected.length ? (
+            <ul>{rejected.slice(-6).map((item) => <li key={`${text(item.source_id)}-${text(item.rejected_at)}`}>{text(item.title || item.source_id)}</li>)}</ul>
+          ) : (
+            <p className="case-empty">暂无 rejected evidence。</p>
+          )}
+        </div>
+      </div>
+      {arrayOfText(patch.warnings).length ? (
+        <div className="case-warning-list">
+          {arrayOfText(patch.warnings).map((warning) => <p key={warning}>{warning}</p>)}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -233,6 +300,7 @@ export function CaseReviewPanel() {
   const [evidenceContent, setEvidenceContent] = useState("");
   const [extraEvidence, setExtraEvidence] = useState<ErpApprovalCaseReviewEvidenceInput[]>([]);
   const [result, setResult] = useState<ErpApprovalCaseReviewResponse | null>(null);
+  const [caseTurn, setCaseTurn] = useState<ErpApprovalCaseTurnResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -258,13 +326,16 @@ export function CaseReviewPanel() {
     setLoading(true);
     setError("");
     try {
-      const response = await reviewErpApprovalCase({
+      const response = await applyErpApprovalCaseTurn({
+        case_id: caseTurn?.case_state.case_id ?? "",
         user_message: message,
         extra_evidence: extraEvidence
       });
-      setResult(response);
+      setCaseTurn(response);
+      setResult(response.review);
+      setExtraEvidence([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "本地 case review 失败");
+      setError(err instanceof Error ? err.message : "本地案卷状态更新失败");
     } finally {
       setLoading(false);
     }
@@ -277,12 +348,12 @@ export function CaseReviewPanel() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="pixel-label">案件审查默认入口</p>
-              <h2>证据先行审批案件</h2>
+              <h2>审批案卷状态机</h2>
             </div>
             <ShieldCheck className="text-[var(--color-success)]" size={22} />
           </div>
           <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
-            提交审批案件后，系统先检查必需证据、claims、充分性、冲突和控制矩阵。证据不足时不能建议通过。
+            每一轮输入都会被 Harness 约束成一次 case patch。只有 validator 通过的证据会写入 case_state、dossier 和 audit_log。
           </p>
 
           <label className="pixel-label mt-5 block">审批请求</label>
@@ -301,7 +372,7 @@ export function CaseReviewPanel() {
           </div>
 
           <div className="case-evidence-builder">
-            <p className="pixel-label">补充本地文本证据</p>
+            <p className="pixel-label">本轮补充材料</p>
             <input
               className="case-review-input-field"
               onChange={(event) => setEvidenceTitle(event.target.value)}
@@ -350,7 +421,7 @@ export function CaseReviewPanel() {
           {error ? <p className="case-error">{error}</p> : null}
           <button className="ui-button ui-button-primary mt-4 w-full" disabled={!canSubmit} onClick={() => void runReview()} type="button">
             <RotateCcw size={16} />
-            {loading ? "正在本地审查..." : "开始本地证据审查"}
+            {loading ? "正在更新案卷..." : "提交本轮并更新案卷"}
           </button>
           <p className="mt-3 text-xs leading-5 text-[var(--color-ink-muted)]">
             No ERP write action was executed. 本视图不会连接真实 ERP，不会执行通过、驳回、付款、路由或评论。
@@ -361,11 +432,12 @@ export function CaseReviewPanel() {
           {!result ? (
             <div className="case-review-empty panel">
               <FileSearch size={32} />
-              <h2>等待提交审批案件</h2>
-              <p>提交后会生成案件概览、必备证据清单、证据 Claims、证据充分性、控制矩阵、冲突检测、建议和 reviewer memo。</p>
+              <h2>等待创建审批案卷</h2>
+              <p>第一轮会创建 case_state，并生成必备证据清单。后续每轮材料会先被审核成 CasePatch，通过 validator 后才写入案卷。</p>
             </div>
           ) : (
             <>
+              <CaseStatePanel turn={caseTurn} />
               <RecommendationHeader result={result} />
 
               <div className="case-review-request-strip">

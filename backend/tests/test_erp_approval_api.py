@@ -112,6 +112,7 @@ class ErpApprovalApiTests(unittest.TestCase):
                         "/audit-packages" in getattr(route, "path", "")
                         or getattr(route, "path", "") == "/api/erp-approval/action-simulations"
                         or getattr(route, "path", "") == "/api/erp-approval/case-review"
+                        or getattr(route, "path", "") == "/api/erp-approval/cases/turn"
                     )
                 self.assertNotIn("execute", getattr(route, "path", "").lower())
 

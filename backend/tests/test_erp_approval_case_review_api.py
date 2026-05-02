@@ -107,6 +107,41 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
             if path.startswith("/api/erp-approval"):
                 self.assertNotIn("execute", path.lower())
 
+    def test_case_turn_api_persists_stateful_case_patch(self) -> None:
+        client = self._client()
+
+        create_response = client.post(
+            "/api/erp-approval/cases/turn",
+            json={"user_message": "Review purchase requisition PR-1001 for replacement laptops. What materials are required?"},
+        )
+        case_id = create_response.json()["case_state"]["case_id"]
+        evidence_response = client.post(
+            "/api/erp-approval/cases/turn",
+            json={
+                "case_id": case_id,
+                "user_message": "Here is the quote evidence.",
+                "extra_evidence": [
+                    {
+                        "title": "PR-1001 quote",
+                        "record_type": "quote",
+                        "content": "Quote Q-PR-1001-A from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                    }
+                ],
+            },
+        )
+        case_response = client.get(f"/api/erp-approval/cases/{case_id}")
+        dossier_response = client.get(f"/api/erp-approval/cases/{case_id}/dossier")
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertEqual(evidence_response.status_code, 200)
+        self.assertEqual(evidence_response.json()["patch"]["patch_type"], "accept_evidence")
+        self.assertTrue(evidence_response.json()["case_state"]["accepted_evidence"])
+        self.assertIn("No ERP write action was executed", evidence_response.json()["dossier"])
+        self.assertEqual(case_response.status_code, 200)
+        self.assertEqual(case_response.json()["case_id"], case_id)
+        self.assertEqual(dossier_response.status_code, 200)
+        self.assertIn("审批案卷", dossier_response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

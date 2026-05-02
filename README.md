@@ -73,6 +73,11 @@ Completed:
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend default `Case Review` workspace for evidence-first approval case review: case overview, required evidence checklist, evidence claims, evidence sufficiency, control matrix, contradictions, and reviewer memo.
 - local `POST /api/erp-approval/case-review` API for deterministic evidence-case review with optional local text evidence; it does not call real ERP, execute actions, or enter `capability_invoke`.
+- local CaseHarness state machine for multi-turn approval dossiers:
+  - every user turn is treated as a controlled `CasePatch`, not free chat.
+  - validated evidence updates `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text files under `backend/storage/erp_approval/cases/<case_id>/`.
+  - off-topic turns, weak user statements, and execution-like text cannot pollute the case state.
+  - local `POST /api/erp-approval/cases/turn` runs one case-state update turn and returns the updated case, patch, review, dossier, audit events, and storage paths.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
 Still not implemented:

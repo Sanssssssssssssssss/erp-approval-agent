@@ -615,7 +615,7 @@ def _replace_known_identifiers(text: str, alias_map: dict[str, str]) -> str:
         if not alias or not canonical or alias == canonical:
             continue
         pattern = re.compile(rf"(?<![A-Za-z0-9_-]){re.escape(alias)}(?![A-Za-z0-9_-])", re.IGNORECASE)
-        rendered = pattern.sub(canonical, rendered)
+        rendered = pattern.sub(lambda _match, value=canonical: value, rendered)
     return rendered
 
 

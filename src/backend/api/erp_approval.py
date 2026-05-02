@@ -40,6 +40,8 @@ from src.backend.domains.erp_approval.case_review_service import (
     CaseReviewRequest,
     run_local_case_review,
 )
+from src.backend.domains.erp_approval.case_harness import CaseHarness
+from src.backend.domains.erp_approval.case_state_models import CaseTurnRequest
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
 
@@ -100,11 +102,44 @@ def _case_review_base_dir():
     return agent_manager.base_dir or get_settings().backend_dir
 
 
+def _case_harness() -> CaseHarness:
+    return CaseHarness(_case_review_base_dir())
+
+
 @router.post("/erp-approval/case-review")
 async def review_erp_approval_case(request: CaseReviewRequest) -> dict:
     if not request.user_message.strip():
         raise HTTPException(status_code=400, detail="user_message is required")
     return run_local_case_review(request, base_dir=_case_review_base_dir()).model_dump()
+
+
+@router.post("/erp-approval/cases/turn")
+async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
+    if not request.user_message.strip() and not request.extra_evidence:
+        raise HTTPException(status_code=400, detail="user_message or extra_evidence is required")
+    return _case_harness().handle_turn(request).model_dump()
+
+
+@router.get("/erp-approval/cases")
+async def list_erp_approval_cases(limit: int = Query(default=50, ge=0, le=200)) -> list[dict]:
+    return [state.model_dump() for state in _case_harness().list_cases(limit=limit)]
+
+
+@router.get("/erp-approval/cases/{case_id}")
+async def get_erp_approval_case(case_id: str) -> dict:
+    state = _case_harness().get_case(case_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="ERP approval case not found")
+    return state.model_dump()
+
+
+@router.get("/erp-approval/cases/{case_id}/dossier")
+async def get_erp_approval_case_dossier(case_id: str) -> Response:
+    state = _case_harness().get_case(case_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="ERP approval case not found")
+    dossier = _case_harness().get_dossier(case_id)
+    return Response(content=dossier, media_type="text/markdown; charset=utf-8")
 
 
 @router.get("/erp-approval/connectors/config")
