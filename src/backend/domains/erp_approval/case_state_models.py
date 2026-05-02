@@ -140,6 +140,7 @@ class CaseTurnRequest(BaseModel):
     user_message: str
     extra_evidence: list[CaseReviewEvidenceInput] = Field(default_factory=list)
     requested_by: str = "local_reviewer"
+    expected_turn_count: int | None = None
 
 
 class CaseTurnResponse(BaseModel):
@@ -150,4 +151,5 @@ class CaseTurnResponse(BaseModel):
     dossier: str
     audit_events: list[CaseAuditEvent] = Field(default_factory=list)
     storage_paths: dict[str, str] = Field(default_factory=dict)
+    operation_scope: str = "persistent_case_turn"
     non_action_statement: str = CASE_HARNESS_NON_ACTION_STATEMENT

@@ -42,9 +42,16 @@ class CaseHarness:
         self.stage_model = stage_model
 
     def handle_turn(self, request: CaseTurnRequest) -> CaseTurnResponse:
+        lock_case_id = self._lock_case_id(request)
+        with self.store.case_lock(lock_case_id):
+            return self._handle_turn_locked(request)
+
+    def _handle_turn_locked(self, request: CaseTurnRequest) -> CaseTurnResponse:
         now = _now()
         existing_state = self.store.get(request.case_id) if request.case_id.strip() else None
         state = existing_state or self._create_state(request, now)
+        if existing_state is not None and request.expected_turn_count is not None and request.expected_turn_count != existing_state.turn_count:
+            return self._turn_conflict_response(existing_state, request, now)
         turn_id = f"turn-{state.turn_count + 1:04d}"
         intent = classify_case_turn(request.user_message, has_case=existing_state is not None, has_evidence=bool(request.extra_evidence))
         contract = contract_for_state(state)
@@ -85,7 +92,7 @@ class CaseHarness:
             model_decision=model_decision,
             model_error=model_error,
         )
-        patch = self.validator.validate(state, patch, contract)
+        patch = self.validator.validate(state, patch, contract, review=final_review)
 
         events: list[CaseAuditEvent] = []
         if existing_state is None:
@@ -141,6 +148,7 @@ class CaseHarness:
             dossier=dossier,
             audit_events=events,
             storage_paths=self.store.paths_for(state.case_id),
+            operation_scope="persistent_case_turn",
             non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
         )
 
@@ -152,6 +160,51 @@ class CaseHarness:
 
     def list_cases(self, limit: int = 50) -> list[ApprovalCaseState]:
         return self.store.list_recent(limit=limit)
+
+    def _lock_case_id(self, request: CaseTurnRequest) -> str:
+        if request.case_id.strip():
+            return request.case_id.strip()
+        approval_request = parse_approval_request("", request.user_message)
+        approval_id = approval_request.approval_id or _stable_suffix(request.user_message)
+        return f"erp-case:{approval_id}"
+
+    def _turn_conflict_response(self, state: ApprovalCaseState, request: CaseTurnRequest, now: str) -> CaseTurnResponse:
+        turn_id = f"turn-conflict-{state.turn_count + 1:04d}"
+        contract = contract_for_state(state)
+        review = self._review(state, request.user_message, [])
+        patch = CasePatch(
+            patch_id=f"case-patch-conflict:{state.case_id}:{turn_id}",
+            turn_id=turn_id,
+            case_id=state.case_id,
+            patch_type="no_case_change",
+            turn_intent="ask_status",
+            evidence_decision="not_evidence",
+            warnings=[
+                f"case_state version conflict: expected turn_count {request.expected_turn_count}, current turn_count {state.turn_count}.",
+                "本轮输入未写入案卷；请刷新当前 case_state 后重新提交。",
+            ],
+            allowed_to_apply=False,
+        )
+        event = _event(
+            turn_id,
+            state.case_id,
+            "case_turn_conflict",
+            now,
+            {"expected_turn_count": request.expected_turn_count, "current_turn_count": state.turn_count},
+        )
+        self.store.append_audit_event(event)
+        dossier = self.store.read_dossier(state.case_id) or render_case_dossier(state, review, patch)
+        return CaseTurnResponse(
+            case_state=state,
+            contract=contract,
+            patch=patch,
+            review=review,
+            dossier=dossier,
+            audit_events=[event],
+            storage_paths=self.store.paths_for(state.case_id),
+            operation_scope="persistent_case_turn_conflict",
+            non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
+        )
 
     def _create_state(self, request: CaseTurnRequest, now: str) -> ApprovalCaseState:
         approval_request = parse_approval_request("", request.user_message)

@@ -172,6 +172,8 @@ ERP_CASE_STAGE_MODEL_ENABLED=false
 
 When set to `true`, `/api/erp-approval/cases/turn` asks the configured LLM to review the current submission through five bounded roles: turn classifier, evidence extractor, policy interpreter, contradiction reviewer, and reviewer memo drafter. Their outputs are aggregated into a proposed `CasePatch`. This is still not autonomous state mutation: `CasePatchValidator` enforces allowed intents, allowed patch types, source/claim requirements, and the no-ERP-write boundary.
 
+The local `backend/scripts/dev/start-dev.ps1` launcher enables `ERP_CASE_STAGE_MODEL_ENABLED=true` for the backend process by default unless you override the environment variable. Test and benchmark commands keep the model disabled unless explicitly configured, so validation stays deterministic.
+
 ```text
 ERP_CONNECTOR_PROVIDER=mock
 ERP_CONNECTOR_ENABLED=false

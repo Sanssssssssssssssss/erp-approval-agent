@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -10,9 +11,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from src.backend.domains.erp_approval.case_harness import CaseHarness, classify_case_turn
+from src.backend.domains.erp_approval.case_context import CaseContextAssembler
+from src.backend.domains.erp_approval.case_patch_validator import CasePatchValidator, contract_for_state
 from src.backend.domains.erp_approval.case_review_service import CaseReviewEvidenceInput
 from src.backend.domains.erp_approval.case_stage_model import CaseStageModelReviewer
-from src.backend.domains.erp_approval.case_state_models import CaseTurnRequest
+from src.backend.domains.erp_approval.case_state_models import ApprovalCaseState, CaseAcceptedEvidence, CasePatch, CaseTurnRequest
 from src.backend.domains.erp_approval.service import parse_approval_request
 
 
@@ -240,6 +243,171 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])
             self.assertIn("purchase_requisition:budget_availability", response.patch.model_review["requirements_missing"])
             self.assertIn("报价不能替代预算证明。", response.patch.warnings)
+
+    def test_expected_turn_count_conflict_does_not_write_case_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            harness = CaseHarness(Path(temp_dir))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-CONFLICT."))
+            response = harness.handle_turn(
+                CaseTurnRequest(
+                    case_id=first.case_state.case_id,
+                    expected_turn_count=99,
+                    user_message="Here is quote evidence.",
+                    extra_evidence=[
+                        CaseReviewEvidenceInput(
+                            title="Quote",
+                            record_type="quote",
+                            content="Quote Q-CONFLICT from Acme Supplies for USD 24,500.",
+                        )
+                    ],
+                )
+            )
+
+            self.assertEqual(response.operation_scope, "persistent_case_turn_conflict")
+            self.assertFalse(response.patch.allowed_to_apply)
+            self.assertEqual(response.case_state.turn_count, first.case_state.turn_count)
+            self.assertEqual(len(response.case_state.accepted_evidence), 0)
+
+    def test_parallel_case_turns_are_serialized_without_losing_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            harness = CaseHarness(Path(temp_dir))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-PARALLEL."))
+
+            def submit(index: int):
+                return harness.handle_turn(
+                    CaseTurnRequest(
+                        case_id=first.case_state.case_id,
+                        user_message=f"Here is quote evidence {index}.",
+                        extra_evidence=[
+                            CaseReviewEvidenceInput(
+                                title=f"Quote {index}",
+                                record_type="quote",
+                                source_id=f"local_evidence://quote/pr-parallel/q{index}",
+                                content=f"Quote Q-PARALLEL-{index} from Acme Supplies for USD {24500 + index}. Price basis: replacement laptops.",
+                            )
+                        ],
+                    )
+                )
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                list(pool.map(submit, [1, 2]))
+            state = harness.get_case(first.case_state.case_id)
+
+            self.assertIsNotNone(state)
+            self.assertEqual(state.turn_count, 3)
+            self.assertGreaterEqual(len(state.accepted_evidence), 2)
+
+    def test_validator_rejects_claim_source_mismatch(self) -> None:
+        state = ApprovalCaseState(case_id="erp-case:validator", stage="collecting_evidence")
+        contract = contract_for_state(state)
+        patch = CasePatch(
+            patch_id="patch-1",
+            turn_id="turn-0001",
+            case_id=state.case_id,
+            patch_type="accept_evidence",
+            turn_intent="submit_evidence",
+            evidence_decision="accepted",
+            accepted_evidence=[
+                CaseAcceptedEvidence(
+                    source_id="local_evidence://quote/a",
+                    claim_ids=["claim-1"],
+                    requirement_ids=["purchase_requisition:quote_or_price_basis"],
+                )
+            ],
+        )
+        review = {
+            "evidence_requirements": [{"requirement_id": "purchase_requisition:quote_or_price_basis"}],
+            "evidence_claims": [
+                {
+                    "claim_id": "claim-1",
+                    "source_id": "local_evidence://quote/b",
+                    "verification_status": "supported",
+                    "supports_requirement_ids": ["purchase_requisition:quote_or_price_basis"],
+                }
+            ],
+        }
+
+        validated = CasePatchValidator().validate(state, patch, contract, review=review)
+
+        self.assertFalse(validated.allowed_to_apply)
+        self.assertTrue(any("source_id does not match" in warning for warning in validated.warnings))
+
+    def test_validator_allows_requirements_supported_across_same_source_claims(self) -> None:
+        state = ApprovalCaseState(case_id="erp-case:validator-ok", stage="collecting_evidence")
+        contract = contract_for_state(state)
+        patch = CasePatch(
+            patch_id="patch-2",
+            turn_id="turn-0001",
+            case_id=state.case_id,
+            patch_type="accept_evidence",
+            turn_intent="submit_evidence",
+            evidence_decision="accepted",
+            accepted_evidence=[
+                CaseAcceptedEvidence(
+                    source_id="local_evidence://vendor/a",
+                    record_type="vendor",
+                    claim_ids=["claim-vendor", "claim-tax"],
+                    requirement_ids=["supplier_onboarding:vendor_profile", "supplier_onboarding:tax_info"],
+                )
+            ],
+        )
+        review = {
+            "evidence_requirements": [
+                {"requirement_id": "supplier_onboarding:vendor_profile"},
+                {"requirement_id": "supplier_onboarding:tax_info"},
+            ],
+            "evidence_claims": [
+                {
+                    "claim_id": "claim-vendor",
+                    "source_id": "local_evidence://vendor/a",
+                    "verification_status": "supported",
+                    "supports_requirement_ids": ["supplier_onboarding:vendor_profile"],
+                },
+                {
+                    "claim_id": "claim-tax",
+                    "source_id": "local_evidence://vendor/a",
+                    "verification_status": "supported",
+                    "supports_requirement_ids": ["supplier_onboarding:tax_info"],
+                },
+            ],
+        }
+
+        validated = CasePatchValidator().validate(state, patch, contract, review=review)
+
+        self.assertTrue(validated.allowed_to_apply)
+
+    def test_case_context_prioritizes_relevant_missing_requirements(self) -> None:
+        state = ApprovalCaseState(
+            case_id="erp-case:context",
+            stage="collecting_evidence",
+            evidence_requirements=[
+                {"requirement_id": f"purchase_requisition:req_{index}", "label": f"Requirement {index}", "status": "satisfied"}
+                for index in range(35)
+            ]
+            + [
+                {
+                    "requirement_id": "purchase_requisition:budget_availability",
+                    "label": "Budget availability",
+                    "description": "Budget proof is missing.",
+                    "status": "missing",
+                }
+            ],
+            claims=[
+                {
+                    "claim_id": f"claim-{index}",
+                    "claim_type": "misc",
+                    "source_id": f"source-{index}",
+                    "supports_requirement_ids": [f"purchase_requisition:req_{index}"],
+                }
+                for index in range(35)
+            ],
+            missing_items=["purchase_requisition:budget_availability"],
+        )
+        context = CaseContextAssembler().assemble(state, contract_for_state(state), "Here is the budget record.")
+        requirement_ids = [item["requirement_id"] for item in context["current_relevant_requirements"]]
+
+        self.assertIn("purchase_requisition:budget_availability", requirement_ids)
+        self.assertLessEqual(len(context["evidence_ledger_summary"]["accepted_claims"]), 24)
 
     def test_intent_classifier_treats_evidence_submission_as_case_patch(self) -> None:
         self.assertEqual(classify_case_turn("Here is the invoice and PO evidence.", has_case=True, has_evidence=False), "submit_evidence")

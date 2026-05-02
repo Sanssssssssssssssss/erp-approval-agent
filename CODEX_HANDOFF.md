@@ -25,6 +25,10 @@ The local CaseHarness API is `POST /api/erp-approval/cases/turn`. It is now wrap
 
 Optional live-model case review is available behind `ERP_CASE_STAGE_MODEL_ENABLED=true`. When enabled, CaseHarness asks the configured chat model to run five bounded roles for the current turn: `turn_classifier`, `evidence_extractor`, `policy_interpreter`, `contradiction_reviewer`, and `reviewer_memo`. The aggregated output becomes a proposed JSON `CasePatch`. The model is allowed to judge evidence quality, reject weak material, interpret policy gaps, challenge contradictions, add Chinese reviewer notes, and ask follow-up questions. It is not allowed to write state directly. The deterministic `CasePatchValidator` and evidence/claim gates still decide whether anything is persisted.
 
+Local product runs launched through `backend/scripts/dev/start-dev.ps1` enable `ERP_CASE_STAGE_MODEL_ENABLED=true` by default unless explicitly overridden. Tests and benchmark scripts should keep the stage model disabled unless they are intentionally evaluating live model behavior.
+
+Case state writes must remain serialized and atomic. `CaseMemoryStore` provides per-case locks and atomic local file replacement; `CaseTurnRequest.expected_turn_count` is available for stale-window conflict detection. Do not reintroduce direct JSON writes or bypass these guards.
+
 ## First Read
 
 - [README.md](README.md)

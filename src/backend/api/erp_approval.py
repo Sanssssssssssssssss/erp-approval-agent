@@ -160,7 +160,11 @@ def _event_summary(event) -> dict:
 async def review_erp_approval_case(request: CaseReviewRequest) -> dict:
     if not request.user_message.strip():
         raise HTTPException(status_code=400, detail="user_message is required")
-    return run_local_case_review(request, base_dir=_case_review_base_dir()).model_dump()
+    payload = run_local_case_review(request, base_dir=_case_review_base_dir()).model_dump()
+    payload["operation_scope"] = "temporary_case_review_preview"
+    payload["persistence"] = "does_not_write_case_state"
+    payload["non_action_statement"] = payload.get("non_action_statement") or "No ERP write action was executed."
+    return payload
 
 
 @router.post("/erp-approval/cases/turn")
@@ -182,6 +186,8 @@ async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
     if executor.response is None:
         raise HTTPException(status_code=500, detail="ERP approval case turn did not produce a response")
     payload = executor.response.model_dump()
+    payload["operation_scope"] = "persistent_case_turn"
+    payload["persistence"] = "writes_local_case_state_dossier_and_audit_log_only"
     payload["harness_run"] = {
         "run_id": events[0].run_id if events else "",
         "orchestration_engine": "case_harness",

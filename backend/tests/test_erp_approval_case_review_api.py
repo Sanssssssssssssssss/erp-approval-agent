@@ -44,6 +44,8 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
         self.assertIn("evidence_claims", payload)
         self.assertIn("control_matrix", payload)
         self.assertIn("reviewer_memo", payload)
+        self.assertEqual(payload["operation_scope"], "temporary_case_review_preview")
+        self.assertEqual(payload["persistence"], "does_not_write_case_state")
         self.assertIn("No ERP write action was executed", payload["reviewer_memo"])
         self.assertNotEqual(payload["recommendation"]["status"], "recommend_approve")
 
@@ -134,6 +136,8 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
 
         self.assertEqual(create_response.status_code, 200)
         self.assertEqual(evidence_response.status_code, 200)
+        self.assertEqual(evidence_response.json()["operation_scope"], "persistent_case_turn")
+        self.assertEqual(evidence_response.json()["persistence"], "writes_local_case_state_dossier_and_audit_log_only")
         harness_run = evidence_response.json()["harness_run"]
         self.assertTrue(harness_run["run_id"])
         self.assertEqual(harness_run["orchestration_engine"], "case_harness")

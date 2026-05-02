@@ -242,6 +242,10 @@ function Open-FrontendInBrowser {
 Ensure-BackendEnvironment
 Ensure-FrontendEnvironment
 
+if (-not $env:ERP_CASE_STAGE_MODEL_ENABLED) {
+    $env:ERP_CASE_STAGE_MODEL_ENABLED = "true"
+}
+
 $frontendProcess = Get-ListeningProcessDetails -Port 3000
 $backendProcess = Get-ListeningProcessDetails -Port 8015
 
@@ -315,6 +319,7 @@ Write-Host "- Health: $healthUrl"
 Write-Host "- Backend status: $(Get-BackendStatusLabel -IsReady $backendReady)"
 Write-Host "- Frontend status: $(if ($frontendReady) { 'ready' } else { 'starting' })"
 Write-Host "- Startup mode: separate PowerShell windows launched from this VS Code terminal"
+Write-Host "- Case stage model: ERP_CASE_STAGE_MODEL_ENABLED=$env:ERP_CASE_STAGE_MODEL_ENABLED"
 Write-Host ""
 
 if (Test-Path $backendEnvFile) {

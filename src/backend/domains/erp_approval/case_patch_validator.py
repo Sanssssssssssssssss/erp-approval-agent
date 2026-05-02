@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from src.backend.domains.erp_approval.case_state_models import ApprovalCaseState, CasePatch, CaseTurnContract
 
 
@@ -24,7 +26,7 @@ EXECUTION_TERMS = (
 
 
 class CasePatchValidator:
-    def validate(self, state: ApprovalCaseState, patch: CasePatch, contract: CaseTurnContract) -> CasePatch:
+    def validate(self, state: ApprovalCaseState, patch: CasePatch, contract: CaseTurnContract, *, review: Any | None = None) -> CasePatch:
         warnings = list(patch.warnings)
         allowed = True
         if patch.turn_intent not in contract.allowed_intents:
@@ -42,6 +44,8 @@ class CasePatchValidator:
         ).lower()
         if any(term in text for term in EXECUTION_TERMS):
             warnings.append("patch text contains execution-like wording; retained as non-action review text only.")
+        claims_by_id = _claims_by_id(review)
+        requirement_ids = _requirement_ids(review)
         for evidence in patch.accepted_evidence:
             if not evidence.source_id:
                 allowed = False
@@ -49,7 +53,70 @@ class CasePatchValidator:
             if not evidence.claim_ids:
                 allowed = False
                 warnings.append(f"accepted evidence {evidence.source_id} has no supported claims.")
+            if evidence.record_type in {"local_note", "user_statement"}:
+                allowed = False
+                warnings.append(f"accepted evidence {evidence.source_id} is a user statement/local note and cannot satisfy blocking evidence.")
+            for requirement_id in evidence.requirement_ids:
+                if requirement_ids and requirement_id not in requirement_ids:
+                    allowed = False
+                    warnings.append(f"accepted evidence {evidence.source_id} references unknown requirement {requirement_id}.")
+            supported_requirements_for_evidence: set[str] = set()
+            for claim_id in evidence.claim_ids:
+                claim = claims_by_id.get(claim_id)
+                if claims_by_id and claim is None:
+                    allowed = False
+                    warnings.append(f"accepted evidence {evidence.source_id} references unknown claim {claim_id}.")
+                    continue
+                if claim is None:
+                    continue
+                if str(claim.get("source_id", "") or "") != evidence.source_id:
+                    allowed = False
+                    warnings.append(f"claim {claim_id} source_id does not match accepted evidence {evidence.source_id}.")
+                if str(claim.get("verification_status", "") or "") == "unsupported":
+                    allowed = False
+                    warnings.append(f"claim {claim_id} is unsupported and cannot satisfy accepted evidence.")
+                supported_requirements_for_evidence.update(str(item) for item in claim.get("supports_requirement_ids") or [])
+            missing_requirement_links = [
+                requirement_id
+                for requirement_id in evidence.requirement_ids
+                if requirement_id not in supported_requirements_for_evidence
+            ]
+            if missing_requirement_links:
+                allowed = False
+                warnings.append(
+                    f"accepted evidence {evidence.source_id} has no same-source claim support for requirements: {', '.join(missing_requirement_links)}."
+                )
         return patch.model_copy(update={"allowed_to_apply": allowed, "warnings": _unique(warnings)})
+
+
+def _claims_by_id(review: Any | None) -> dict[str, dict[str, Any]]:
+    if review is None:
+        return {}
+    claims = getattr(review, "evidence_claims", None)
+    if claims is None and isinstance(review, dict):
+        claims = review.get("evidence_claims")
+    output: dict[str, dict[str, Any]] = {}
+    for item in claims or []:
+        if isinstance(item, dict):
+            claim_id = str(item.get("claim_id", "") or "")
+            if claim_id:
+                output[claim_id] = item
+    return output
+
+
+def _requirement_ids(review: Any | None) -> set[str]:
+    if review is None:
+        return set()
+    requirements = getattr(review, "evidence_requirements", None)
+    if requirements is None and isinstance(review, dict):
+        requirements = review.get("evidence_requirements")
+    output: set[str] = set()
+    for item in requirements or []:
+        if isinstance(item, dict):
+            requirement_id = str(item.get("requirement_id", "") or "")
+            if requirement_id:
+                output.add(requirement_id)
+    return output
 
 
 def contract_for_state(state: ApprovalCaseState) -> CaseTurnContract:

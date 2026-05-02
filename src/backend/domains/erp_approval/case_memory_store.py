@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from src.backend.domains.erp_approval.case_state_models import (
     ApprovalCaseState,
@@ -19,9 +22,31 @@ def default_case_workspace_path(base_dir: Path | str) -> Path:
 
 
 class CaseMemoryStore:
+    _locks_guard = threading.Lock()
+    _case_locks: dict[str, threading.RLock] = {}
+
     def __init__(self, base_dir: Path | str) -> None:
         self.root = default_case_workspace_path(base_dir)
         self.root.mkdir(parents=True, exist_ok=True)
+
+    @contextmanager
+    def case_lock(self, case_id: str) -> Iterator[None]:
+        lock = self._lock_for(case_id)
+        lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
+
+    @classmethod
+    def _lock_for(cls, case_id: str) -> threading.RLock:
+        safe_id = _safe_case_id(case_id)
+        with cls._locks_guard:
+            lock = cls._case_locks.get(safe_id)
+            if lock is None:
+                lock = threading.RLock()
+                cls._case_locks[safe_id] = lock
+            return lock
 
     def case_dir(self, case_id: str) -> Path:
         safe_id = _safe_case_id(case_id)
@@ -41,7 +66,7 @@ class CaseMemoryStore:
 
     def upsert(self, state: ApprovalCaseState) -> ApprovalCaseState:
         path = self.case_dir(state.case_id) / "case_state.json"
-        path.write_text(json.dumps(state.model_dump(), ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+        _atomic_write_text(path, json.dumps(state.model_dump(), ensure_ascii=False, indent=2, sort_keys=True))
         return state
 
     def append_audit_event(self, event: CaseAuditEvent) -> None:
@@ -64,7 +89,7 @@ class CaseMemoryStore:
         return events[-limit:]
 
     def write_dossier(self, case_id: str, dossier: str) -> None:
-        self.case_dir(case_id).joinpath("dossier.md").write_text(dossier, encoding="utf-8")
+        _atomic_write_text(self.case_dir(case_id).joinpath("dossier.md"), dossier)
 
     def read_dossier(self, case_id: str) -> str:
         path = self.case_dir(case_id) / "dossier.md"
@@ -73,7 +98,7 @@ class CaseMemoryStore:
     def write_evidence_text(self, case_id: str, source_id: str, content: str) -> str:
         filename = _safe_case_id(source_id).replace("local_evidence-", "evidence-", 1) + ".md"
         path = self.case_dir(case_id) / "evidence" / filename
-        path.write_text(content.rstrip() + "\n", encoding="utf-8")
+        _atomic_write_text(path, content.rstrip() + "\n")
         return str(path)
 
     def list_recent(self, limit: int = 50) -> list[ApprovalCaseState]:
@@ -101,3 +126,10 @@ class CaseMemoryStore:
 def _safe_case_id(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(value or "unidentified").strip()).strip("-")
     return cleaned[:120] or "unidentified"
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp-{threading.get_ident()}")
+    tmp_path.write_text(content, encoding="utf-8")
+    tmp_path.replace(path)
