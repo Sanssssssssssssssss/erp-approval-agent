@@ -102,6 +102,13 @@ from src.backend.domains.erp_approval.case_review import (
     draft_recommendation_from_case,
     render_case_analysis,
 )
+from src.backend.domains.erp_approval.case_review_service import (
+    CASE_REVIEW_NON_ACTION_STATEMENT,
+    CaseReviewEvidenceInput,
+    CaseReviewRequest,
+    CaseReviewResponse,
+    run_local_case_review,
+)
 from src.backend.domains.erp_approval.trace_models import (
     ERP_TRACE_NON_ACTION_STATEMENT,
     ApprovalAnalyticsSummary,
@@ -203,6 +210,7 @@ __all__ = [
     "ACTION_PROPOSAL_NON_ACTION_STATEMENT",
     "ACTION_SIMULATION_NON_ACTION_STATEMENT",
     "CASE_ANALYSIS_NON_ACTION_STATEMENT",
+    "CASE_REVIEW_NON_ACTION_STATEMENT",
     "ERP_CONNECTOR_NON_ACTION_STATEMENT",
     "ERP_CONNECTOR_REPLAY_NON_ACTION_STATEMENT",
     "ApprovalActionProposal",
@@ -247,6 +255,9 @@ __all__ = [
     "ApprovalTraceWriteResult",
     "ApprovalTrendBucket",
     "ApprovalTrendSummary",
+    "CaseReviewEvidenceInput",
+    "CaseReviewRequest",
+    "CaseReviewResponse",
     "ApprovalType",
     "ContradictionReport",
     "ControlCheck",
@@ -348,6 +359,7 @@ __all__ = [
     "render_recommendation",
     "render_strict_audit_report",
     "render_simulation_preview",
+    "run_local_case_review",
     "run_completeness_checks",
     "summarize_audit_results",
     "summarize_traces",

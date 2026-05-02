@@ -36,6 +36,10 @@ from src.backend.domains.erp_approval import (
     replay_provider_fixture,
     validate_simulation_request,
 )
+from src.backend.domains.erp_approval.case_review_service import (
+    CaseReviewRequest,
+    run_local_case_review,
+)
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
 
@@ -90,6 +94,17 @@ def _connector_registry():
 
 def _connector_base_dir():
     return agent_manager.base_dir or get_settings().backend_dir
+
+
+def _case_review_base_dir():
+    return agent_manager.base_dir or get_settings().backend_dir
+
+
+@router.post("/erp-approval/case-review")
+async def review_erp_approval_case(request: CaseReviewRequest) -> dict:
+    if not request.user_message.strip():
+        raise HTTPException(status_code=400, detail="user_message is required")
+    return run_local_case_review(request, base_dir=_case_review_base_dir()).model_dump()
 
 
 @router.get("/erp-approval/connectors/config")

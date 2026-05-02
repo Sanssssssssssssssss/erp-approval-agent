@@ -40,6 +40,7 @@ $ErpTests = @(
   "backend.tests.test_erp_approval_control_matrix",
   "backend.tests.test_erp_approval_case_review",
   "backend.tests.test_erp_approval_case_graph",
+  "backend.tests.test_erp_approval_case_review_api",
   "backend.tests.test_erp_approval_strict_case_auditor",
   "backend.tests.test_erp_approval_evidence_case_audit_runner",
   "backend.tests.test_erp_approval_sample_evidence"
@@ -83,6 +84,7 @@ files = [
     "src/backend/domains/erp_approval/service.py",
     "src/backend/domains/erp_approval/control_matrix.py",
     "src/backend/domains/erp_approval/case_review.py",
+    "src/backend/domains/erp_approval/case_review_service.py",
     "src/backend/domains/erp_approval/strict_case_auditor.py",
     "src/backend/domains/erp_approval/__init__.py",
     "backend/benchmarks/generate_erp_approval_evidence_toy_cases.py",
@@ -100,6 +102,7 @@ files = [
     "backend/tests/test_erp_approval_control_matrix.py",
     "backend/tests/test_erp_approval_case_review.py",
     "backend/tests/test_erp_approval_case_graph.py",
+    "backend/tests/test_erp_approval_case_review_api.py",
     "backend/tests/test_erp_approval_strict_case_auditor.py",
     "backend/tests/test_erp_approval_evidence_case_audit_runner.py",
     "backend/tests/test_erp_approval_sample_evidence.py",

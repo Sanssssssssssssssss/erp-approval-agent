@@ -253,7 +253,7 @@ def render_case_analysis(
 ) -> str:
     guard = guard or ApprovalGuardResult()
     lines: list[str] = [
-        "## 案件概览 / Case overview",
+        "## 案件概览",
         "",
         f"- 案件：{case_file.case_id or '未识别'}",
         f"- 审批类型：{APPROVAL_TYPE_CN.get(case_file.approval_type, case_file.approval_type)}",
@@ -264,9 +264,9 @@ def render_case_analysis(
         f"- 供应商：{case_file.vendor or '缺失'}",
         f"- 成本中心：{case_file.cost_center or '缺失'}",
         "",
-        "一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。",
+        "一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。",
         "",
-        "## 必需证据清单 / Required evidence checklist",
+        "## 必需证据清单",
         "",
     ]
     for requirement in case_file.evidence_requirements:
@@ -290,7 +290,7 @@ def render_case_analysis(
             )
     else:
         lines.append("- 没有可用证据声明。")
-    lines.extend(["", "## 证据充分性 / Evidence sufficiency", ""])
+    lines.extend(["", "## 证据充分性", ""])
     suff = case_file.evidence_sufficiency
     if not suff.passed:
         lines.append("当前案件证据不足，不能形成通过建议。")
@@ -317,7 +317,7 @@ def render_case_analysis(
             lines.append(f"  - {item}")
     else:
         lines.append("- 未发现明确结构化冲突。")
-    lines.extend(["", "## 控制矩阵检查 / Control matrix checks", ""])
+    lines.extend(["", "## 控制矩阵检查", ""])
     if case_file.control_checks:
         for check in case_file.control_checks:
             lines.append(
@@ -350,7 +350,7 @@ def render_case_analysis(
             f"- challenged_control_ids：{', '.join(review.challenged_control_ids[:12]) if review.challenged_control_ids else '无'}",
         ]
     )
-    lines.extend(["", "## 审批建议 / Recommendation", ""])
+    lines.extend(["", "## 审批建议", ""])
     lines.extend(
         [
             f"- 当前建议：{STATUS_LABELS_CN.get(str(recommendation.status), str(recommendation.status))}",
@@ -378,7 +378,7 @@ def render_case_analysis(
     lines.extend(
         [
             "",
-            "## 非执行边界 / Non-action boundary",
+            "## 非执行边界",
             "",
             "- No ERP write action was executed.",
             "- 未执行任何 ERP 通过、驳回、付款、供应商、合同或预算写入动作。",

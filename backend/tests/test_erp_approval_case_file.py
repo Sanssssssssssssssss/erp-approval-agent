@@ -38,8 +38,8 @@ class ErpApprovalCaseFileTests(unittest.TestCase):
 
         rendered = render_case_analysis(case_file, recommendation, ApprovalGuardResult())
 
-        self.assertIn("Required evidence checklist", rendered)
-        self.assertIn("Control matrix checks", rendered)
+        self.assertIn("必需证据清单", rendered)
+        self.assertIn("控制矩阵检查", rendered)
         self.assertIn("No ERP write action was executed", rendered)
 
 

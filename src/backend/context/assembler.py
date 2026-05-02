@@ -560,7 +560,12 @@ class ContextAssembler:
         if path_kind == "knowledge_qa":
             return "[Context policy]\nPrefer retrieval evidence first, then governed semantic memory. Do not inject retrieval-only memory or unsupported codebase facts."
         if path_kind == "erp_approval":
-            return "[Context policy]\nThis is an ERP approval reasoning path. Prefer approval request details, ERP/policy context, missing-information checks, and human-review boundaries. Do not execute irreversible approval actions."
+            return (
+                "[Context policy]\n"
+                "This is an evidence-first ERP approval case path. Treat the user message as case intake only. "
+                "Prefer approval request details, ERP/policy/attachment evidence, evidence sufficiency, control checks, contradictions, and human-review boundaries. "
+                "Do not turn a one-sentence request into recommend_approve. Do not execute irreversible approval actions."
+            )
         if path_kind == "capability_path":
             return "[Context policy]\nPrefer active constraints, approved workflow rules, and grounded capability outputs. Exclude raw audit, raw trace, and noisy tool output."
         if path_kind == "resumed_hitl":

@@ -212,7 +212,8 @@ def render_report(results: list[dict[str, Any]]) -> str:
         if risks:
             lines.append("- Risk flags:")
             lines.extend(f"  - {value}" for value in risks[:8])
-        lines.extend(["", "Final answer preview:", "", "```markdown", item["final_answer_preview"], "```", ""])
+        preview = "\n".join(line.rstrip() for line in str(item["final_answer_preview"]).splitlines())
+        lines.extend(["", "Final answer preview:", "", "```markdown", preview, "```", ""])
     lines.extend(
         [
             "## Non-action Boundary",

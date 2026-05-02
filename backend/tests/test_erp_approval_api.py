@@ -109,7 +109,9 @@ class ErpApprovalApiTests(unittest.TestCase):
                 self.assertFalse(methods.intersection({"PUT", "PATCH", "DELETE"}))
                 if "POST" in methods:
                     self.assertTrue(
-                        "/audit-packages" in getattr(route, "path", "") or getattr(route, "path", "") == "/api/erp-approval/action-simulations"
+                        "/audit-packages" in getattr(route, "path", "")
+                        or getattr(route, "path", "") == "/api/erp-approval/action-simulations"
+                        or getattr(route, "path", "") == "/api/erp-approval/case-review"
                     )
                 self.assertNotIn("execute", getattr(route, "path", "").lower())
 

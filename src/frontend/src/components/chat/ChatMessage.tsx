@@ -44,6 +44,125 @@ function StreamingThinking() {
   );
 }
 
+function lineValue(content: string, labels: string[]) {
+  const line = content
+    .split(/\r?\n/)
+    .find((item) => labels.some((label) => item.includes(label)));
+  if (!line) return "";
+  const cleaned = line.replace(/^[-*\s]+/, "");
+  const parts = cleaned.split(/[：:]/);
+  return parts.length > 1 ? parts.slice(1).join("：").trim() : cleaned.trim();
+}
+
+function collectBulletsAfter(content: string, anchor: string, limit = 4) {
+  const lines = content.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.includes(anchor));
+  if (start < 0) return [];
+  const bullets: string[] = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line.startsWith("## ")) break;
+    const match = line.match(/^\s*-\s+(.+)/);
+    if (match?.[1]) {
+      bullets.push(match[1].trim());
+    } else if (bullets.length && line.trim() && !line.startsWith(" ")) {
+      break;
+    }
+    if (bullets.length >= limit) break;
+  }
+  return bullets;
+}
+
+function extractEvidenceLinks(content: string) {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => line.includes("证据位置"))
+    .map((line) => line.replace(/^[-*\s]+/, "").replace(/^证据位置[：:]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function isApprovalCaseAnswer(content: string) {
+  return (
+    /Case overview|Required evidence checklist|Control matrix checks|审批建议|证据充分性/.test(content) &&
+    /No ERP write action was executed|未执行任何 ERP/.test(content)
+  );
+}
+
+function ApprovalAnswerSummary({ content }: { content: string }) {
+  if (!isApprovalCaseAnswer(content)) return null;
+
+  const approvalId = lineValue(content, ["审批单号", "审批单"]);
+  const approvalType = lineValue(content, ["审批类型"]);
+  const recommendation = lineValue(content, ["当前建议"]) || "未识别";
+  const nextAction = lineValue(content, ["下一步"]) || "人工复核";
+  const sufficiencyPassed = lineValue(content, ["passed"]) || "false";
+  const completeness = lineValue(content, ["completeness_score"]) || "0.00";
+  const gaps = collectBulletsAfter(content, "blocking gaps", 4);
+  const questions = collectBulletsAfter(content, "建议补证问题", 3);
+  const links = extractEvidenceLinks(content);
+  const evidenceEnough = sufficiencyPassed.toLowerCase().includes("true");
+  const approveLike = recommendation.includes("通过");
+
+  return (
+    <aside className="approval-answer-summary">
+      <div className="approval-answer-head">
+        <div>
+          <p className="pixel-label">审批案件速览</p>
+          <h3>{recommendation}</h3>
+        </div>
+        <span className={approveLike ? "approval-status approval-status-ok" : "approval-status approval-status-warn"}>
+          {nextAction}
+        </span>
+      </div>
+
+      <div className="approval-summary-grid">
+        <div>
+          <p>审批单</p>
+          <strong>{approvalType || "未知类型"} / {approvalId || "未识别"}</strong>
+        </div>
+        <div>
+          <p>证据充分性</p>
+          <strong>{evidenceEnough ? "通过" : "不足"}</strong>
+          <span>完整度 {completeness}</span>
+        </div>
+        <div>
+          <p>缺口</p>
+          <strong>{gaps.length ? `${gaps.length} 项阻断` : "无阻断缺口"}</strong>
+          <span>{questions.length ? "已生成补证问题" : "无补证问题"}</span>
+        </div>
+        <div>
+          <p>边界</p>
+          <strong>不执行 ERP</strong>
+          <span>只形成本地审查建议</span>
+        </div>
+      </div>
+
+      {gaps.length ? (
+        <div className="approval-summary-block">
+          <p className="pixel-label">关键阻断缺口</p>
+          <ul>
+            {gaps.map((gap) => (
+              <li key={gap}>{gap}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {links.length ? (
+        <div className="approval-summary-block">
+          <p className="pixel-label">证据材料</p>
+          <div className="approval-evidence-links">
+            {links.map((link) => (
+              <code key={link}>{link}</code>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
 /**
  * Returns one rendered chat message from role, content, and usage inputs and keeps the main chat lightweight.
  */
@@ -141,9 +260,12 @@ export const ChatMessage = memo(function ChatMessage({
               ? <StreamingThinking />
               : "")
         ) : (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {content || (runMeta?.status === "interrupted" ? "执行前需要人工复核。" : "思考中...")}
-          </ReactMarkdown>
+          <>
+            <ApprovalAnswerSummary content={content} />
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content || (runMeta?.status === "interrupted" ? "执行前需要人工复核。" : "思考中...")}
+            </ReactMarkdown>
+          </>
         )}
       </div>
       {!isUser && usage && (

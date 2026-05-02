@@ -71,6 +71,8 @@ Completed:
 - local sample evidence pack for visible approval materials at `knowledge/ERP Approval/sample_evidence`, including fictional approval forms, invoice, PO, GRN, receipt, quote, budget, vendor, and policy excerpts.
 - manual real-path smoke report at `reports/evaluations/manual_agent_smoke_latest.md`; it verifies one-sentence prompts do not pass, PR-1001 remains blocked without quote evidence, and complete PR/expense/invoice samples display local evidence links before any recommendation.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
+- frontend default `Case Review` workspace for evidence-first approval case review: case overview, required evidence checklist, evidence claims, evidence sufficiency, control matrix, contradictions, and reviewer memo.
+- local `POST /api/erp-approval/case-review` API for deterministic evidence-case review with optional local text evidence; it does not call real ERP, execute actions, or enter `capability_invoke`.
 - frontend copy for ERP recommendation review where approve means accepting the agent recommendation only; no real action buttons are introduced.
 
 Still not implemented:

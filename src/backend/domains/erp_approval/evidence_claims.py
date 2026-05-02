@@ -224,7 +224,7 @@ def detect_contradictions(claims: list[EvidenceClaim]) -> ContradictionReport:
         has_conflict=bool(conflicts),
         conflict_items=conflicts,
         severity="high" if conflicts else "low",
-        explanation="Conflicting structured evidence fields require human review." if conflicts else "No obvious structured evidence conflict was detected.",
+        explanation="结构化证据存在冲突，需要人工复核。" if conflicts else "未发现明显的结构化证据冲突。",
     )
 
 

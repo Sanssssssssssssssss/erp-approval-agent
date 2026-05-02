@@ -2094,6 +2094,102 @@ class HarnessLangGraphOrchestrator:
             "erp_adversarial_review": self._model_dump(case_file.adversarial_review),
         }
 
+    def _erp_case_review_payload(
+        self,
+        state: GraphState,
+        request: ApprovalRequest,
+        context: ApprovalContextBundle,
+    ) -> dict[str, Any]:
+        case_file = complete_case_analysis(self._erp_case_file_from_state(state, request=request, context=context))
+        control_matrix = evaluate_control_matrix(case_file)
+
+        requirements = []
+        for requirement in case_file.evidence_requirements[:30]:
+            requirements.append(
+                {
+                    "requirement_id": requirement.requirement_id,
+                    "label": requirement.label,
+                    "status": requirement.status,
+                    "blocking": requirement.blocking,
+                    "required_level": requirement.required_level,
+                    "satisfied_by_claim_ids": list(requirement.satisfied_by_claim_ids[:8]),
+                    "expected_record_types": list(requirement.expected_record_types[:8]),
+                }
+            )
+
+        artifacts = []
+        for artifact in case_file.evidence_artifacts[:24]:
+            metadata = dict(artifact.metadata or {})
+            evidence_links: list[str] = []
+            for key in (
+                "evidence_files",
+                "purchase_link",
+                "invoice_link",
+                "po_link",
+                "grn_link",
+                "receipt_link",
+                "policy_link",
+                "attachment_path",
+            ):
+                value = metadata.get(key)
+                if isinstance(value, list):
+                    evidence_links.extend(str(item) for item in value if item)
+                elif value:
+                    evidence_links.append(str(value))
+            artifacts.append(
+                {
+                    "artifact_id": artifact.artifact_id,
+                    "artifact_type": artifact.artifact_type,
+                    "source_id": artifact.source_id,
+                    "title": artifact.title,
+                    "record_type": artifact.record_type,
+                    "content_preview": str(artifact.content or "")[:260],
+                    "evidence_links": evidence_links[:8],
+                }
+            )
+
+        return {
+            "case_id": case_file.case_id,
+            "approval_type": case_file.approval_type,
+            "approval_id": case_file.approval_id,
+            "evidence_sufficiency": self._model_dump(case_file.evidence_sufficiency),
+            "required_evidence": requirements,
+            "evidence_artifacts": artifacts,
+            "evidence_claims": [
+                {
+                    "claim_id": claim.claim_id,
+                    "claim_type": claim.claim_type,
+                    "statement": claim.statement,
+                    "source_id": claim.source_id,
+                    "verification_status": claim.verification_status,
+                    "supports_requirement_ids": list(claim.supports_requirement_ids[:8]),
+                }
+                for claim in case_file.evidence_claims[:24]
+            ],
+            "contradictions": self._model_dump(case_file.contradictions),
+            "control_matrix": {
+                "passed": control_matrix.passed,
+                "high_risk": control_matrix.high_risk,
+                "failed_check_ids": list(control_matrix.failed_check_ids),
+                "missing_check_ids": list(control_matrix.missing_check_ids),
+                "conflict_check_ids": list(control_matrix.conflict_check_ids),
+                "blocking_reasons": list(control_matrix.blocking_reasons[:12]),
+                "checks": [
+                    {
+                        "check_id": check.check_id,
+                        "label": check.label,
+                        "status": check.status,
+                        "severity": check.severity,
+                        "explanation": check.explanation,
+                    }
+                    for check in control_matrix.checks[:30]
+                ],
+            },
+            "risk_assessment": self._model_dump(case_file.risk_assessment),
+            "adversarial_review": self._model_dump(case_file.adversarial_review),
+            "non_action_statement": case_file.non_action_statement,
+        }
+
     def _erp_action_proposals_from_state(
         self,
         state: GraphState,
@@ -2190,6 +2286,7 @@ class HarnessLangGraphOrchestrator:
         guard: ApprovalGuardResult,
     ) -> dict[str, Any]:
         context_source_ids = [record.source_id for record in context.records]
+        case_review_payload = self._erp_case_review_payload(state, request, context)
         return {
             "run_id": state["run_id"],
             "thread_id": state.get("thread_id", ""),
@@ -2206,6 +2303,7 @@ class HarnessLangGraphOrchestrator:
                 "review_type": "erp_recommendation_review",
                 "approval_request": self._model_dump(request),
                 "context_source_ids": context_source_ids,
+                "case_evidence_summary": case_review_payload,
                 "recommendation": self._model_dump(recommendation),
                 "guard_result": self._model_dump(guard),
                 "explicit_non_action_statement": ERP_RECOMMENDATION_REVIEW_NON_ACTION,

@@ -35,6 +35,8 @@ Evidence-first behavior:
 - deterministic evidence sufficiency and control-matrix checks run before recommendation drafting.
 - adversarial review downgrades unsupported or over-strong recommendations.
 - final answers render required evidence, evidence claims, sufficiency, contradictions, control checks, risk, adversarial review, recommendation, and the non-action boundary.
+- default frontend experience is now `Case Review`, not chat: users submit a case, add local text evidence, rerun review, and inspect required evidence, claims, sufficiency, control matrix, contradictions, recommendation, and reviewer memo.
+- local `POST /api/erp-approval/case-review` runs the same evidence-first pipeline without live ERP, action execution, `approval.*` events, or `capability_invoke`.
 
 ## Active Product Direction
 

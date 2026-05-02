@@ -1,11 +1,11 @@
 "use client";
 
+import { ClipboardCheck, FileSearch, ListChecks, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { HitlRecommendationReviewCard } from "@/components/chat/HitlRecommendationReviewCard";
 import { VirtualizedStack } from "@/components/chat/VirtualizedStack";
-import { PixelGhostFriend } from "@/components/icons/PixelGhostFriend";
 import { useChatStore, useSessionStore } from "@/lib/store";
 
 const AUTO_SCROLL_THRESHOLD = 72;
@@ -20,6 +20,19 @@ type ChatRow = {
   message: ReturnType<typeof useChatStore>["messages"][number];
   streaming: boolean;
 };
+
+const WELCOME_STEPS = [
+  { icon: FileSearch, title: "取证", description: "审批单、发票、PO、GRN、预算、供应商和政策材料" },
+  { icon: ListChecks, title: "校验", description: "必需证据、阻断缺口、冲突和控制矩阵" },
+  { icon: ClipboardCheck, title: "建议", description: "只生成本地审批建议和下一步草案" },
+  { icon: ShieldCheck, title: "复核", description: "HITL 只接受/修改建议，不执行 ERP 写入" }
+];
+
+const WELCOME_SAMPLE_PROMPTS = [
+  "请审核采购申请 PR-1001，申请部门 Operations，金额 24500 USD，供应商 Acme Supplies。",
+  "请审查发票付款 INV-3001，重点看 PO、GRN、Invoice 三单匹配。",
+  "只有一句话：帮我直接通过这个采购申请。"
+];
 
 function prettyJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2);
@@ -355,42 +368,44 @@ export function ChatPanel() {
         {!renderableMessages.length ? (
           <div className="chat-scroll-area flex-1 overflow-y-auto pr-2" ref={scrollRef}>
             <div className="cli-welcome px-6 py-7">
-              <div className="cli-welcome-bar">ERP Approval Agent // local-first workbench</div>
+              <div className="cli-welcome-bar">ERP Approval Agent // 证据先行工作台</div>
               <div className="cli-welcome-grid mt-8">
                 <section className="cli-welcome-main">
-                  <h3 className="pixel-title text-[2.3rem] text-[var(--color-ink)]">
+                  <h3 className="pixel-title text-[2rem] text-[var(--color-ink)]">
                     {isInitializing
                       ? "正在启动工作台"
                       : isSessionLoading
                         ? "正在切换审批线程"
-                        : "带证据审查 ERP 审批"}
+                        : "先建审批案件，再审证据链"}
                   </h3>
-                  <div className="cli-emoji-wrap mt-8">
-                    <div className="cli-emoji">
-                      <PixelGhostFriend className="h-full w-full" />
-                    </div>
+                  <p className="mt-4 max-w-[720px] text-[1rem] leading-8 text-[var(--color-ink-soft)]">
+                    一句话不会直接给“通过”。系统会先识别审批单，再检查 ERP 记录、政策、附件和控制矩阵；
+                    证据不足时只会要求补证或升级人工复核。
+                  </p>
+                  <div className="approval-workbench-steps mt-6">
+                    {WELCOME_STEPS.map(({ icon: Icon, title, description }) => (
+                      <div className="approval-workbench-step" key={title}>
+                        <Icon size={18} />
+                        <strong>{title}</strong>
+                        <span>{description}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="mt-8 text-center">
-                    <p className="mono text-[1rem] text-[var(--color-ink-soft)]">
-                      LLM-first 审批推理 / 政策检索 / Audit Trace
-                    </p>
-                    <p className="mono mt-2 text-[1rem] text-[var(--color-ink)]">
-                      只生成审批建议 / 不执行 ERP 写动作 / HITL 先行
-                    </p>
-                    <p className="mt-4 text-sm text-[var(--color-ink-muted)]">
-                      <a className="underline underline-offset-4" href="https://pxlkit.xyz" rel="noreferrer" target="_blank">
-                        Icons by Pxlkit
-                      </a>
-                    </p>
+                  <div className="mt-6 grid gap-3 text-left md:grid-cols-3">
+                    {WELCOME_SAMPLE_PROMPTS.map((sample) => (
+                      <div className="approval-sample-prompt" key={sample}>
+                        {sample}
+                      </div>
+                    ))}
                   </div>
                 </section>
 
                 <section className="cli-welcome-side">
                   <div>
-                    <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">使用提示</h4>
+                    <h4 className="pixel-title text-[1rem] text-[var(--color-ink)]">工作台规则</h4>
                     <div className="mono mt-4 space-y-3 text-[1rem] leading-8 text-[var(--color-ink-soft)]">
-                      <p>Audit Trace 里可以单独看检索、workflow tools、checkpoint 和 HITL 事件。</p>
-                      <p>Workflow tools 里可以打开文件、切换运行设置、管理审批会话。</p>
+                      <p>证据材料可在“证据”页查看；审计轨迹可在“审计轨迹”页查看。</p>
+                      <p>人工复核按钮只影响 Agent 建议回执，不会执行 ERP 通过、驳回或付款。</p>
                       <p>Ctrl/Cmd + Enter 发送。主页面只滚动审批助理区域。</p>
                     </div>
                   </div>

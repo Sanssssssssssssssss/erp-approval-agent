@@ -146,8 +146,8 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(state["answer_finalized"])
         self.assertEqual(state["erp_review_status"], "accepted_by_human")
-        self.assertIn("Required evidence checklist", state["final_answer"])
-        self.assertIn("Control matrix checks", state["final_answer"])
+        self.assertIn("必需证据清单", state["final_answer"])
+        self.assertIn("控制矩阵检查", state["final_answer"])
         self.assertIn("No ERP write action was executed", state["final_answer"])
         self.assertTrue(state["erp_trace_write_result"]["success"])
         self.assertEqual(len(state["erp_proposal_write_results"]), 1)
@@ -192,7 +192,7 @@ class ErpApprovalGraphSmokeTests(unittest.IsolatedAsyncioTestCase):
             state.update(await node(state))
 
         self.assertTrue(state["answer_finalized"])
-        self.assertIn("Required evidence checklist", state["final_answer"])
+        self.assertIn("必需证据清单", state["final_answer"])
         self.assertIsNone(state["erp_trace_write_result"])
         self.assertEqual(emitted_answers, [state["final_answer"]])
 

@@ -383,6 +383,46 @@ export type ErpConnectorReplayCoverageSummary = {
   non_action_statement: string;
 };
 
+export type ErpApprovalCaseReviewEvidenceInput = {
+  title?: string;
+  record_type?: string;
+  content: string;
+  source_id?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type ErpApprovalCaseReviewRequest = {
+  user_message: string;
+  approval_type?: string;
+  approval_id?: string;
+  requester?: string;
+  department?: string;
+  amount?: number | null;
+  currency?: string;
+  vendor?: string;
+  cost_center?: string;
+  business_purpose?: string;
+  extra_evidence?: ErpApprovalCaseReviewEvidenceInput[];
+};
+
+export type ErpApprovalCaseReviewResponse = {
+  approval_request: Record<string, unknown>;
+  context: { request_id?: string; records?: Array<Record<string, unknown>> };
+  case_file: Record<string, unknown>;
+  evidence_requirements: Array<Record<string, unknown>>;
+  evidence_artifacts: Array<Record<string, unknown>>;
+  evidence_claims: Array<Record<string, unknown>>;
+  evidence_sufficiency: Record<string, unknown>;
+  contradictions: Record<string, unknown>;
+  control_matrix: Record<string, unknown>;
+  risk_assessment: Record<string, unknown>;
+  adversarial_review: Record<string, unknown>;
+  recommendation: Record<string, unknown>;
+  guard_result: Record<string, unknown>;
+  reviewer_memo: string;
+  non_action_statement: string;
+};
+
 export type McpCapabilitySummary = {
   capability_id: string;
   capability_type: string;
@@ -1031,6 +1071,13 @@ export async function listErpApprovalProposalSimulations(proposalRecordId: strin
 
 export async function getErpApprovalConnectorConfig() {
   return request<ErpConnectorConfigResponse>("/erp-approval/connectors/config");
+}
+
+export async function reviewErpApprovalCase(payload: ErpApprovalCaseReviewRequest) {
+  return request<ErpApprovalCaseReviewResponse>("/erp-approval/case-review", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function getErpApprovalConnectorHealth() {

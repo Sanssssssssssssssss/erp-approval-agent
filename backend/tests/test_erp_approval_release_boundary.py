@@ -32,6 +32,7 @@ class ErpApprovalReleaseBoundaryTests(unittest.TestCase):
         app = FastAPI()
         app.include_router(erp_approval_api.router, prefix="/api")
         allowed_local_post_paths = {
+            "/api/erp-approval/case-review",
             "/api/erp-approval/action-simulations",
             "/api/erp-approval/audit-packages",
             "/api/erp-approval/audit-packages/{package_id}/notes",

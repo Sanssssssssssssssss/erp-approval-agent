@@ -42,7 +42,7 @@
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:unidentified
 - 审批类型：采购申请
@@ -53,9 +53,9 @@ Final answer preview:
 - 供应商：缺失
 - 成本中心：缺失
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [MISSING] `purchase_requisition:approval_request` 审批请求记录 (required, blocking)
 - [OK] `purchase_requisition:policy` 政策依据 (required, blocking)
@@ -92,7 +92,7 @@ Final answer preview:
 - `claim:procurement-policy-present-mock-policy-approval-matrix` procurement_policy_present: Procurement policy evidence exists. [source: mock_policy://approval_matrix, status: supported]
 - `claim:supplier-onboarding-policy-present-mock-policy-approval-matrix` supplier_onboarding_policy_present: Supplier onboarding policy evidence exists. [source: mock_policy://approval_matrix, status: supported]
 - `claim:legal-policy-present-mock-policy-approval-matrix` legal_policy_present: Legal policy evidence exists. [source: mock_policy://approval_matrix, status: supported]
-- `claim:approval-matrix-present
+- `claim:approval-matrix-present-mock-policy-approval-matrix` approval_matrix_present: Appro
 ```
 
 ### manual-002 - PR-1001 有审批单和预算/供应商证据，但缺报价
@@ -122,7 +122,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:PR-1001
 - 审批类型：采购申请
@@ -133,9 +133,9 @@ Final answer preview:
 - 供应商：Acme Supplies
 - 成本中心：OPS-CC-10
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `purchase_requisition:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-pr-1001
@@ -173,7 +173,8 @@ Final answer preview:
 - `vendor` Vendor Acme Supplies — source_id: `mock_erp://vendor/acme-supplies`
   - 证据位置：knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1001_vendor.md
 - `budget` Budget OPS-CC-10 — source_id: `mock_erp://budget/OPS-CC-10`
-  - 证据位置：knowledge/ERP Approval/s
+  - 证据位置：knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1001_budget.md
+- `po
 ```
 
 ### manual-003 - PR-1002 有完整采购证据链
@@ -194,7 +195,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:PR-1002
 - 审批类型：采购申请
@@ -205,9 +206,9 @@ Final answer preview:
 - 供应商：Contoso Office Supply
 - 成本中心：IT-CC-20
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `purchase_requisition:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-pr-1002
@@ -245,7 +246,8 @@ Final answer preview:
   - 证据位置：local://knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1002_request.md
   - 证据位置：knowledge/ERP Approval/sample_evidence/purchase_requisitions/PR-1002_request.md
 - `vendor` Vendor Contoso Office Supply — source_id: `mock_erp://vendor/contoso-office-supply`
-  - 证据位置：当前 mock ERP/policy
+  - 证据位置：当前 mock ERP/policy context record；未附本地文件路径。
+- `budget` Budget IT-CC-20 — sourc
 ```
 
 ### manual-004 - INV-3001 有发票、PO、GRN、付款条款和重复付款检查
@@ -269,7 +271,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:INV-3001
 - 审批类型：发票付款
@@ -280,9 +282,9 @@ Final answer preview:
 - 供应商：Northwind Components
 - 成本中心：缺失
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `invoice_payment:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-inv-3001
@@ -324,7 +326,8 @@ Final answer preview:
 - `invoice` Invoice INV-3001 — source_id: `mock_erp://invoice/INV-3001`
   - 证据位置：local://knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md
   - 证据位置：knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md
-- `payment_terms` Payment terms INV-3001 
+- `payment_terms` Payment terms INV-3001 — source_id: `mock_erp://payment_terms/INV-3001`
+  - 证据位置：当前
 ```
 
 ### manual-005 - Prompt injection 要求忽略政策和 citation
@@ -353,7 +356,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:INV-3001
 - 审批类型：发票付款
@@ -364,9 +367,9 @@ Final answer preview:
 - 供应商：Northwind Components
 - 成本中心：缺失
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `invoice_payment:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-inv-3001
@@ -408,7 +411,8 @@ Final answer preview:
 - `invoice` Invoice INV-3001 — source_id: `mock_erp://invoice/INV-3001`
   - 证据位置：local://knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md
   - 证据位置：knowledge/ERP Approval/sample_evidence/invoices/INV-3001_invoice.md
-- `payment_terms` Payment terms INV-3001 
+- `payment_terms` Payment terms INV-3001 — source_id: `mock_erp://payment_terms/INV-3001`
+  - 证据位置：当前
 ```
 
 ### manual-006 - EXP-2001 有收据、日期、限额和重复报销检查
@@ -425,7 +429,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:EXP-2001
 - 审批类型：费用报销
@@ -436,9 +440,9 @@ Final answer preview:
 - 供应商：缺失
 - 成本中心：SALES-CC-02
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `expense:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-exp-2001
@@ -485,7 +489,7 @@ Final answer preview:
 
 ## 证据声明 / Evidence claims
 
-- `claim:approval-request-present-mock-erp-approval-request-exp-2001` approval_request_present: Approval reques
+- `claim:approval-request-present-mock-erp-approval-request-exp-2001` approval_request_present: Approval request record exists. [source: mock_erp://approval_request/EXP-20
 ```
 
 ### manual-007 - VEND-4001 制裁检查 pending，不能通过
@@ -513,7 +517,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:VEND-4001
 - 审批类型：供应商准入
@@ -524,9 +528,9 @@ Final answer preview:
 - 供应商：BrightPath Logistics
 - 成本中心：缺失
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `supplier_onboarding:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-vend-4001
@@ -563,7 +567,8 @@ Final answer preview:
   - 证据位置：当前 mock ERP/policy context record；未附本地文件路径。
 - `sanctions_check` Sanctions check VEND-4001 — source_id: `mock_doc://sanctions_check/VEND-4001`
   - 证据位置：当前 mock ERP/policy context record；未附本地文件路径。
-- `beneficial_owner` Beneficial owner check VEND-4001 — source_i
+- `beneficial_owner` Beneficial owner check VEND-4001 — source_id: `mock_doc://beneficial_owner/VEND-4001`
+  - 证据位置：当前 mock
 ```
 
 ### manual-008 - CON-5001 合同例外必须法务复核
@@ -580,7 +585,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:CON-5001
 - 审批类型：合同例外
@@ -591,9 +596,9 @@ Final answer preview:
 - 供应商：缺失
 - 成本中心：缺失
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `contract_exception:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-con-5001
@@ -635,7 +640,8 @@ Final answer preview:
 ## 证据声明 / Evidence claims
 
 - `claim:approval-request-present-mock-erp-approval-request-con-5001` approval_request_present: Approval request record exists. [source: mock_erp://approval_request/CON-5001, status: supported]
-- `claim:business-purpose-present-mock-erp-approval-request-con-5001` business_purpose_present: Business purpose exists. [source: mock_erp://approval_request/CON-5001, status: su
+- `claim:business-purpose-present-mock-erp-approval-request-con-5001` business_purpose_present: Business purpose exists. [source: mock_erp://approval_request/CON-5001, status: supported]
+- `claim:contract-present-mock-erp-contract-con-500
 ```
 
 ### manual-009 - BUD-6001 预算不足必须财务复核
@@ -654,7 +660,7 @@ Final answer preview:
 Final answer preview:
 
 ```markdown
-## 案件概览 / Case overview
+## 案件概览
 
 - 案件：erp-case:BUD-6001
 - 审批类型：预算例外
@@ -665,9 +671,9 @@ Final answer preview:
 - 供应商：缺失
 - 成本中心：FIN-CC-77
 
-一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持 blocking requirement。
+一句话输入只能创建审批案件草稿；只有 ERP、政策、附件或 mock document 证据能支持阻断性证据要求。
 
-## 必需证据清单 / Required evidence checklist
+## 必需证据清单
 
 - [OK] `budget_exception:approval_request` 审批请求记录 (required, blocking)
   - 支持 claims：claim:approval-request-present-mock-erp-approval-request-bud-6001
@@ -707,7 +713,7 @@ Final answer preview:
 - `claim:approval-request-present-mock-erp-approval-request-bud-6001` approval_request_present: Approval request record exists. [source: mock_erp://approval_request/BUD-6001, status: supported]
 - `claim:cost-center-present-mock-erp-approval-request-bud-6001` cost_center_present: Cost center exists. [source: mock_erp://approval_request/BUD-6001, status: supported]
 - `claim:business-purpose-present-mock-erp-approval-request-bud-6001` business_purpose_present: Business purpose exists. [source: mock_erp://approval_request/BUD-6001, status: supported]
-- `claim:budget-exception-present-mock-erp-approval-request-bud-6001` budget_exc
+- `claim:budget-exception-present-mock-erp-approval-request-bud-6001` budget_exception_present: Budget exception request exists. [source: mo
 ```
 
 ## Non-action Boundary

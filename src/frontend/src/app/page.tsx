@@ -5,11 +5,12 @@ import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ChatInput } from "@/components/chat/ChatInput";
+import { CaseReviewPanel } from "@/components/chat/CaseReviewPanel";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { Navbar } from "@/components/layout/Navbar";
 import { AppProvider, useChatStore, useSessionStore } from "@/lib/store";
 
-type WorkspaceView = "chat" | "trace" | "assets" | "insights";
+type WorkspaceView = "case" | "chat" | "trace" | "assets" | "insights";
 
 const TracePanel = dynamic(
   () => import("@/components/chat/TracePanel").then((module) => module.TracePanel),
@@ -80,6 +81,13 @@ function WorkspaceBottomBar({
     <div className="panel workspace-bottombar">
       <div className="workspace-tabs">
         <button
+          className={workspaceView === "case" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
+          onClick={() => onViewChange("case")}
+          type="button"
+        >
+          案件审查
+        </button>
+        <button
           className={workspaceView === "chat" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("chat")}
           type="button"
@@ -137,7 +145,7 @@ function WorkspaceBottomBar({
 }
 
 function Workspace() {
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("chat");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("case");
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const { sendMessage, isStreaming, isInitializing, isSessionLoading, connectionError } = useChatStore();
@@ -148,7 +156,9 @@ function Workspace() {
         <Navbar onOpenFiles={() => setFilesOpen(true)} onOpenSessions={() => setSessionsOpen(true)} />
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {workspaceView === "chat" ? (
+          {workspaceView === "case" ? (
+            <CaseReviewPanel />
+          ) : workspaceView === "chat" ? (
             <ChatPanel />
           ) : workspaceView === "trace" ? (
             <TracePanel />

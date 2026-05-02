@@ -25,6 +25,8 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] Action proposals remain proposed-only and `executable=false`.
 - [x] Trace ledger, proposal ledger, audit package workspace, reviewer notes, simulation ledger, connector diagnostics, fixture replay, and replay coverage are local-first artifacts.
 - [x] Frontend has read-only trace, analytics, audit, simulation, connector diagnostics, and replay coverage views.
+- [x] Frontend default view is `Case Review`, where the user submits an approval case, adds local text evidence, reruns evidence review, and sees required evidence, claims, sufficiency, control matrix, contradictions, and reviewer memo before any recommendation.
+- [x] Local `POST /api/erp-approval/case-review` is allowed as a local case-analysis endpoint only; it is not an ERP write/action endpoint.
 - [x] Legacy RFP/security modules remain compatibility paths.
 
 ## Release Boundary Accepted
@@ -33,6 +35,7 @@ bootstrap -> route -> skill -> memory_retrieval -> erp_intake -> erp_context -> 
 - [x] No real ERP network call is required for tests.
 - [x] No ERP write action is implemented.
 - [x] No approve/reject/payment/comment/request-more-info/route/supplier/budget/contract execution endpoint exists.
+- [x] The case review API may write no ERP state and may execute no ERP action; it only returns a local evidence-case analysis with `No ERP write action was executed`.
 - [x] No action execution ledger exists.
 - [x] No `approval.*` Harness event namespace is introduced.
 - [x] No `capability_invoke` path is used by ERP action proposals, simulation, replay, or connector diagnostics.
