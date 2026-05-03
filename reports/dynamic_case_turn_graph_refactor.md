@@ -217,3 +217,89 @@ powershell -ExecutionPolicy Bypass -File backend\scripts\dev\validate-phase14-mv
 ## 边界
 
 本次没有新增真实 ERP connector、没有执行任何 ERP 写动作、没有新增 action execution API、没有新增 action execution ledger、没有调用 capability_invoke、没有引入 `approval.*` Harness event namespace。
+
+## Phase 2 Dynamic Graph Enhancement
+
+This follow-up keeps the same release boundary and tightens observability.
+
+### Unified Graph Name
+
+All case-turn runtime surfaces now use:
+
+```text
+erp_approval_dynamic_case_turn_graph
+```
+
+This applies to:
+
+- `CASE_TURN_GRAPH_NAME`
+- `CaseTurnExecutor` emitted payloads
+- API `harness_run.graph_name`
+- tests and reports
+
+### Visible LLM Role Nodes
+
+The stage model roles are now explicit graph nodes:
+
+- `llm_turn_classifier`
+- `llm_evidence_extractor`
+- `llm_policy_interpreter`
+- `llm_contradiction_reviewer`
+- `llm_reviewer_memo`
+- `aggregate_llm_stage_outputs`
+
+They only write role outputs and patch metadata:
+
+- `stage_model_role_outputs`
+- `stage_model_role_errors`
+- `model_decision`
+- `patch.model_review`
+
+They do not write case state, dossier, audit log, or accepted evidence directly. If no local model is configured, the nodes still appear in `graph_steps` and record a skipped role output.
+
+### LLM-heavy P2P Review + Deterministic Gate
+
+P2P keeps deterministic fact extraction and adds model-facing explanation nodes:
+
+- `p2p_process_fact_explanation`
+- `p2p_sequence_risk_explanation`
+- `p2p_amount_reconciliation_explanation`
+- `p2p_missing_evidence_questions`
+
+The model is responsible for explaining process facts, sequence risk, amount reconciliation, and missing evidence questions. Deterministic code still gates:
+
+- `match_type` enum validity
+- candidate `source_id` boundaries
+- Clear Invoice as historical event only, never execution authorization
+- amount reconciliation warnings
+- `No ERP write action was executed` boundary
+
+### Phase 2 Validation
+
+Additional validation after this enhancement:
+
+```text
+backend\.venv\Scripts\python.exe -m unittest backend.tests.test_erp_approval_dynamic_case_turn_graph backend.tests.test_erp_approval_case_review_api backend.tests.test_erp_approval_case_harness backend.tests.test_erp_approval_case_harness_p0_p1 backend.tests.test_erp_approval_case_graph backend.tests.test_erp_approval_release_boundary
+```
+
+Result: `41 tests OK`
+
+```text
+backend\.venv\Scripts\python.exe -m unittest <ERP approval full suite including dynamic graph>
+```
+
+Result: `170 tests OK`
+
+```text
+backend\.venv\Scripts\python.exe -m backend.benchmarks.erp_approval_bpi2019_sample_eval --csv artifacts\downloads\bpi2019\csv\BPI_Challenge_2019.csv --limit 300 --report reports\evaluations\bpi2019_evidence_sample_eval_latest.md --json reports\evaluations\bpi2019_evidence_sample_eval_latest.json --cases-out backend\benchmarks\cases\erp_approval\bpi2019_sample_cases.json
+```
+
+Result: `bpi_cases=300 avg_score=100.00 false_approve=0 critical=0 major=0`
+
+LangGraph compiler smoke:
+
+```text
+erp_approval_dynamic_case_turn_graph
+48
+CompiledStateGraph
+```

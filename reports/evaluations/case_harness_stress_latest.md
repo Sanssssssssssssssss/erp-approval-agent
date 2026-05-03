@@ -13,7 +13,7 @@
 - Critical failures: 0
 - Major failures: 0
 - Minor failures: 0
-- Usability notes: 31
+- Usability notes: 32
 - recommend_approve turns: 3
 - blocked/escalated turns: 71
 - request_more_info turns: 0
@@ -71,6 +71,7 @@
 - Category: progressive_evidence
 - Result: PASS
 - Usability notes:
+  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
   - 已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |

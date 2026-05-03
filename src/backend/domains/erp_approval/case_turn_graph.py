@@ -54,6 +54,10 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "p2p_sequence_anomaly_reviewer",
     "p2p_amount_consistency_reviewer",
     "p2p_exception_reviewer",
+    "p2p_process_fact_explanation",
+    "p2p_sequence_risk_explanation",
+    "p2p_amount_reconciliation_explanation",
+    "p2p_missing_evidence_questions",
     "p2p_patch_proposal",
     "p2p_process_patch_validator",
     "purchase_requisition_review_subgraph",
@@ -62,6 +66,12 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "contract_exception_review_subgraph",
     "budget_exception_review_subgraph",
     "generic_evidence_review_subgraph",
+    "llm_turn_classifier",
+    "llm_evidence_extractor",
+    "llm_policy_interpreter",
+    "llm_contradiction_reviewer",
+    "llm_reviewer_memo",
+    "aggregate_llm_stage_outputs",
     "merge_review_outputs",
     "evidence_sufficiency_gate",
     "contradiction_gate",
@@ -104,6 +114,10 @@ class CaseTurnGraphState(TypedDict, total=False):
     conflict: bool
     p2p_review: P2PProcessReview
     branch_review_outputs: dict[str, Any]
+    stage_model_payload: dict[str, Any]
+    stage_model_role_outputs: dict[str, dict[str, Any]]
+    stage_model_role_errors: dict[str, str]
+    p2p_llm_explanations: dict[str, Any]
 
 
 @lru_cache(maxsize=1)
@@ -132,6 +146,10 @@ def compile_case_turn_graph():
         "p2p_sequence_anomaly_reviewer": p2p_sequence_anomaly_reviewer_node,
         "p2p_amount_consistency_reviewer": p2p_amount_consistency_reviewer_node,
         "p2p_exception_reviewer": p2p_exception_reviewer_node,
+        "p2p_process_fact_explanation": p2p_process_fact_explanation_node,
+        "p2p_sequence_risk_explanation": p2p_sequence_risk_explanation_node,
+        "p2p_amount_reconciliation_explanation": p2p_amount_reconciliation_explanation_node,
+        "p2p_missing_evidence_questions": p2p_missing_evidence_questions_node,
         "p2p_patch_proposal": p2p_patch_proposal_node,
         "p2p_process_patch_validator": p2p_process_patch_validator_node,
         "purchase_requisition_review_subgraph": purchase_requisition_review_subgraph_node,
@@ -140,6 +158,12 @@ def compile_case_turn_graph():
         "contract_exception_review_subgraph": contract_exception_review_subgraph_node,
         "budget_exception_review_subgraph": budget_exception_review_subgraph_node,
         "generic_evidence_review_subgraph": generic_evidence_review_subgraph_node,
+        "llm_turn_classifier": llm_turn_classifier_node,
+        "llm_evidence_extractor": llm_evidence_extractor_node,
+        "llm_policy_interpreter": llm_policy_interpreter_node,
+        "llm_contradiction_reviewer": llm_contradiction_reviewer_node,
+        "llm_reviewer_memo": llm_reviewer_memo_node,
+        "aggregate_llm_stage_outputs": aggregate_llm_stage_outputs_node,
         "merge_review_outputs": merge_review_outputs_node,
         "evidence_sufficiency_gate": evidence_sufficiency_gate_node,
         "contradiction_gate": contradiction_gate_node,
@@ -203,9 +227,13 @@ def compile_case_turn_graph():
     graph.add_edge("p2p_match_type_classifier", "p2p_sequence_anomaly_reviewer")
     graph.add_edge("p2p_sequence_anomaly_reviewer", "p2p_amount_consistency_reviewer")
     graph.add_edge("p2p_amount_consistency_reviewer", "p2p_exception_reviewer")
-    graph.add_edge("p2p_exception_reviewer", "p2p_patch_proposal")
+    graph.add_edge("p2p_exception_reviewer", "p2p_process_fact_explanation")
+    graph.add_edge("p2p_process_fact_explanation", "p2p_sequence_risk_explanation")
+    graph.add_edge("p2p_sequence_risk_explanation", "p2p_amount_reconciliation_explanation")
+    graph.add_edge("p2p_amount_reconciliation_explanation", "p2p_missing_evidence_questions")
+    graph.add_edge("p2p_missing_evidence_questions", "p2p_patch_proposal")
     graph.add_edge("p2p_patch_proposal", "p2p_process_patch_validator")
-    graph.add_edge("p2p_process_patch_validator", "merge_review_outputs")
+    graph.add_edge("p2p_process_patch_validator", "llm_turn_classifier")
     for branch_node in (
         "purchase_requisition_review_subgraph",
         "expense_review_subgraph",
@@ -214,7 +242,13 @@ def compile_case_turn_graph():
         "budget_exception_review_subgraph",
         "generic_evidence_review_subgraph",
     ):
-        graph.add_edge(branch_node, "merge_review_outputs")
+        graph.add_edge(branch_node, "llm_turn_classifier")
+    graph.add_edge("llm_turn_classifier", "llm_evidence_extractor")
+    graph.add_edge("llm_evidence_extractor", "llm_policy_interpreter")
+    graph.add_edge("llm_policy_interpreter", "llm_contradiction_reviewer")
+    graph.add_edge("llm_contradiction_reviewer", "llm_reviewer_memo")
+    graph.add_edge("llm_reviewer_memo", "aggregate_llm_stage_outputs")
+    graph.add_edge("aggregate_llm_stage_outputs", "merge_review_outputs")
     graph.add_edge("merge_review_outputs", "evidence_sufficiency_gate")
     graph.add_edge("evidence_sufficiency_gate", "contradiction_gate")
     graph.add_edge("contradiction_gate", "control_matrix_gate")
@@ -244,6 +278,9 @@ def run_case_turn_graph_state_sync(harness: Any, request: CaseTurnRequest, *, me
                 "graph_steps": [],
                 "warnings": [],
                 "branch_review_outputs": {},
+                "stage_model_role_outputs": {},
+                "stage_model_role_errors": {},
+                "p2p_llm_explanations": {},
             }
         )
 
@@ -471,13 +508,53 @@ def p2p_exception_reviewer_node(state: CaseTurnGraphState) -> CaseTurnGraphState
     return {**state, "p2p_review": review, "branch_review_outputs": outputs, "graph_steps": _steps(state, "p2p_exception_reviewer")}
 
 
+def p2p_process_fact_explanation_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _p2p_explanation_node(
+        state,
+        "p2p_process_fact_explanation",
+        "Explain the P2P process facts from the candidate evidence. Return JSON with explanation, source_ids, warnings, and non_action_statement. Do not infer facts without source_id.",
+    )
+
+
+def p2p_sequence_risk_explanation_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _p2p_explanation_node(
+        state,
+        "p2p_sequence_risk_explanation",
+        "Explain sequence risk for invoice/PO/GRN/process-log evidence. Clear Invoice must be described as a historical event only, not an executable payment authorization. Return JSON.",
+    )
+
+
+def p2p_amount_reconciliation_explanation_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _p2p_explanation_node(
+        state,
+        "p2p_amount_reconciliation_explanation",
+        "Explain PO, invoice, goods receipt, and cumulative amount reconciliation risks. Return JSON with amount_explanation, source_ids, warnings, and non_action_statement.",
+    )
+
+
+def p2p_missing_evidence_questions_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _p2p_explanation_node(
+        state,
+        "p2p_missing_evidence_questions",
+        "Draft missing P2P evidence questions from the current deterministic P2P review. Return JSON with questions, source_ids, warnings, and non_action_statement.",
+    )
+
+
 def p2p_patch_proposal_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review_state = _run_evidence_branch_review(state, branch="p2p_process_review")
     p2p_review = review_state.get("p2p_review") or review_p2p_process_evidence(review_state.get("candidates", []))
-    warnings = _unique(list(review_state.get("warnings", [])) + p2p_review.p2p_reviewer_notes + p2p_review.p2p_next_questions)
+    llm_explanations = dict(review_state.get("p2p_llm_explanations", {}) or {})
+    llm_warnings = [
+        warning
+        for output in llm_explanations.values()
+        if isinstance(output, dict)
+        for warning in output.get("warnings", []) or []
+    ]
+    warnings = _unique(list(review_state.get("warnings", [])) + p2p_review.p2p_reviewer_notes + p2p_review.p2p_next_questions + llm_warnings)
     outputs = _branch_outputs(review_state)
     outputs["p2p_patch_proposal"] = {
         "p2p_review": p2p_review.model_dump(),
+        "llm_explanations": llm_explanations,
         "reviewer_notes": render_p2p_review_notes(p2p_review),
     }
     return {
@@ -492,10 +569,20 @@ def p2p_patch_proposal_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def p2p_process_patch_validator_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     p2p_review = state.get("p2p_review") or review_p2p_process_evidence(state.get("candidates", []))
     warnings = list(state.get("warnings", []))
+    valid_match_types = {"three_way_invoice_after_gr", "three_way_invoice_before_gr", "two_way", "consignment", "unknown"}
+    if p2p_review.match_type not in valid_match_types:
+        warnings.append(f"P2P match_type {p2p_review.match_type} is outside the allowed enum.")
     if p2p_review.missing_process_evidence:
         warnings.append("P2P process evidence is incomplete: " + ", ".join(p2p_review.missing_process_evidence))
     if p2p_review.process_exceptions:
         warnings.append("P2P process exceptions require reviewer attention before any approve-style memo.")
+    if "clear_invoice_historical_only" in p2p_review.sequence_anomalies:
+        warnings.append("Clear Invoice is a historical event only; it cannot authorize payment or any ERP write action.")
+    if p2p_review.amount_facts.amount_variation_risk in {"medium", "high", "needs_reconciliation", "unknown"}:
+        warnings.append(f"P2P amount facts require reconciliation; risk={p2p_review.amount_facts.amount_variation_risk}.")
+    known_source_ids = {str(getattr(item, "source_id", "") or "") for item in state.get("candidates", [])}
+    if any(source_id and source_id not in known_source_ids for source_id in p2p_review.source_ids):
+        warnings.append("P2P review referenced a source_id outside current candidate evidence.")
     return {**state, "warnings": _unique(warnings), "p2p_review": p2p_review, "graph_steps": _steps(state, "p2p_process_patch_validator")}
 
 
@@ -523,10 +610,61 @@ def generic_evidence_review_subgraph_node(state: CaseTurnGraphState) -> CaseTurn
     return {**_run_evidence_branch_review(state, branch="generic_evidence_review"), "graph_steps": _steps(state, "generic_evidence_review_subgraph")}
 
 
+def llm_turn_classifier_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _llm_stage_role_node(state, "turn_classifier", "llm_turn_classifier")
+
+
+def llm_evidence_extractor_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _llm_stage_role_node(state, "evidence_extractor", "llm_evidence_extractor")
+
+
+def llm_policy_interpreter_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _llm_stage_role_node(state, "policy_interpreter", "llm_policy_interpreter")
+
+
+def llm_contradiction_reviewer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _llm_stage_role_node(state, "contradiction_reviewer", "llm_contradiction_reviewer")
+
+
+def llm_reviewer_memo_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _llm_stage_role_node(state, "reviewer_memo", "llm_reviewer_memo")
+
+
+def aggregate_llm_stage_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    harness = state["harness"]
+    outputs = dict(state.get("stage_model_role_outputs", {}) or {})
+    errors = dict(state.get("stage_model_role_errors", {}) or {})
+    if harness.stage_model is None:
+        return {
+            **state,
+            "model_decision": None,
+            "model_error": "",
+            "graph_steps": _steps(state, "aggregate_llm_stage_outputs"),
+        }
+    decision = harness.stage_model.aggregate_role_outputs(
+        outputs,
+        deterministic_intent="submit_evidence",
+        warnings=[f"{role} 未返回可用结构化结果：{error}" for role, error in errors.items() if error],
+    )
+    return {
+        **state,
+        "model_decision": decision,
+        "model_error": "; ".join(f"{role}: {error}" for role, error in errors.items() if error),
+        "graph_steps": _steps(state, "aggregate_llm_stage_outputs"),
+    }
+
+
 def merge_review_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     outputs = _branch_outputs(state)
     if state.get("model_decision") is not None:
         outputs["stage_model_roles"] = state["model_decision"].to_patch_metadata(used=True, error=state.get("model_error", ""))
+    elif state.get("stage_model_role_outputs"):
+        outputs["stage_model_roles"] = {
+            "used": False,
+            "role_outputs": state.get("stage_model_role_outputs", {}),
+            "role_errors": state.get("stage_model_role_errors", {}),
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
     return {**state, "branch_review_outputs": outputs, "graph_steps": _steps(state, "merge_review_outputs")}
 
 
@@ -776,17 +914,18 @@ def _run_evidence_branch_review(state: CaseTurnGraphState, *, branch: str) -> Ca
     candidates = state.get("candidates", [])
     context_pack = harness.context_assembler.assemble_for_branch(state["case_state"], state["contract"], state["request"].user_message, branch=branch)
     provisional_review = harness._review(state["case_state"], state["request"].user_message, candidates)
-    model_decision, model_error = harness._review_with_stage_model(
-        context_pack=context_pack,
-        candidates=candidates,
-        review=provisional_review,
-        deterministic_intent="submit_evidence",
-    )
+    stage_model_payload = {}
+    if harness.stage_model is not None:
+        stage_model_payload = harness.stage_model.build_payload(
+            context_pack=context_pack,
+            candidates=candidates,
+            review=provisional_review,
+            deterministic_intent="submit_evidence",
+        )
     outputs = _branch_outputs(state)
     outputs[branch] = {
         "candidate_source_ids": [item.source_id for item in candidates],
-        "stage_model_used": model_decision is not None,
-        "model_error": model_error,
+        "stage_model_payload_ready": bool(stage_model_payload),
     }
     return {
         **state,
@@ -794,14 +933,91 @@ def _run_evidence_branch_review(state: CaseTurnGraphState, *, branch: str) -> Ca
         "context_pack": context_pack,
         "provisional_review": provisional_review,
         "review": provisional_review,
-        "model_decision": model_decision,
-        "model_error": model_error,
+        "stage_model_payload": stage_model_payload,
         "branch_review_outputs": outputs,
     }
 
 
 def _branch_outputs(state: CaseTurnGraphState) -> dict[str, Any]:
     return dict(state.get("branch_review_outputs", {}) or {})
+
+
+def _llm_stage_role_node(state: CaseTurnGraphState, role: str, step: str) -> CaseTurnGraphState:
+    harness = state["harness"]
+    outputs = dict(state.get("stage_model_role_outputs", {}) or {})
+    errors = dict(state.get("stage_model_role_errors", {}) or {})
+    if harness.stage_model is None:
+        outputs[role] = {
+            "skipped": True,
+            "reason": "stage_model_not_configured",
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+        return {**state, "stage_model_role_outputs": outputs, "stage_model_role_errors": errors, "graph_steps": _steps(state, step)}
+    payload = dict(state.get("stage_model_payload", {}) or {})
+    if not payload:
+        review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="submit_evidence")
+        payload = harness.stage_model.build_payload(
+            context_pack=state.get("context_pack", {}),
+            candidates=state.get("candidates", []),
+            review=review,
+            deterministic_intent="submit_evidence",
+        )
+    output, error = harness.stage_model.review_role(role, payload=payload, role_outputs=outputs)
+    outputs[role] = output or {"skipped": bool(error), "error": error, "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT}
+    if error:
+        errors[role] = error
+    return {
+        **state,
+        "stage_model_payload": payload,
+        "stage_model_role_outputs": outputs,
+        "stage_model_role_errors": errors,
+        "graph_steps": _steps(state, step),
+    }
+
+
+def _p2p_explanation_node(state: CaseTurnGraphState, step: str, prompt: str) -> CaseTurnGraphState:
+    harness = state["harness"]
+    p2p_review = state.get("p2p_review") or review_p2p_process_evidence(state.get("candidates", []))
+    explanations = dict(state.get("p2p_llm_explanations", {}) or {})
+    outputs = _branch_outputs(state)
+    if harness.stage_model is None:
+        explanation = {
+            "skipped": True,
+            "reason": "stage_model_not_configured",
+            "deterministic_fallback": render_p2p_review_notes(p2p_review),
+            "non_action_statement": p2p_review.non_action_statement,
+        }
+    else:
+        payload = {
+            "p2p_review": p2p_review.model_dump(),
+            "candidate_evidence": [
+                {
+                    "source_id": getattr(item, "source_id", ""),
+                    "title": getattr(item, "title", ""),
+                    "record_type": getattr(item, "record_type", ""),
+                    "content_preview": getattr(item, "content", "")[:1600],
+                }
+                for item in state.get("candidates", [])
+            ],
+            "allowed_match_types": ["three_way_invoice_after_gr", "three_way_invoice_before_gr", "two_way", "consignment", "unknown"],
+            "non_action_statement": p2p_review.non_action_statement,
+        }
+        explanation, error = harness.stage_model.review_custom_json_role(role_name=step, system_prompt=prompt, payload=payload)
+        if error:
+            explanation = {
+                "error": error,
+                "deterministic_fallback": render_p2p_review_notes(p2p_review),
+                "non_action_statement": p2p_review.non_action_statement,
+            }
+    explanations[step] = explanation
+    outputs[step] = explanation
+    return {
+        **state,
+        "p2p_review": p2p_review,
+        "p2p_llm_explanations": explanations,
+        "branch_review_outputs": outputs,
+        "graph_steps": _steps(state, step),
+    }
 
 
 def _steps(state: CaseTurnGraphState, step: str) -> list[str]:

@@ -120,7 +120,7 @@ class CaseStageModelReviewer:
         review: CaseReviewResponse,
         deterministic_intent: str,
     ) -> CaseStageModelDecision:
-        payload = _base_payload(
+        payload = self.build_payload(
             context_pack=context_pack,
             candidates=candidates,
             review=review,
@@ -129,13 +129,71 @@ class CaseStageModelReviewer:
         role_outputs: dict[str, dict[str, Any]] = {}
         warnings: list[str] = []
         for role in CASE_STAGE_MODEL_ROLES:
-            role_payload = dict(payload)
-            role_payload["role_outputs"] = role_outputs
-            output, error = self._invoke_role(role, role_payload)
+            output, error = self.review_role(role, payload=payload, role_outputs=role_outputs)
             role_outputs[role] = output
             if error:
                 warnings.append(f"{ROLE_LABELS.get(role, role)} 未返回可用结构化结果：{error}")
-        return _aggregate_role_outputs(role_outputs, deterministic_intent=deterministic_intent, warnings=warnings)
+        return self.aggregate_role_outputs(role_outputs, deterministic_intent=deterministic_intent, warnings=warnings)
+
+    def build_payload(
+        self,
+        *,
+        context_pack: dict[str, Any],
+        candidates: list[CaseReviewEvidenceInput],
+        review: CaseReviewResponse,
+        deterministic_intent: str,
+    ) -> dict[str, Any]:
+        return _base_payload(
+            context_pack=context_pack,
+            candidates=candidates,
+            review=review,
+            deterministic_intent=deterministic_intent,
+        )
+
+    def review_role(
+        self,
+        role: str,
+        *,
+        payload: dict[str, Any],
+        role_outputs: dict[str, dict[str, Any]] | None = None,
+    ) -> tuple[dict[str, Any], str]:
+        role_payload = dict(payload)
+        role_payload["role_outputs"] = dict(role_outputs or {})
+        return self._invoke_role(role, role_payload)
+
+    def aggregate_role_outputs(
+        self,
+        role_outputs: dict[str, dict[str, Any]],
+        *,
+        deterministic_intent: str,
+        warnings: list[str] | None = None,
+    ) -> CaseStageModelDecision:
+        return _aggregate_role_outputs(role_outputs, deterministic_intent=deterministic_intent, warnings=list(warnings or []))
+
+    def review_custom_json_role(self, *, role_name: str, system_prompt: str, payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+        messages = [
+            {"role": "system", "content": f"{BASE_STAGE_MODEL_PROMPT}\n\n{system_prompt}"},
+            {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
+        ]
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"erp-case-stage-{role_name}")
+        future = executor.submit(self.model.invoke, messages)
+        try:
+            response = future.result(timeout=self.role_timeout_seconds)
+        except TimeoutError:
+            future.cancel()
+            executor.shutdown(wait=False, cancel_futures=True)
+            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，已退回本地 P2P deterministic gate。"
+        except Exception as exc:
+            executor.shutdown(wait=False, cancel_futures=True)
+            return {}, f"{type(exc).__name__}: {exc}"
+        finally:
+            if future.done():
+                executor.shutdown(wait=False, cancel_futures=True)
+        content = _stringify_content(getattr(response, "content", response))
+        try:
+            return extract_json_object(content), ""
+        except (TypeError, ValueError, ValidationError) as exc:
+            return {}, str(exc)
 
     def _invoke_role(self, role: str, payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
         messages = [

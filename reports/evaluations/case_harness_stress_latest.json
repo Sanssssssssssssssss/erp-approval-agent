@@ -7,7 +7,7 @@
     "critical": 0,
     "major": 0,
     "minor": 0,
-    "usability_notes": 31,
+    "usability_notes": 32,
     "failures_by_stage": {},
     "failed_categories": {},
     "recommend_approve_turns": 3,
@@ -162,12 +162,14 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
             "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
         "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
       ]
     },

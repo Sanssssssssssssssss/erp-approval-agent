@@ -123,7 +123,17 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("p2p_sequence_anomaly_reviewer", steps)
             self.assertIn("p2p_amount_consistency_reviewer", steps)
             self.assertIn("p2p_exception_reviewer", steps)
+            self.assertIn("p2p_process_fact_explanation", steps)
+            self.assertIn("p2p_sequence_risk_explanation", steps)
+            self.assertIn("p2p_amount_reconciliation_explanation", steps)
+            self.assertIn("p2p_missing_evidence_questions", steps)
             self.assertIn("p2p_process_patch_validator", steps)
+            self.assertIn("llm_turn_classifier", steps)
+            self.assertIn("llm_evidence_extractor", steps)
+            self.assertIn("llm_policy_interpreter", steps)
+            self.assertIn("llm_contradiction_reviewer", steps)
+            self.assertIn("llm_reviewer_memo", steps)
+            self.assertIn("aggregate_llm_stage_outputs", steps)
             self.assertIn("No ERP write action was executed", response["non_action_statement"])
 
     def test_final_memo_gate_blocks_approve_style_memo_when_evidence_missing(self) -> None:
@@ -159,8 +169,50 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             )
 
             self.assertIn("purchase_requisition_review_subgraph", graph_state["graph_steps"])
+            self.assertIn("llm_turn_classifier", graph_state["graph_steps"])
+            self.assertIn("llm_reviewer_memo", graph_state["graph_steps"])
+            self.assertIn("aggregate_llm_stage_outputs", graph_state["graph_steps"])
             self.assertIn(graph_state["response"].patch.patch_type, {"accept_evidence", "reject_evidence", "answer_status"})
             self.assertIn("No ERP write action was executed", graph_state["response"].non_action_statement)
+
+    def test_llm_role_outputs_are_visible_in_patch_model_review(self) -> None:
+        role_json = """
+        {
+          "turn_intent": "submit_evidence",
+          "patch_type": "accept_evidence",
+          "evidence_decision": "accepted",
+          "accepted_source_ids": ["local_evidence://quote/pr-dyn-llm/turn-0002-1"],
+          "warnings": [],
+          "confidence": 0.8,
+          "non_action_statement": "This is a local approval case state update. No ERP write action was executed."
+        }
+        """
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(_FakeModel(role_json)))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-DYN-LLM."))
+            graph_state = run_case_turn_graph_state_sync(
+                harness,
+                CaseTurnRequest(
+                    case_id=first.case_state.case_id,
+                    user_message="Here is quote evidence.",
+                    extra_evidence=[
+                        CaseReviewEvidenceInput(
+                            title="Quote",
+                            record_type="quote",
+                            source_id="local_evidence://quote/pr-dyn-llm/turn-0002-1",
+                            content="Quote Q-DYN-LLM from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                        )
+                    ],
+                ),
+            )
+            model_review = graph_state["response"].patch.model_review
+
+            self.assertTrue(model_review["used"])
+            self.assertIn("turn_classifier", model_review["role_outputs"])
+            self.assertIn("evidence_extractor", model_review["role_outputs"])
+            self.assertIn("policy_interpreter", model_review["role_outputs"])
+            self.assertIn("contradiction_reviewer", model_review["role_outputs"])
+            self.assertIn("reviewer_memo", model_review["role_outputs"])
 
 
 if __name__ == "__main__":
