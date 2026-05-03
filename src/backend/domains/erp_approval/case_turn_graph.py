@@ -117,6 +117,7 @@ class CaseTurnGraphState(TypedDict, total=False):
     conflict: bool
     read_only_turn: bool
     deterministic_intent: str
+    client_intent: str
     classifier_guard_intent: str
     p2p_review: P2PProcessReview
     branch_review_outputs: dict[str, Any]
@@ -374,12 +375,21 @@ def version_conflict_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 def classify_turn_intent_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     request = state["request"]
-    intent = classify_case_turn(
+    deterministic_intent = classify_case_turn(
         request.user_message,
         has_case=state.get("existing_state") is not None,
         has_evidence=bool(request.extra_evidence),
     )
-    return {**state, "intent": intent, "graph_steps": _steps(state, "classify_turn_intent")}
+    client_intent, client_warnings = _guarded_client_intent(state, deterministic_intent)
+    intent = client_intent or deterministic_intent
+    return {
+        **state,
+        "intent": intent,
+        "deterministic_intent": deterministic_intent,
+        "client_intent": client_intent,
+        "warnings": _unique(list(state.get("warnings", [])) + client_warnings),
+        "graph_steps": _steps(state, "classify_turn_intent"),
+    }
 
 
 def build_turn_contract_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
@@ -399,7 +409,13 @@ def assemble_case_context_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
             case_state.case_id,
             "turn_received",
             state["now"],
-            {"intent": state["intent"], "context_branch": branch, "context_pack": context_pack},
+            {
+                "intent": state["intent"],
+                "deterministic_intent": state.get("deterministic_intent", state["intent"]),
+                "client_intent": state.get("client_intent", ""),
+                "context_branch": branch,
+                "context_summary": _context_pack_summary(context_pack),
+            },
         )
     )
     return {
@@ -631,23 +647,24 @@ def llm_turn_classifier_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 
 def deterministic_classifier_guard_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
-    deterministic_intent = state.get("intent", "ask_status")
+    deterministic_intent = state.get("deterministic_intent", state.get("intent", "ask_status"))
+    baseline_intent = state.get("intent", deterministic_intent)
     outputs = dict(state.get("stage_model_role_outputs", {}) or {})
     role_output = outputs.get("turn_classifier", {}) or {}
     warnings = list(state.get("warnings", []))
-    guarded_intent = deterministic_intent
+    guarded_intent = baseline_intent
     candidate_intent = str(role_output.get("turn_intent") or "").strip()
 
     if candidate_intent and not role_output.get("skipped"):
         allowed = set(getattr(state["contract"], "allowed_intents", []) or [])
-        if candidate_intent in allowed and _classifier_override_allowed(state, deterministic_intent, candidate_intent):
+        if candidate_intent in allowed and _classifier_override_allowed(state, baseline_intent, candidate_intent):
             guarded_intent = candidate_intent
-        elif candidate_intent != deterministic_intent:
+        elif candidate_intent != baseline_intent:
             warnings.append(
-                f"LLM turn classifier proposed {candidate_intent}, but deterministic guard kept {deterministic_intent}."
+                f"LLM turn classifier proposed {candidate_intent}, but deterministic guard kept {baseline_intent}."
             )
 
-    if guarded_intent != deterministic_intent:
+    if guarded_intent != baseline_intent:
         state = {**state, "intent": guarded_intent, "branch": _context_branch_for_intent(guarded_intent)}
     return {
         **state,
@@ -996,6 +1013,65 @@ def _context_branch_for_intent(intent: str) -> str:
     if intent == "submit_evidence":
         return "submit_evidence"
     return "generic_case_turn"
+
+
+def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str) -> tuple[str, list[str]]:
+    request = state["request"]
+    requested = str(getattr(request, "client_intent", "") or "").strip()
+    if not requested:
+        return "", []
+    allowed_intents = {
+        "create_case",
+        "ask_required_materials",
+        "submit_evidence",
+        "correct_previous_evidence",
+        "withdraw_evidence",
+        "ask_status",
+        "request_final_memo",
+        "off_topic",
+    }
+    warnings: list[str] = []
+    if requested not in allowed_intents:
+        return "", [f"Client intent {requested} is not recognized and was ignored."]
+    if request.extra_evidence:
+        if requested != "submit_evidence":
+            warnings.append(f"Client intent {requested} was ignored because this turn includes evidence.")
+        return "submit_evidence", warnings
+    if requested == "submit_evidence":
+        if deterministic_intent == "submit_evidence":
+            return "submit_evidence", warnings
+        return "", ["Client intent submit_evidence was ignored because no evidence payload was provided."]
+    if requested == "request_final_memo" and state.get("existing_state") is None:
+        return "", ["Client intent request_final_memo was ignored because no approval case exists yet."]
+    if requested == "create_case" and state.get("existing_state") is not None:
+        return "", ["Client intent create_case was ignored because the current turn is already bound to a case."]
+    if requested in {"ask_status", "ask_required_materials", "request_final_memo"}:
+        return requested, warnings
+    if requested in {"correct_previous_evidence", "withdraw_evidence"} and state.get("existing_state") is not None:
+        return requested, warnings
+    if requested == "off_topic" and deterministic_intent == "off_topic":
+        return requested, warnings
+    return "", [f"Client intent {requested} was not safe for this case state and was ignored."]
+
+
+def _context_pack_summary(context_pack: dict[str, Any]) -> dict[str, Any]:
+    case_summary = dict(context_pack.get("case_summary") or {})
+    policy = dict(context_pack.get("context_policy") or {})
+    ledger = dict(context_pack.get("evidence_ledger_summary") or {})
+    current_submission = str(context_pack.get("current_user_submission") or "")
+    return {
+        "case_id": case_summary.get("case_id", ""),
+        "stage": case_summary.get("stage", ""),
+        "approval_type": case_summary.get("approval_type", ""),
+        "branch": policy.get("branch", ""),
+        "selection": policy.get("selection", ""),
+        "requirement_count": len(context_pack.get("current_relevant_requirements") or []),
+        "accepted_claim_count": len(ledger.get("accepted_claims") or []),
+        "rejected_evidence_count": len(ledger.get("rejected_evidence") or []),
+        "contradiction_count": len(ledger.get("contradictions") or []),
+        "has_current_submission": bool(current_submission.strip()),
+        "current_submission_chars": len(current_submission),
+    }
 
 
 def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent: str, candidate_intent: str) -> bool:

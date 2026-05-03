@@ -403,6 +403,7 @@ export type ErpApprovalCaseReviewRequest = {
   cost_center?: string;
   business_purpose?: string;
   extra_evidence?: ErpApprovalCaseReviewEvidenceInput[];
+  include_mock_context?: boolean;
 };
 
 export type ErpApprovalCaseReviewResponse = {
@@ -428,6 +429,15 @@ export type ErpApprovalCaseTurnRequest = {
   user_message: string;
   extra_evidence?: ErpApprovalCaseReviewEvidenceInput[];
   requested_by?: string;
+  client_intent?:
+    | "create_case"
+    | "ask_required_materials"
+    | "submit_evidence"
+    | "correct_previous_evidence"
+    | "withdraw_evidence"
+    | "ask_status"
+    | "request_final_memo"
+    | "off_topic";
 };
 
 export type ErpApprovalCaseState = {

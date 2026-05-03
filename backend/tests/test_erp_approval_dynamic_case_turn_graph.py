@@ -80,6 +80,54 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertNotIn("persist_case_state_dossier_audit", steps)
             self.assertEqual(response["case_state"]["dossier_version"], created["case_state"]["dossier_version"])
 
+    def test_client_intent_routes_quick_status_without_polluting_context_audit(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            created = client.post("/api/erp-approval/cases/turn", json={"user_message": "Review purchase requisition PR-DYN-CLIENT."}).json()
+            response = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "case_id": created["case_state"]["case_id"],
+                    "user_message": "请列出材料清单，但这个按钮语义是当前还缺什么。",
+                    "client_intent": "ask_status",
+                },
+            ).json()
+            steps = response["harness_run"]["graph_steps"]
+            turn_received = next(event for event in response["audit_events"] if event["event"] == "turn_received")
+
+            self.assertIn("case_status_summary_node", steps)
+            self.assertEqual(response["operation_scope"], "read_only_case_turn")
+            self.assertEqual(turn_received["details"]["client_intent"], "ask_status")
+            self.assertIn("context_summary", turn_received["details"])
+            self.assertNotIn("context_pack", turn_received["details"])
+            self.assertIn("requirement_count", turn_received["details"]["context_summary"])
+
+    def test_extra_evidence_overrides_read_only_client_intent(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            created = client.post("/api/erp-approval/cases/turn", json={"user_message": "Review purchase requisition PR-DYN-OVERRIDE."}).json()
+            response = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "case_id": created["case_state"]["case_id"],
+                    "user_message": "Here is quote evidence.",
+                    "client_intent": "ask_status",
+                    "extra_evidence": [
+                        {
+                            "title": "Quote",
+                            "record_type": "quote",
+                            "content": "Quote Q-DYN-OVERRIDE from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                        }
+                    ],
+                },
+            ).json()
+            steps = response["harness_run"]["graph_steps"]
+
+            self.assertIn("build_candidate_evidence", steps)
+            self.assertIn("route_evidence_type", steps)
+            self.assertIn("purchase_requisition_review_subgraph", steps)
+            self.assertNotEqual(response["operation_scope"], "read_only_case_turn")
+
     def test_llm_turn_classifier_runs_before_first_route(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(_FakeModel('{"turn_intent":"ask_required_materials","confidence":0.9}')))

@@ -342,17 +342,20 @@ def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool)
         return "off_topic"
     if has_evidence:
         return "submit_evidence"
-    if any(term in text for term in ("需要什么", "哪些材料", "什么材料", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")) or ("需要" in text and "材料" in text):
-        return "ask_required_materials"
     if any(term in text for term in ("撤回", "withdraw", "更正", "correct", "修正")):
         return "correct_previous_evidence"
+    if has_case and any(term in text for term in ("当前还缺", "还缺", "还差", "缺口", "进度", "状态", "下一步", "补证", "what is still missing", "still missing", "status")):
+        if not any(term in text for term in ("哪些材料", "材料清单", "必备材料", "required materials", "required evidence")):
+            return "ask_status"
+    if any(term in text for term in ("需要什么", "哪些材料", "什么材料", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")) or ("需要" in text and "材料" in text):
+        return "ask_required_materials"
     if not has_case:
         return "create_case"
     if any(term in text for term in ("最终", "final", "memo", "报告", "提交人工", "reviewer memo")):
         return "request_final_memo"
     if _looks_like_evidence_submission(text):
         return "submit_evidence"
-    if any(term in text for term in ("状态", "进度", "还差", "status")):
+    if any(term in text for term in ("状态", "进度", "还差", "还缺", "缺口", "status")):
         return "ask_status"
     return "ask_status"
 

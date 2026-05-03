@@ -78,6 +78,29 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
         self.assertTrue(any(item["claim_type"] == "quote_or_contract_present" for item in result.evidence_claims))
         self.assertIn("No ERP write action was executed", result.non_action_statement)
 
+    def test_case_turn_does_not_auto_fill_missing_evidence_from_mock_context(self) -> None:
+        result = run_local_case_review(
+            CaseReviewRequest(
+                user_message="请审查采购申请 PR-1001，供应商 Acme Supplies，金额 24500 USD。",
+                approval_type="purchase_requisition",
+                approval_id="PR-1001",
+                extra_evidence=[
+                    {
+                        "title": "PR-1001 quote",
+                        "record_type": "quote",
+                        "content": "Quote Q-PR-1001-A from Acme Supplies for USD 24,500. Price basis: replacement laptops.",
+                    }
+                ],
+            ),
+            base_dir=BACKEND_DIR,
+        )
+
+        self.assertNotEqual(result.recommendation["status"], "recommend_approve")
+        missing = set(result.evidence_sufficiency["missing_requirement_ids"])
+        self.assertIn("purchase_requisition:budget_availability", missing)
+        self.assertIn("purchase_requisition:vendor_onboarding_status", missing)
+        self.assertFalse(any(str(item["source_id"]).startswith(("mock_erp://", "mock_policy://")) for item in result.evidence_artifacts))
+
     def test_case_turn_api_rejects_empty_message_and_has_single_case_entrypoint(self) -> None:
         client = self._client()
 

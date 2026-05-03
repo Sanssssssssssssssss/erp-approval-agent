@@ -22,6 +22,7 @@ import {
   applyErpApprovalCaseTurn,
   type ErpApprovalCaseReviewEvidenceInput,
   type ErpApprovalCaseReviewResponse,
+  type ErpApprovalCaseTurnRequest,
   type ErpApprovalCaseTurnResponse
 } from "@/lib/api";
 
@@ -396,7 +397,11 @@ export function CaseReviewPanel() {
     }
   };
 
-  const submitTurn = async (override?: string, includeEvidence = true) => {
+  const submitTurn = async (
+    override?: string,
+    includeEvidence = true,
+    clientIntent?: ErpApprovalCaseTurnRequest["client_intent"]
+  ) => {
     const outgoing = (override ?? message).trim() || (queuedEvidence.length ? "这是本轮补充材料，请审查能否写入案卷。" : "");
     if (!outgoing) return;
 
@@ -411,7 +416,9 @@ export function CaseReviewPanel() {
       const response = await applyErpApprovalCaseTurn({
         case_id: caseTurn?.case_state.case_id ?? "",
         user_message: outgoing,
-        extra_evidence: includeEvidence ? queuedEvidence : []
+        extra_evidence: includeEvidence ? queuedEvidence : [],
+        client_intent:
+          clientIntent ?? (includeEvidence && queuedEvidence.length ? "submit_evidence" : caseTurn ? undefined : "create_case")
       });
       setCaseTurn(response);
       setMessages((items) => [...items, buildAgentReply(response)]);
@@ -426,7 +433,8 @@ export function CaseReviewPanel() {
     }
   };
 
-  const ask = (content: string) => void submitTurn(content, false);
+  const ask = (content: string, clientIntent: ErpApprovalCaseTurnRequest["client_intent"]) =>
+    void submitTurn(content, false, clientIntent);
   const applyTemplate = (content: string) => {
     setMessage(content);
     setShowTemplates(false);
@@ -475,15 +483,15 @@ export function CaseReviewPanel() {
         ) : null}
 
         <div className="case-agent-quick-actions">
-          <button onClick={() => ask("请告诉我当前审批案件还缺哪些 blocking evidence，并按优先级给出下一步补证问题。")} type="button">
+          <button onClick={() => ask("请告诉我当前审批案件还缺哪些 blocking evidence，并按优先级给出下一步补证问题。", "ask_status")} type="button">
             <HelpCircle size={15} />
             当前还缺什么
           </button>
-          <button onClick={() => ask("请按当前审批类型列出必备材料清单，并说明什么材料会被接受、什么只是用户陈述。")} type="button">
+          <button onClick={() => ask("请按当前审批类型列出必备材料清单，并说明什么材料会被接受、什么只是用户陈述。", "ask_required_materials")} type="button">
             <ListChecks size={15} />
             需要哪些材料
           </button>
-          <button onClick={() => ask("请尝试生成当前 reviewer memo；如果证据不足，请明确阻断缺口，不能写通过建议。")} type="button">
+          <button onClick={() => ask("请尝试生成当前 reviewer memo；如果证据不足，请明确阻断缺口，不能写通过建议。", "request_final_memo")} type="button">
             <ClipboardCheck size={15} />
             生成审查 memo
           </button>

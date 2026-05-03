@@ -48,6 +48,7 @@ class CaseReviewRequest(BaseModel):
     cost_center: str = ""
     business_purpose: str = ""
     extra_evidence: list[CaseReviewEvidenceInput] = Field(default_factory=list)
+    include_mock_context: bool = False
 
 
 class CaseReviewResponse(BaseModel):
@@ -70,8 +71,11 @@ class CaseReviewResponse(BaseModel):
 
 def run_local_case_review(request: CaseReviewRequest, *, base_dir: Path | str | None = None) -> CaseReviewResponse:
     approval_request = _approval_request_from_payload(request)
-    adapter = MockErpContextAdapter(base_dir=base_dir)
-    base_context = adapter.fetch_context(ErpContextQuery.from_request(approval_request))
+    if request.include_mock_context:
+        adapter = MockErpContextAdapter(base_dir=base_dir)
+        base_context = adapter.fetch_context(ErpContextQuery.from_request(approval_request))
+    else:
+        base_context = ApprovalContextBundle(request_id=approval_request.approval_id or "local-case-review", records=[])
     context = _merge_extra_evidence(base_context, request.extra_evidence, approval_request)
     case_file = build_case_file_from_request_context(approval_request, context)
     recommendation = draft_recommendation_from_case(case_file)

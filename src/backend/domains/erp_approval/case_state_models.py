@@ -141,6 +141,7 @@ class CaseTurnRequest(BaseModel):
     extra_evidence: list[CaseReviewEvidenceInput] = Field(default_factory=list)
     requested_by: str = "local_reviewer"
     expected_turn_count: int | None = None
+    client_intent: CaseTurnIntent | Literal[""] = ""
 
 
 class CaseTurnResponse(BaseModel):
