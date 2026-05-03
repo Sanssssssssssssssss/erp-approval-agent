@@ -1354,6 +1354,350 @@ a {
   gap: 0.45rem;
 }
 
+.case-agent-page {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.case-agent-main,
+.case-agent-side {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.case-agent-main {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.case-agent-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-line);
+  padding: 1rem 1rem 0.85rem;
+}
+
+.case-agent-header h2,
+.case-agent-side h3 {
+  margin: 0.15rem 0 0;
+  color: var(--color-ink);
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+
+.case-agent-header p {
+  margin: 0.35rem 0 0;
+  max-width: 780px;
+  color: var(--color-ink-soft);
+  line-height: 1.65;
+}
+
+.case-agent-header-actions,
+.case-agent-quick-actions,
+.case-agent-template-bar,
+.case-agent-composer-actions,
+.case-agent-evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.case-agent-template-bar,
+.case-agent-quick-actions {
+  border-bottom: 1px solid var(--color-line);
+  padding: 0.65rem 1rem;
+}
+
+.case-agent-template-bar button,
+.case-agent-quick-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.04);
+  padding: 0.4rem 0.7rem;
+  color: var(--color-ink-soft);
+  font-size: 0.88rem;
+}
+
+.case-agent-template-bar button:hover,
+.case-agent-quick-actions button:hover {
+  border-color: var(--color-line-strong);
+  color: var(--color-ink);
+}
+
+.case-agent-chat {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.case-agent-message {
+  max-width: min(820px, 92%);
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 0.85rem 0.95rem;
+  line-height: 1.7;
+}
+
+.case-agent-message strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-ink);
+}
+
+.case-agent-message-agent {
+  background: rgba(47, 129, 247, 0.07);
+  border-color: rgba(121, 184, 255, 0.24);
+}
+
+.case-agent-message-user {
+  margin-left: auto;
+  background: rgba(84, 211, 138, 0.07);
+  border-color: rgba(84, 211, 138, 0.22);
+}
+
+.case-agent-message-system {
+  margin-inline: auto;
+  background: rgba(246, 182, 85, 0.07);
+  border-color: rgba(246, 182, 85, 0.24);
+}
+
+.case-agent-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.case-agent-message-meta span,
+.case-agent-facts span,
+.case-agent-evidence-queue span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.05);
+  padding: 0.2rem 0.55rem;
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+}
+
+.case-agent-composer {
+  border-top: 1px solid var(--color-line);
+  padding: 0.85rem 1rem 1rem;
+}
+
+.case-agent-composer textarea,
+.case-agent-evidence-editor input,
+.case-agent-evidence-editor select,
+.case-agent-evidence-editor textarea {
+  width: 100%;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.52);
+  color: var(--color-ink);
+  outline: none;
+}
+
+.case-agent-composer > textarea {
+  min-height: 88px;
+  padding: 0.75rem;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.case-agent-evidence-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.24);
+  padding: 0.75rem;
+}
+
+.case-agent-evidence-editor textarea,
+.case-agent-evidence-actions {
+  grid-column: 1 / -1;
+}
+
+.case-agent-evidence-editor input,
+.case-agent-evidence-editor select {
+  min-height: 38px;
+  padding: 0.45rem 0.65rem;
+}
+
+.case-agent-evidence-editor textarea {
+  min-height: 118px;
+  padding: 0.65rem;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.case-agent-evidence-queue {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.case-agent-evidence-queue button {
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-muted);
+}
+
+.case-agent-composer-actions {
+  margin-top: 0.65rem;
+}
+
+.case-agent-boundary,
+.case-agent-file-status,
+.case-agent-error {
+  margin: 0.55rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.case-agent-error {
+  color: var(--color-danger);
+}
+
+.case-agent-side {
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.case-agent-side-empty {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  align-content: center;
+  gap: 0.75rem;
+  text-align: center;
+  color: var(--color-ink-soft);
+}
+
+.case-agent-side-empty p,
+.case-agent-muted {
+  margin: 0;
+  color: var(--color-ink-soft);
+  line-height: 1.65;
+}
+
+.case-agent-side-section + .case-agent-side-section,
+.case-agent-details {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.case-agent-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.case-agent-progress {
+  margin-top: 0.85rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.3);
+  padding: 0.75rem;
+}
+
+.case-agent-progress > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.case-agent-progress span,
+.case-agent-progress small {
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+}
+
+.case-agent-progress strong {
+  color: var(--color-ink);
+}
+
+.case-agent-progress-bar {
+  height: 7px;
+  margin: 0.55rem 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.08);
+}
+
+.case-agent-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent-strong);
+}
+
+.case-agent-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.case-agent-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: var(--color-ink);
+  line-height: 1.65;
+}
+
+.case-agent-details {
+  color: var(--color-ink-soft);
+}
+
+.case-agent-details summary {
+  cursor: pointer;
+  color: var(--color-ink);
+  font-weight: 650;
+}
+
+.case-agent-detail-block {
+  margin-top: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.26);
+  padding: 0.75rem;
+}
+
+.case-agent-detail-block h4 {
+  margin: 0 0 0.5rem;
+  color: var(--color-ink);
+}
+
+.case-agent-detail-block p {
+  margin: 0.35rem 0;
+  line-height: 1.55;
+}
+
+.case-agent-mobile-summary {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .workspace-topbar {
     grid-template-columns: 1fr;
@@ -1388,6 +1732,28 @@ a {
   .approval-summary-grid,
   .approval-workbench-steps,
   .case-artifacts {
+    grid-template-columns: 1fr;
+  }
+
+  .case-agent-page {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .case-agent-side {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .case-agent-main {
+    min-height: 74vh;
+  }
+
+  .case-agent-header {
+    flex-direction: column;
+  }
+
+  .case-agent-evidence-editor {
     grid-template-columns: 1fr;
   }
 }

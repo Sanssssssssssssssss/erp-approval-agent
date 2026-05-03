@@ -460,6 +460,9 @@ export type ErpApprovalCaseTurnResponse = {
   dossier: string;
   audit_events: Array<Record<string, unknown>>;
   storage_paths: Record<string, string>;
+  operation_scope?: string;
+  persistence?: string;
+  harness_run?: Record<string, unknown>;
   non_action_statement: string;
 };
 
