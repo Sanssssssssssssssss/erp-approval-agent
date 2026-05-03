@@ -7,7 +7,7 @@
     "critical": 0,
     "major": 0,
     "minor": 0,
-    "usability_notes": 21,
+    "usability_notes": 31,
     "failures_by_stage": {},
     "failed_categories": {},
     "recommend_approve_turns": 3,
@@ -111,11 +111,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-004",
@@ -368,13 +372,13 @@
           "next_question_count": 9,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+            "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购明细：需要物料、数量、单价或等价明细；一句话用途不能替代明细。; 供应商准入状态：需要供应商主数据或准入状态。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+        "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购明细：需要物料、数量、单价或等价明细；一句话用途不能替代明细。; 供应商准入状态：需要供应商主数据或准入状态。"
       ]
     },
     {
@@ -417,11 +421,15 @@
           "blocking_gap_count": 9,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购明细：需要物料、数量、单价或等价明细；一句话用途不能替代明细。; 供应商准入状态：需要供应商主数据或准入状态。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购明细：需要物料、数量、单价或等价明细；一句话用途不能替代明细。; 供应商准入状态：需要供应商主数据或准入状态。"
+      ]
     },
     {
       "scenario_id": "stress-012",
@@ -494,14 +502,14 @@
           "next_question_count": 7,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+            "本轮 patch 产生 warnings：Match type classified as unknown.; Amount consistency risk is needs_reconciliation.; Please provide or verify purchase_order evidence."
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
         "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
-        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+        "本轮 patch 产生 warnings：Match type classified as unknown.; Amount consistency risk is needs_reconciliation.; Please provide or verify purchase_order evidence."
       ]
     },
     {
@@ -572,11 +580,15 @@
           "blocking_gap_count": 7,
           "next_question_count": 7,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 报销申请：需要报销申请记录。; 业务目的：需要明确业务目的。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 报销申请：需要报销申请记录。; 业务目的：需要明确业务目的。"
+      ]
     },
     {
       "scenario_id": "stress-016",
@@ -621,14 +633,14 @@
           "next_question_count": 3,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+            "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购尽调：需要采购尽调记录。; 合同/NDA/DPA：需要合同、NDA 或 DPA 等文件。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
         "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
-        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+        "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购尽调：需要采购尽调记录。; 合同/NDA/DPA：需要合同、NDA 或 DPA 等文件。"
       ]
     },
     {
@@ -703,11 +715,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：Correction requests are recorded as case review updates; prior accepted evidence is not deleted in this phase."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：Correction requests are recorded as case review updates; prior accepted evidence is not deleted in this phase."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-001",
@@ -955,11 +971,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-010",
@@ -983,11 +1003,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-011",
@@ -1447,11 +1471,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-027",
@@ -1475,11 +1503,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-028",
@@ -1503,11 +1535,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-029",
@@ -1532,13 +1568,13 @@
           "next_question_count": 8,
           "failures": [],
           "usability_notes": [
-            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.; 本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.; 本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -1563,11 +1599,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence."
+      ]
     },
     {
       "scenario_id": "stress-fuzz-031",

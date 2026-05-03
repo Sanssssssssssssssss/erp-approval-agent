@@ -13,7 +13,7 @@
 - Critical failures: 0
 - Major failures: 0
 - Minor failures: 0
-- Usability notes: 21
+- Usability notes: 31
 - recommend_approve turns: 3
 - blocked/escalated turns: 71
 - request_more_info turns: 0
@@ -58,6 +58,8 @@
 
 - Category: off_topic
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -136,7 +138,7 @@
 - Category: weak_evidence
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
+  - 本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购明细：需要物料、数量、单价或等价明细；一句话用途不能替代明细。; 供应商准入状态：需要供应商主数据或准入状态。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -147,6 +149,8 @@
 
 - Category: partial_evidence
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购明细：需要物料、数量、单价或等价明细；一句话用途不能替代明细。; 供应商准入状态：需要供应商主数据或准入状态。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -168,7 +172,7 @@
 - Result: PASS
 - Usability notes:
   - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
-  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
+  - 本轮 patch 产生 warnings：Match type classified as unknown.; Amount consistency risk is needs_reconciliation.; Please provide or verify purchase_order evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -188,6 +192,8 @@
 
 - Category: partial_evidence
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 报销申请：需要报销申请记录。; 业务目的：需要明确业务目的。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -200,7 +206,7 @@
 - Result: PASS
 - Usability notes:
   - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
-  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
+  - 本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 采购尽调：需要采购尽调记录。; 合同/NDA/DPA：需要合同、NDA 或 DPA 等文件。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -222,6 +228,8 @@
 
 - Category: correction
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：Correction requests are recorded as case review updates; prior accepted evidence is not deleted in this phase.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -304,6 +312,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -313,6 +323,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -465,6 +477,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -474,6 +488,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -483,6 +499,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -493,7 +511,7 @@
 - Category: random_user_prompt
 - Result: PASS
 - Usability notes:
-  - 本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.; 本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
@@ -503,6 +521,8 @@
 
 - Category: random_user_prompt
 - Result: PASS
+- Usability notes:
+  - 本轮 patch 产生 warnings：This turn is unrelated to the current approval case and will not add accepted evidence.
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |

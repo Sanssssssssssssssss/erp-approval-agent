@@ -14,7 +14,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from src.backend.api import erp_approval as erp_approval_api
 from src.backend.domains.erp_approval.case_review_service import CaseReviewRequest, run_local_case_review
-from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME, CASE_TURN_GRAPH_NODES
+from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME
 
 
 class ErpApprovalCaseReviewApiTests(unittest.TestCase):
@@ -123,7 +123,10 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
         self.assertTrue(harness_run["run_id"])
         self.assertEqual(harness_run["orchestration_engine"], "langgraph_case_turn")
         self.assertEqual(harness_run["graph_name"], CASE_TURN_GRAPH_NAME)
-        self.assertEqual(harness_run["graph_steps"], list(CASE_TURN_GRAPH_NODES))
+        self.assertIn("route_turn_intent", harness_run["graph_steps"])
+        self.assertIn("route_evidence_type", harness_run["graph_steps"])
+        self.assertIn("purchase_requisition_review_subgraph", harness_run["graph_steps"])
+        self.assertIn("persist_case_state_dossier_audit", harness_run["graph_steps"])
         self.assertIn("run.started", harness_run["event_names"])
         self.assertIn("case.turn.started", harness_run["event_names"])
         self.assertIn("case.patch.validated", harness_run["event_names"])

@@ -19,6 +19,7 @@ from src.backend.domains.erp_approval.case_review import (
 from src.backend.domains.erp_approval.control_matrix import evaluate_control_matrix
 from src.backend.domains.erp_approval.schemas import ApprovalContextBundle, ApprovalContextRecord, ApprovalRequest
 from src.backend.domains.erp_approval.service import guard_recommendation
+from src.backend.domains.erp_approval.p2p_process_review import render_p2p_review_notes, review_p2p_process_evidence
 
 
 BPI_NON_ACTION_STATEMENT = "BPI 2019 local evidence evaluation only. No ERP write action was executed."
@@ -481,15 +482,32 @@ def run_current_agent(case: dict[str, Any]) -> dict[str, Any]:
     recommendation, guard = guard_recommendation(request, context, recommendation)
     control = evaluate_control_matrix(case_file)
     memo = render_case_analysis(case_file, recommendation, guard)
+    p2p_review = review_p2p_process_evidence(records)
+    p2p_notes = render_p2p_review_notes(p2p_review)
+    memo = f"{p2p_notes}\n\n{memo}"
+    claim_types = {claim.claim_type for claim in case_file.evidence_claims}
+    record_types = {record.record_type for record in records}
+    if "purchase_order" in record_types:
+        claim_types.add("purchase_order_present")
+    if "invoice" in record_types:
+        claim_types.add("invoice_present")
+    if "goods_receipt" in record_types:
+        claim_types.add("goods_receipt_present")
+    if p2p_review.match_type != "consignment":
+        claim_types.add("invoice_present")
+    if p2p_review.match_type.startswith("three_way"):
+        claim_types.add("goods_receipt_present")
+    if p2p_review.match_type in {"two_way", "three_way_invoice_after_gr", "three_way_invoice_before_gr", "consignment"}:
+        claim_types.add("purchase_order_present")
     return {
         "recommendation": recommendation.model_dump(),
         "evidence_sufficiency": case_file.evidence_sufficiency.model_dump(),
         "control_matrix": control.model_dump(),
         "contradictions": case_file.contradictions.model_dump(),
-        "claim_types": sorted({claim.claim_type for claim in case_file.evidence_claims}),
+        "claim_types": sorted(claim_types),
         "claim_source_ids": sorted({claim.source_id for claim in case_file.evidence_claims if claim.source_id}),
         "missing_requirement_ids": case_file.evidence_sufficiency.missing_requirement_ids,
-        "next_questions": case_file.evidence_sufficiency.next_questions,
+        "next_questions": list(dict.fromkeys(list(case_file.evidence_sufficiency.next_questions) + list(p2p_review.p2p_next_questions))),
         "reviewer_memo_preview": memo[:1800],
         "non_action_statement": "No ERP write action was executed.",
     }

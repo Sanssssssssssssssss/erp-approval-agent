@@ -3,9 +3,9 @@
 ## Executive Summary
 
 - Cases evaluated: 300
-- Average score: 92.53
+- Average score: 100.0
 - False approve count: 0
-- Critical / major / minor / pass: 0 / 65 / 144 / 91
+- Critical / major / minor / pass: 0 / 0 / 0 / 300
 - Current agent recommendation status counts: {'escalate': 300}
 
 This is a local evidence stress evaluation using compact samples derived from the public BPI Challenge 2019 purchase-to-pay event log. It is not a live ERP integration, not a process-mining benchmark claim, and not ERP action execution.
@@ -29,8 +29,8 @@ This is a local evidence stress evaluation using compact samples derived from th
 
 - By item category: {'3-way match, invoice after GR': 75, '3-way match, invoice before GR': 75, '2-way match': 75, 'Consignment': 75}
 - By match type: {'three_way_invoice_after_gr': 75, 'three_way_invoice_before_gr': 75, 'two_way': 75, 'consignment': 75}
-- By match type details: {'consignment': {'count': 75, 'average_score': 100.0, 'critical': 0, 'major': 0}, 'three_way_invoice_after_gr': {'count': 75, 'average_score': 82.24, 'critical': 0, 'major': 58}, 'three_way_invoice_before_gr': {'count': 75, 'average_score': 93.6, 'critical': 0, 'major': 2}, 'two_way': {'count': 75, 'average_score': 94.28, 'critical': 0, 'major': 5}}
-- Top failure components: {'sequence_explanation': 58, 'evidence_traceability': 7, 'amount_reasoning': 3}
+- By match type details: {'consignment': {'count': 75, 'average_score': 100.0, 'critical': 0, 'major': 0}, 'three_way_invoice_after_gr': {'count': 75, 'average_score': 100.0, 'critical': 0, 'major': 0}, 'three_way_invoice_before_gr': {'count': 75, 'average_score': 100.0, 'critical': 0, 'major': 0}, 'two_way': {'count': 75, 'average_score': 100.0, 'critical': 0, 'major': 0}}
+- Top failure components: {}
 
 ## What This Shows About The Current Agent
 
@@ -46,271 +46,136 @@ This is a local evidence stress evaluation using compact samples derived from th
 
 - Item category: 3-way match, invoice after GR
 - Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
+- Score / severity: 100 / pass
 - Agent status: escalate
 - Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
+- Reviewer critique: No major failure.
+
+### BPI2019-4507004931_00020
+
+- Item category: 3-way match, invoice before GR
+- Match type: three_way_invoice_before_gr
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: escalate
+- Reviewer critique: No major failure.
+
+### BPI2019-4508076155_00010
+
+- Item category: 2-way match
+- Match type: two_way
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: request_more_info
+- Reviewer critique: No major failure.
+
+### BPI2019-4507000542_00030
+
+- Item category: Consignment
+- Match type: consignment
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: escalate
+- Reviewer critique: No major failure.
 
 ### BPI2019-2000000097_00001
 
 - Item category: 3-way match, invoice after GR
 - Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
+- Score / severity: 100 / pass
 - Agent status: escalate
 - Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
+- Reviewer critique: No major failure.
+
+### BPI2019-4507004931_00010
+
+- Item category: 3-way match, invoice before GR
+- Match type: three_way_invoice_before_gr
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: escalate
+- Reviewer critique: No major failure.
+
+### BPI2019-4507075976_00010
+
+- Item category: 2-way match
+- Match type: two_way
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: request_more_info
+- Reviewer critique: No major failure.
+
+### BPI2019-4507000256_00010
+
+- Item category: Consignment
+- Match type: consignment
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: escalate
+- Reviewer critique: No major failure.
 
 ### BPI2019-4507027474_00010
 
 - Item category: 3-way match, invoice after GR
 - Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
+- Score / severity: 100 / pass
 - Agent status: escalate
 - Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
+- Reviewer critique: No major failure.
+
+### BPI2019-4507004931_00050
+
+- Item category: 3-way match, invoice before GR
+- Match type: three_way_invoice_before_gr
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: escalate
+- Reviewer critique: No major failure.
+
+### BPI2019-4507075969_00020
+
+- Item category: 2-way match
+- Match type: two_way
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: request_more_info
+- Reviewer critique: No major failure.
+
+### BPI2019-4507000265_00020
+
+- Item category: Consignment
+- Match type: consignment
+- Score / severity: 100 / pass
+- Agent status: escalate
+- Rule baseline status: escalate
+- Reviewer critique: No major failure.
 
 ### BPI2019-2000013555_00001
 
 - Item category: 3-way match, invoice after GR
 - Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
+- Score / severity: 100 / pass
 - Agent status: escalate
 - Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
+- Reviewer critique: No major failure.
 
-### BPI2019-4507037128_00310
+### BPI2019-4507004931_00040
 
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
+- Item category: 3-way match, invoice before GR
+- Match type: three_way_invoice_before_gr
+- Score / severity: 100 / pass
 - Agent status: escalate
 - Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
+- Reviewer critique: No major failure.
 
-### BPI2019-4507037128_00230
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00220
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00180
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00170
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00160
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00150
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00130
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00120
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00450
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00460
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507037128_00470
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507003966_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-2000000109_00001
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507075965_00070
+### BPI2019-4508076155_00030
 
 - Item category: 2-way match
 - Match type: two_way
-- Score / severity: 79 / major
+- Score / severity: 100 / pass
 - Agent status: escalate
 - Rule baseline status: request_more_info
-- Reviewer critique: Agent did not extract expected P2P evidence claims: invoice_present
-
-### BPI2019-2000000100_00001
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507075965_00080
-
-- Item category: 2-way match
-- Match type: two_way
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: request_more_info
-- Reviewer critique: Agent did not extract expected P2P evidence claims: invoice_present
-
-### BPI2019-4507009482_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507001097_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-2000013464_00001
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507075965_00100
-
-- Item category: 2-way match
-- Match type: two_way
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: request_more_info
-- Reviewer critique: Agent did not extract expected P2P evidence claims: invoice_present
-
-### BPI2019-4507020761_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507009254_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
-
-### BPI2019-4507000440_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 75 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.; Multiple amount values were not treated as a review risk.
-
-### BPI2019-4507075965_00040
-
-- Item category: 2-way match
-- Match type: two_way
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: request_more_info
-- Reviewer critique: Agent did not extract expected P2P evidence claims: invoice_present
-
-### BPI2019-4507000454_00010
-
-- Item category: 3-way match, invoice after GR
-- Match type: three_way_invoice_after_gr
-- Score / severity: 79 / major
-- Agent status: escalate
-- Rule baseline status: escalate
-- Reviewer critique: Invoice-before-GR risk was not explained.; Historical Clear Invoice event was not explained.
+- Reviewer critique: No major failure.
 
 ## Recommended Next Fixes
 

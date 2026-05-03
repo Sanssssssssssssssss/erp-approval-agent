@@ -7,16 +7,21 @@ class CaseContextAssembler:
     """Builds the bounded case context a stage model is allowed to see."""
 
     def assemble(self, state: ApprovalCaseState, contract: CaseTurnContract, user_message: str) -> dict:
+        return self.assemble_for_branch(state, contract, user_message, branch="generic_case_turn")
+
+    def assemble_for_branch(self, state: ApprovalCaseState, contract: CaseTurnContract, user_message: str, *, branch: str) -> dict:
         relevant_requirements = _relevant_requirements(state, user_message, limit=18)
         relevant_claims = _relevant_claims(state, relevant_requirements, user_message, limit=24)
         relevant_rejections = _relevant_rejections(state, user_message, limit=10)
+        branch_policy = _branch_context_policy(branch)
         return {
             "context_policy": {
-                "selection": "case_state_snapshot_relevant_to_current_turn",
-                "claim_limit": 24,
-                "rejected_evidence_limit": 10,
-                "requirement_limit": 18,
-                "notes": "Do not rely on raw chat history. Use this bounded case-state snapshot and current submission.",
+                "selection": branch_policy["selection"],
+                "branch": branch,
+                "claim_limit": branch_policy["claim_limit"],
+                "rejected_evidence_limit": branch_policy["rejected_evidence_limit"],
+                "requirement_limit": branch_policy["requirement_limit"],
+                "notes": branch_policy["notes"],
             },
             "immutable_instruction": (
                 "你是审批案卷资料专员，只能审核材料、抽取证据、提出 CasePatch。"
@@ -119,3 +124,53 @@ def _terms(text: str) -> set[str]:
     normalized = str(text or "").lower()
     raw_terms = normalized.replace("/", " ").replace("-", " ").replace("_", " ").split()
     return {term.strip(".,:;()[]{}") for term in raw_terms if len(term.strip(".,:;()[]{}")) >= 3}
+
+
+def _branch_context_policy(branch: str) -> dict:
+    policies = {
+        "ask_required_materials": {
+            "selection": "case_summary_requirements_and_missing_items_only",
+            "claim_limit": 8,
+            "rejected_evidence_limit": 4,
+            "requirement_limit": 24,
+            "notes": "Answer required materials from the case state, evidence matrix, and current blocking gaps.",
+        },
+        "ask_status": {
+            "selection": "compact_case_state_blocking_gaps_recent_evidence",
+            "claim_limit": 12,
+            "rejected_evidence_limit": 8,
+            "requirement_limit": 18,
+            "notes": "Summarize current status without re-reviewing unrelated materials.",
+        },
+        "submit_evidence": {
+            "selection": "current_evidence_related_requirements_claims_and_controls",
+            "claim_limit": 24,
+            "rejected_evidence_limit": 10,
+            "requirement_limit": 18,
+            "notes": "Review only the current submission against related requirements and controls.",
+        },
+        "p2p_process_review": {
+            "selection": "invoice_po_grn_process_log_payment_policy_and_historical_claims",
+            "claim_limit": 30,
+            "rejected_evidence_limit": 10,
+            "requirement_limit": 22,
+            "notes": "Focus on P2P process evidence: invoice, PO, goods receipt, payment terms, duplicate checks, Clear Invoice history, sequence risk, and amount consistency.",
+        },
+        "final_memo": {
+            "selection": "evidence_summary_control_matrix_contradictions_unresolved_risks",
+            "claim_limit": 36,
+            "rejected_evidence_limit": 16,
+            "requirement_limit": 28,
+            "notes": "Draft a reviewer memo only from validated case state and unresolved controls.",
+        },
+    }
+    return policies.get(
+        branch,
+        {
+            "selection": "case_state_snapshot_relevant_to_current_turn",
+            "claim_limit": 24,
+            "rejected_evidence_limit": 10,
+            "requirement_limit": 18,
+            "notes": "Do not rely on raw chat history. Use this bounded case-state snapshot and current submission.",
+        },
+    )

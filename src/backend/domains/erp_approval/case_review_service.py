@@ -176,6 +176,8 @@ def _infer_record_type(record_type: str, title: str, content: str) -> str:
         ("payment_terms", ("payment terms", "付款条款")),
         ("duplicate_check", ("duplicate", "重复")),
         ("limit_check", ("limit", "限额")),
+        ("clear_invoice_event", ("clear invoice", "cleared invoice")),
+        ("process_log", ("process log", "event log", "bpi", "workflow event")),
     )
     for candidate, needles in patterns:
         if any(needle in text for needle in needles):
