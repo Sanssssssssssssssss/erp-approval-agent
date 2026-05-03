@@ -1043,6 +1043,8 @@ def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str)
         return "", ["Client intent submit_evidence was ignored because no evidence payload was provided."]
     if requested == "request_final_memo" and state.get("existing_state") is None:
         return "", ["Client intent request_final_memo was ignored because no approval case exists yet."]
+    if requested == "ask_status" and state.get("existing_state") is None:
+        return "", ["Client intent ask_status was ignored because no approval case exists yet."]
     if requested == "create_case" and state.get("existing_state") is not None:
         return "", ["Client intent create_case was ignored because the current turn is already bound to a case."]
     if requested in {"ask_status", "ask_required_materials", "request_final_memo"}:

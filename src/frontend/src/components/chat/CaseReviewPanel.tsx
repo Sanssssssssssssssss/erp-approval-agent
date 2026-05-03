@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Sparkles
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -316,6 +316,7 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
 }
 
 export function CaseReviewPanel() {
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     makeMessage(
       "agent",
@@ -337,7 +338,12 @@ export function CaseReviewPanel() {
 
   const result = caseTurn?.review ?? null;
   const canSend = !loading && (message.trim().length > 0 || queuedEvidence.length > 0);
+  const hasCase = Boolean(caseTurn?.case_state?.case_id);
   const requestSummary = useMemo(() => result?.approval_request ?? {}, [result]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages, loading]);
 
   const addEvidence = () => {
     if (!evidenceContent.trim()) return;
@@ -483,15 +489,30 @@ export function CaseReviewPanel() {
         ) : null}
 
         <div className="case-agent-quick-actions">
-          <button onClick={() => ask("请告诉我当前审批案件还缺哪些 blocking evidence，并按优先级给出下一步补证问题。", "ask_status")} type="button">
+          <button
+            disabled={!hasCase || loading}
+            onClick={() => ask("请告诉我当前审批案件还缺哪些 blocking evidence，并按优先级给出下一步补证问题。", "ask_status")}
+            title={hasCase ? "查看当前案卷缺口" : "请先描述案件或选择模板创建案卷"}
+            type="button"
+          >
             <HelpCircle size={15} />
             当前还缺什么
           </button>
-          <button onClick={() => ask("请按当前审批类型列出必备材料清单，并说明什么材料会被接受、什么只是用户陈述。", "ask_required_materials")} type="button">
+          <button
+            disabled={!hasCase || loading}
+            onClick={() => ask("请按当前审批类型列出必备材料清单，并说明什么材料会被接受、什么只是用户陈述。", "ask_required_materials")}
+            title={hasCase ? "查看当前审批类型的必备材料" : "请先描述案件或选择模板创建案卷"}
+            type="button"
+          >
             <ListChecks size={15} />
             需要哪些材料
           </button>
-          <button onClick={() => ask("请尝试生成当前 reviewer memo；如果证据不足，请明确阻断缺口，不能写通过建议。", "request_final_memo")} type="button">
+          <button
+            disabled={!hasCase || loading}
+            onClick={() => ask("请尝试生成当前 reviewer memo；如果证据不足，请明确阻断缺口，不能写通过建议。", "request_final_memo")}
+            title={hasCase ? "生成当前案卷审查 memo" : "请先描述案件或选择模板创建案卷"}
+            type="button"
+          >
             <ClipboardCheck size={15} />
             生成审查 memo
           </button>
@@ -517,6 +538,7 @@ export function CaseReviewPanel() {
               <div>正在经过 HarnessRuntime 和 LangGraph case-turn graph，本轮不会执行任何 ERP 写动作。</div>
             </article>
           ) : null}
+          <div ref={chatEndRef} />
         </div>
 
         <div className="case-agent-composer">

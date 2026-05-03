@@ -102,6 +102,24 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertNotIn("context_pack", turn_received["details"])
             self.assertIn("requirement_count", turn_received["details"]["context_summary"])
 
+    def test_client_ask_status_without_existing_case_is_not_ephemeral_read_only_case(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            response = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "user_message": "What is missing?",
+                    "client_intent": "ask_status",
+                },
+            ).json()
+            turn_received = next(event for event in response["audit_events"] if event["event"] == "turn_received")
+
+            self.assertNotEqual(response["operation_scope"], "read_only_case_turn")
+            self.assertEqual(response["case_state"]["turn_count"], 1)
+            self.assertIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
+            self.assertEqual(turn_received["details"]["client_intent"], "")
+            self.assertNotIn("context_pack", turn_received["details"])
+
     def test_extra_evidence_overrides_read_only_client_intent(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             client = self._client(Path(temp_dir))

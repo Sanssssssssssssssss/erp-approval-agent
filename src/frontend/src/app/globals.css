@@ -1434,6 +1434,18 @@ a {
   color: var(--color-ink);
 }
 
+.case-agent-template-bar button:disabled,
+.case-agent-quick-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.case-agent-template-bar button:disabled:hover,
+.case-agent-quick-actions button:disabled:hover {
+  border-color: var(--color-line);
+  color: var(--color-ink-soft);
+}
+
 .case-agent-chat {
   min-height: 0;
   overflow-y: auto;
