@@ -8,7 +8,7 @@ from typing import Any
 
 from src.backend.domains.erp_approval.case_context import CaseContextAssembler
 from src.backend.domains.erp_approval.case_memory_store import CaseMemoryStore
-from src.backend.domains.erp_approval.case_patch_validator import CasePatchValidator, contract_for_state
+from src.backend.domains.erp_approval.case_patch_validator import CasePatchValidator
 from src.backend.domains.erp_approval.case_review import APPROVAL_TYPE_CN
 from src.backend.domains.erp_approval.case_review_service import (
     CaseReviewEvidenceInput,
@@ -46,112 +46,6 @@ class CaseHarness:
 
         return run_case_turn_graph_sync(self, request)
 
-    def _handle_turn_locked(self, request: CaseTurnRequest) -> CaseTurnResponse:
-        now = _now()
-        existing_state = self.store.get(request.case_id) if request.case_id.strip() else None
-        state = existing_state or self._create_state(request, now)
-        if existing_state is not None and request.expected_turn_count is not None and request.expected_turn_count != existing_state.turn_count:
-            return self._turn_conflict_response(existing_state, request, now)
-        turn_id = f"turn-{state.turn_count + 1:04d}"
-        intent = classify_case_turn(request.user_message, has_case=existing_state is not None, has_evidence=bool(request.extra_evidence))
-        contract = contract_for_state(state)
-        context_pack = self.context_assembler.assemble(state, contract, request.user_message)
-        self.store.append_audit_event(
-            _event(turn_id, state.case_id, "turn_received", now, {"intent": intent, "context_pack": context_pack})
-        )
-
-        candidates = self._candidate_evidence(request, state, turn_id, intent)
-        provisional_review = self._review(state, request.user_message, candidates)
-        model_decision, model_error = self._review_with_stage_model(
-            context_pack=context_pack,
-            candidates=candidates,
-            review=provisional_review,
-            deterministic_intent=intent,
-        )
-        intent = self._intent_from_stage_model(intent, model_decision, contract)
-        accepted, rejected, warnings = self._review_candidate_evidence(candidates, provisional_review, now)
-        accepted, rejected, warnings = self._apply_stage_model_decision(
-            candidates=candidates,
-            accepted=accepted,
-            rejected=rejected,
-            warnings=warnings,
-            decision=model_decision,
-            now=now,
-        )
-        final_candidates = candidates if accepted else []
-        final_review = provisional_review if accepted else self._review(state, request.user_message, [])
-        patch = self._build_patch(
-            state=state,
-            turn_id=turn_id,
-            intent=intent,
-            accepted=accepted,
-            rejected=rejected,
-            review=final_review,
-            warnings=warnings,
-            created_new=existing_state is None,
-            model_decision=model_decision,
-            model_error=model_error,
-        )
-        patch = self.validator.validate(state, patch, contract, review=final_review)
-
-        events: list[CaseAuditEvent] = []
-        if existing_state is None:
-            events.append(_event(turn_id, state.case_id, "case_created", now, {"approval_type": state.approval_type, "approval_id": state.approval_id}))
-        if candidates:
-            events.append(_event(turn_id, state.case_id, "evidence_submitted", now, {"source_ids": [item.source_id for item in candidates]}))
-        if patch.accepted_evidence:
-            events.append(_event(turn_id, state.case_id, "evidence_accepted", now, {"source_ids": [item.source_id for item in patch.accepted_evidence]}))
-        if patch.rejected_evidence:
-            events.append(_event(turn_id, state.case_id, "evidence_rejected", now, {"source_ids": [item.source_id for item in patch.rejected_evidence], "reasons": patch.rejection_reasons}))
-        if intent == "off_topic":
-            events.append(_event(turn_id, state.case_id, "off_topic_rejected", now, {"message_preview": request.user_message[:240]}))
-        if model_decision is not None:
-            events.append(
-                _event(
-                    turn_id,
-                    state.case_id,
-                    "case_stage_model_reviewed",
-                    now,
-                    {
-                        "turn_intent": model_decision.turn_intent,
-                        "patch_type": model_decision.patch_type,
-                        "evidence_decision": model_decision.evidence_decision,
-                        "confidence": model_decision.confidence,
-                        "error": model_error,
-                    },
-                )
-            )
-
-        if patch.allowed_to_apply:
-            state = self._apply_patch(state, patch, final_review, now, turn_id, mutate_case=intent != "off_topic")
-            for evidence in patch.accepted_evidence:
-                evidence_path = self.store.write_evidence_text(state.case_id, evidence.source_id, evidence.content)
-                for stored in state.accepted_evidence:
-                    if stored.source_id == evidence.source_id:
-                        stored.metadata["local_evidence_file"] = evidence_path
-            dossier = render_case_dossier(state, final_review, patch)
-            self.store.write_dossier(state.case_id, dossier)
-            state = state.model_copy(update={"dossier_version": state.dossier_version + 1, "audit_event_count": state.audit_event_count + len(events)})
-            self.store.upsert(state)
-            events.append(_event(turn_id, state.case_id, "case_state_persisted", now, {"stage": state.stage, "dossier_version": state.dossier_version}))
-        else:
-            dossier = self.store.read_dossier(state.case_id) or render_case_dossier(state, final_review, patch)
-            events.append(_event(turn_id, state.case_id, "case_patch_rejected", now, {"warnings": patch.warnings}))
-
-        for event in events:
-            self.store.append_audit_event(event)
-        return CaseTurnResponse(
-            case_state=state,
-            contract=contract_for_state(state),
-            patch=patch,
-            review=final_review,
-            dossier=dossier,
-            audit_events=events,
-            storage_paths=self.store.paths_for(state.case_id),
-            operation_scope="persistent_case_turn",
-            non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
-        )
-
     def get_case(self, case_id: str) -> ApprovalCaseState | None:
         return self.store.get(case_id)
 
@@ -167,44 +61,6 @@ class CaseHarness:
         approval_request = parse_approval_request("", request.user_message)
         approval_id = approval_request.approval_id or _stable_suffix(request.user_message)
         return f"erp-case:{approval_id}"
-
-    def _turn_conflict_response(self, state: ApprovalCaseState, request: CaseTurnRequest, now: str) -> CaseTurnResponse:
-        turn_id = f"turn-conflict-{state.turn_count + 1:04d}"
-        contract = contract_for_state(state)
-        review = self._review(state, request.user_message, [])
-        patch = CasePatch(
-            patch_id=f"case-patch-conflict:{state.case_id}:{turn_id}",
-            turn_id=turn_id,
-            case_id=state.case_id,
-            patch_type="no_case_change",
-            turn_intent="ask_status",
-            evidence_decision="not_evidence",
-            warnings=[
-                f"case_state version conflict: expected turn_count {request.expected_turn_count}, current turn_count {state.turn_count}.",
-                "本轮输入未写入案卷；请刷新当前 case_state 后重新提交。",
-            ],
-            allowed_to_apply=False,
-        )
-        event = _event(
-            turn_id,
-            state.case_id,
-            "case_turn_conflict",
-            now,
-            {"expected_turn_count": request.expected_turn_count, "current_turn_count": state.turn_count},
-        )
-        self.store.append_audit_event(event)
-        dossier = self.store.read_dossier(state.case_id) or render_case_dossier(state, review, patch)
-        return CaseTurnResponse(
-            case_state=state,
-            contract=contract,
-            patch=patch,
-            review=review,
-            dossier=dossier,
-            audit_events=[event],
-            storage_paths=self.store.paths_for(state.case_id),
-            operation_scope="persistent_case_turn_conflict",
-            non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
-        )
 
     def _create_state(self, request: CaseTurnRequest, now: str) -> ApprovalCaseState:
         approval_request = parse_approval_request("", request.user_message)

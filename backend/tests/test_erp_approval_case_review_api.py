@@ -14,6 +14,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from src.backend.api import erp_approval as erp_approval_api
 from src.backend.domains.erp_approval.case_review_service import CaseReviewRequest, run_local_case_review
+from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME, CASE_TURN_GRAPH_NODES
 
 
 class ErpApprovalCaseReviewApiTests(unittest.TestCase):
@@ -121,20 +122,8 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
         harness_run = evidence_response.json()["harness_run"]
         self.assertTrue(harness_run["run_id"])
         self.assertEqual(harness_run["orchestration_engine"], "langgraph_case_turn")
-        self.assertEqual(harness_run["graph_name"], "erp_approval_case_turn_graph")
-        self.assertEqual(
-            harness_run["graph_steps"],
-            [
-                "load_case_state",
-                "classify_turn",
-                "assemble_case_context",
-                "review_submission",
-                "propose_patch",
-                "validate_patch",
-                "persist_case",
-                "respond",
-            ],
-        )
+        self.assertEqual(harness_run["graph_name"], CASE_TURN_GRAPH_NAME)
+        self.assertEqual(harness_run["graph_steps"], list(CASE_TURN_GRAPH_NODES))
         self.assertIn("run.started", harness_run["event_names"])
         self.assertIn("case.turn.started", harness_run["event_names"])
         self.assertIn("case.patch.validated", harness_run["event_names"])

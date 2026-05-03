@@ -9,7 +9,7 @@ from src.backend.domains.erp_approval.case_state_models import (
     CaseTurnRequest,
     CaseTurnResponse,
 )
-from src.backend.domains.erp_approval.case_turn_graph import run_case_turn_graph_state_sync
+from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME, CASE_TURN_GRAPH_NODES, run_case_turn_graph_state_sync
 
 
 class CaseTurnExecutor:
@@ -23,7 +23,6 @@ class CaseTurnExecutor:
 
     async def execute(self, runtime, handle, *, message: str, history: list[dict[str, Any]]) -> None:
         del history
-        graph_name = "erp_approval_case_turn_graph"
         lock_case_id = self.harness._lock_case_id(self.request)
         await runtime.emit(
             handle,
@@ -35,7 +34,7 @@ class CaseTurnExecutor:
                 "allowed_tools": [],
                 "confidence": 1.0,
                 "reason_short": "Local evidence-first case turn is handled by the LangGraph case-turn graph.",
-                "source": graph_name,
+                "source": CASE_TURN_GRAPH_NAME,
             },
         )
         await runtime.emit(
@@ -46,17 +45,8 @@ class CaseTurnExecutor:
                 "requested_by": self.request.requested_by,
                 "extra_evidence_count": len(self.request.extra_evidence),
                 "message_preview": message[:240],
-                "graph_name": graph_name,
-                "graph_nodes": [
-                    "load_case_state",
-                    "classify_turn",
-                    "assemble_case_context",
-                    "review_submission",
-                    "propose_patch",
-                    "validate_patch",
-                    "persist_case",
-                    "respond",
-                ],
+                "graph_name": CASE_TURN_GRAPH_NAME,
+                "graph_nodes": list(CASE_TURN_GRAPH_NODES),
                 "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
             },
         )
@@ -80,7 +70,7 @@ class CaseTurnExecutor:
                 "missing_requirement_count": len(patch.requirements_missing),
                 "warning_count": len(patch.warnings),
                 "stage_model_used": bool((patch.model_review or {}).get("used")),
-                "graph_name": graph_name,
+                "graph_name": CASE_TURN_GRAPH_NAME,
                 "graph_steps": self.graph_steps,
                 "non_action_statement": patch.non_action_statement,
             },
@@ -94,7 +84,7 @@ class CaseTurnExecutor:
                 "turn_count": state.turn_count,
                 "dossier_version": state.dossier_version,
                 "storage_paths": dict(self.response.storage_paths or {}),
-                "graph_name": graph_name,
+                "graph_name": CASE_TURN_GRAPH_NAME,
                 "graph_steps": self.graph_steps,
                 "non_action_statement": state.non_action_statement,
             },

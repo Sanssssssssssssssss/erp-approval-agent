@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -18,6 +19,18 @@ from src.backend.domains.erp_approval.case_state_models import (
     CasePatch,
     CaseTurnRequest,
     CaseTurnResponse,
+)
+
+CASE_TURN_GRAPH_NAME = "erp_approval_case_turn_graph"
+CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
+    "load_case_state",
+    "classify_turn",
+    "assemble_case_context",
+    "review_submission",
+    "propose_patch",
+    "validate_patch",
+    "persist_case",
+    "respond",
 )
 
 
@@ -48,6 +61,7 @@ class CaseTurnGraphState(TypedDict, total=False):
     conflict: bool
 
 
+@lru_cache(maxsize=1)
 def compile_case_turn_graph():
     """Compile the Harness-owned LangGraph case-turn state machine.
 
@@ -56,24 +70,23 @@ def compile_case_turn_graph():
     """
 
     graph = StateGraph(CaseTurnGraphState)
-    graph.add_node("load_case_state", load_case_state_node)
-    graph.add_node("classify_turn", classify_turn_node)
-    graph.add_node("assemble_case_context", assemble_case_context_node)
-    graph.add_node("review_submission", review_submission_node)
-    graph.add_node("propose_patch", propose_patch_node)
-    graph.add_node("validate_patch", validate_patch_node)
-    graph.add_node("persist_case", persist_case_node)
-    graph.add_node("respond", respond_node)
+    node_builders = {
+        "load_case_state": load_case_state_node,
+        "classify_turn": classify_turn_node,
+        "assemble_case_context": assemble_case_context_node,
+        "review_submission": review_submission_node,
+        "propose_patch": propose_patch_node,
+        "validate_patch": validate_patch_node,
+        "persist_case": persist_case_node,
+        "respond": respond_node,
+    }
+    for node_name in CASE_TURN_GRAPH_NODES:
+        graph.add_node(node_name, node_builders[node_name])
 
-    graph.set_entry_point("load_case_state")
-    graph.add_edge("load_case_state", "classify_turn")
-    graph.add_edge("classify_turn", "assemble_case_context")
-    graph.add_edge("assemble_case_context", "review_submission")
-    graph.add_edge("review_submission", "propose_patch")
-    graph.add_edge("propose_patch", "validate_patch")
-    graph.add_edge("validate_patch", "persist_case")
-    graph.add_edge("persist_case", "respond")
-    graph.add_edge("respond", END)
+    graph.set_entry_point(CASE_TURN_GRAPH_NODES[0])
+    for source, target in zip(CASE_TURN_GRAPH_NODES, CASE_TURN_GRAPH_NODES[1:]):
+        graph.add_edge(source, target)
+    graph.add_edge(CASE_TURN_GRAPH_NODES[-1], END)
     return graph.compile()
 
 

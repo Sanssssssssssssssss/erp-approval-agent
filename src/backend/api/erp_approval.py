@@ -41,6 +41,7 @@ from src.backend.domains.erp_approval.case_harness import CaseHarness
 from src.backend.domains.erp_approval.case_state_models import CASE_HARNESS_NON_ACTION_STATEMENT, CaseTurnRequest
 from src.backend.domains.erp_approval.case_stage_model import CaseStageModelReviewer
 from src.backend.domains.erp_approval.case_turn_executor import CaseTurnExecutor
+from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
 
@@ -171,7 +172,7 @@ async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
     payload["harness_run"] = {
         "run_id": events[0].run_id if events else "",
         "orchestration_engine": "langgraph_case_turn",
-        "graph_name": "erp_approval_case_turn_graph",
+        "graph_name": CASE_TURN_GRAPH_NAME,
         "graph_steps": executor.graph_steps,
         "event_names": [event.name for event in events],
         "events": [_event_summary(event) for event in events],
