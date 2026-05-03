@@ -169,8 +169,12 @@ def score_turn(
         penalty("case_lifecycle", 8, "major", "classify_turn_intent", f"Expected intent {turn.expected_intent}, observed {patch.get('turn_intent')}.")
     if turn.expected_patch_type and patch.get("patch_type") != turn.expected_patch_type:
         penalty("case_lifecycle", 8, "major", "validate_case_patch", f"Expected patch {turn.expected_patch_type}, observed {patch.get('patch_type')}.")
-    if not state.get("case_id") or "case_state_persisted" not in {event.get("event") for event in response.get("audit_events") or []} and patch.get("allowed_to_apply"):
+    event_names = {event.get("event") for event in response.get("audit_events") or []}
+    read_only_turn = response.get("operation_scope") == "read_only_case_turn"
+    if not state.get("case_id") or (not read_only_turn and "case_state_persisted" not in event_names and patch.get("allowed_to_apply")):
         penalty("case_lifecycle", 5, "minor", "persist_case_state", "Case turn did not expose persisted case state event.")
+    if read_only_turn and not event_names.intersection({"case_read_only_turn", "off_topic_rejected", "case_revision_request_recorded"}):
+        penalty("case_lifecycle", 5, "minor", "append_audit_only", "Read-only case turn did not expose an audit-only event.")
 
     if turn.expect_accept_delta_min is not None and accepted_delta < turn.expect_accept_delta_min:
         penalty("evidence_handling", 15, "major", "evidence_claim_builder", f"Expected accepted evidence delta >= {turn.expect_accept_delta_min}, observed {accepted_delta}.")

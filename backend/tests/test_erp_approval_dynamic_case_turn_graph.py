@@ -74,6 +74,26 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertIn("case_status_summary_node", steps)
             self.assertNotIn("p2p_process_fact_extractor", steps)
+            self.assertEqual(response["operation_scope"], "read_only_case_turn")
+            self.assertIn("read_only_case_response", steps)
+            self.assertIn("append_audit_only", steps)
+            self.assertNotIn("persist_case_state_dossier_audit", steps)
+            self.assertEqual(response["case_state"]["dossier_version"], created["case_state"]["dossier_version"])
+
+    def test_llm_turn_classifier_runs_before_first_route(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(_FakeModel('{"turn_intent":"ask_required_materials","confidence":0.9}')))
+            first = harness.handle_turn(CaseTurnRequest(user_message="Review purchase requisition PR-DYN-CLASSIFIER."))
+            graph_state = run_case_turn_graph_state_sync(
+                harness,
+                CaseTurnRequest(case_id=first.case_state.case_id, user_message="Status?"),
+            )
+            steps = graph_state["graph_steps"]
+
+            self.assertLess(steps.index("llm_turn_classifier"), steps.index("route_turn_intent"))
+            self.assertLess(steps.index("deterministic_classifier_guard"), steps.index("route_turn_intent"))
+            self.assertIn("materials_guidance_node", steps)
+            self.assertNotIn("case_status_summary_node", steps)
 
     def test_quote_evidence_routes_to_purchase_requisition_subgraph(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
@@ -146,6 +166,10 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             ).json()
 
             self.assertIn("final_memo_gate", response["harness_run"]["graph_steps"])
+            self.assertIn("merge_review_outputs", response["harness_run"]["graph_steps"])
+            self.assertIn("evidence_sufficiency_gate", response["harness_run"]["graph_steps"])
+            self.assertIn("contradiction_gate", response["harness_run"]["graph_steps"])
+            self.assertIn("control_matrix_gate", response["harness_run"]["graph_steps"])
             self.assertNotEqual(response["review"]["recommendation"]["status"], "recommend_approve")
             self.assertTrue(response["review"]["evidence_sufficiency"]["blocking_gaps"])
 

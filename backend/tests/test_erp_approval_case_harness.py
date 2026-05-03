@@ -249,7 +249,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(len(model.messages), 5)
+            self.assertEqual(len(model.messages), 6)
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertIn("turn_classifier", response.patch.model_review["role_outputs"])
             self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])

@@ -83,6 +83,8 @@ class CaseTurnExecutor:
                 "stage": state.stage,
                 "turn_count": state.turn_count,
                 "dossier_version": state.dossier_version,
+                "state_mutated": self.response.operation_scope != "read_only_case_turn",
+                "audit_only": self.response.operation_scope == "read_only_case_turn",
                 "storage_paths": dict(self.response.storage_paths or {}),
                 "graph_name": CASE_TURN_GRAPH_NAME,
                 "graph_steps": self.graph_steps,

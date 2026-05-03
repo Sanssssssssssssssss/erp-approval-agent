@@ -318,7 +318,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### stress-fuzz-010 - 跑题混合
 
@@ -329,7 +329,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### stress-fuzz-011 - 高金额缺供应商
 
@@ -483,7 +483,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### stress-fuzz-027 - 股票跑题
 
@@ -494,7 +494,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 10 | 9 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 10 | 9 |
 
 ### stress-fuzz-028 - 写诗跑题
 
@@ -505,7 +505,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### stress-fuzz-029 - 旅行计划跑题
 
@@ -516,7 +516,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 8 | 8 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 8 | 8 |
 
 ### stress-fuzz-030 - 英文营销跑题
 
@@ -527,7 +527,7 @@
 
 | Turn | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### stress-fuzz-031 - 关键信息缺失
 

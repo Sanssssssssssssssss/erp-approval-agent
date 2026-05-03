@@ -3035,7 +3035,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-002 - 跑题/混合请求不得污染案卷
 
@@ -3047,7 +3047,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-003 - 跑题/混合请求不得污染案卷
 
@@ -3059,7 +3059,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-004 - 跑题/混合请求不得污染案卷
 
@@ -3071,7 +3071,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 8 | 8 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 8 | 8 |
 
 ### mat-offtopic-005 - 跑题/混合请求不得污染案卷
 
@@ -3083,7 +3083,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 7 | 7 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 7 | 7 |
 
 ### mat-offtopic-006 - 跑题/混合请求不得污染案卷
 
@@ -3095,7 +3095,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-007 - 跑题/混合请求不得污染案卷
 
@@ -3107,7 +3107,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-008 - 跑题/混合请求不得污染案卷
 
@@ -3119,7 +3119,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-009 - 跑题/混合请求不得污染案卷
 
@@ -3131,7 +3131,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-010 - 跑题/混合请求不得污染案卷
 
@@ -3143,7 +3143,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 8 | 8 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 8 | 8 |
 
 ### mat-offtopic-011 - 跑题/混合请求不得污染案卷
 
@@ -3155,7 +3155,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 7 | 7 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 7 | 7 |
 
 ### mat-offtopic-012 - 跑题/混合请求不得污染案卷
 
@@ -3167,7 +3167,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-013 - 跑题/混合请求不得污染案卷
 
@@ -3179,7 +3179,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-014 - 跑题/混合请求不得污染案卷
 
@@ -3191,7 +3191,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-015 - 跑题/混合请求不得污染案卷
 
@@ -3203,7 +3203,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-016 - 跑题/混合请求不得污染案卷
 
@@ -3215,7 +3215,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 8 | 8 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 8 | 8 |
 
 ### mat-offtopic-017 - 跑题/混合请求不得污染案卷
 
@@ -3227,7 +3227,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 7 | 7 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 7 | 7 |
 
 ### mat-offtopic-018 - 跑题/混合请求不得污染案卷
 
@@ -3239,7 +3239,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-019 - 跑题/混合请求不得污染案卷
 
@@ -3251,7 +3251,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-020 - 跑题/混合请求不得污染案卷
 
@@ -3263,7 +3263,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-021 - 跑题/混合请求不得污染案卷
 
@@ -3275,7 +3275,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-offtopic-022 - 跑题/混合请求不得污染案卷
 
@@ -3287,7 +3287,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 8 | 8 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 8 | 8 |
 
 ### mat-offtopic-023 - 跑题/混合请求不得污染案卷
 
@@ -3299,7 +3299,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 7 | 7 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 7 | 7 |
 
 ### mat-offtopic-024 - 跑题/混合请求不得污染案卷
 
@@ -3311,7 +3311,7 @@
 
 | Turn | Score | Intent | Patch | Status | Stage | Accepted Δ | Gaps | Questions |
 | --- | ---: | --- | --- | --- | --- | ---: | ---: | ---: |
-| 1 | 100 | off_topic | no_case_change | escalate | escalation_review | 0 | 2 | 2 |
+| 1 | 100 | off_topic | no_case_change | escalate | draft | 0 | 2 | 2 |
 
 ### mat-risk-001 - 高风险或例外审批
 

@@ -39,6 +39,8 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "classify_turn_intent",
     "build_turn_contract",
     "assemble_case_context",
+    "llm_turn_classifier",
+    "deterministic_classifier_guard",
     "route_turn_intent",
     "materials_guidance_node",
     "case_status_summary_node",
@@ -66,7 +68,6 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "contract_exception_review_subgraph",
     "budget_exception_review_subgraph",
     "generic_evidence_review_subgraph",
-    "llm_turn_classifier",
     "llm_evidence_extractor",
     "llm_policy_interpreter",
     "llm_contradiction_reviewer",
@@ -79,6 +80,8 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "propose_case_patch",
     "validate_case_patch",
     "route_patch_validity",
+    "read_only_case_response",
+    "append_audit_only",
     "persist_case_state_dossier_audit",
     "reject_patch_explain",
     "respond_to_user",
@@ -112,6 +115,9 @@ class CaseTurnGraphState(TypedDict, total=False):
     response: CaseTurnResponse
     graph_steps: list[str]
     conflict: bool
+    read_only_turn: bool
+    deterministic_intent: str
+    classifier_guard_intent: str
     p2p_review: P2PProcessReview
     branch_review_outputs: dict[str, Any]
     stage_model_payload: dict[str, Any]
@@ -131,6 +137,8 @@ def compile_case_turn_graph():
         "classify_turn_intent": classify_turn_intent_node,
         "build_turn_contract": build_turn_contract_node,
         "assemble_case_context": assemble_case_context_node,
+        "llm_turn_classifier": llm_turn_classifier_node,
+        "deterministic_classifier_guard": deterministic_classifier_guard_node,
         "route_turn_intent": route_turn_intent_node,
         "materials_guidance_node": materials_guidance_node,
         "case_status_summary_node": case_status_summary_node,
@@ -158,7 +166,6 @@ def compile_case_turn_graph():
         "contract_exception_review_subgraph": contract_exception_review_subgraph_node,
         "budget_exception_review_subgraph": budget_exception_review_subgraph_node,
         "generic_evidence_review_subgraph": generic_evidence_review_subgraph_node,
-        "llm_turn_classifier": llm_turn_classifier_node,
         "llm_evidence_extractor": llm_evidence_extractor_node,
         "llm_policy_interpreter": llm_policy_interpreter_node,
         "llm_contradiction_reviewer": llm_contradiction_reviewer_node,
@@ -171,6 +178,8 @@ def compile_case_turn_graph():
         "propose_case_patch": propose_case_patch_node,
         "validate_case_patch": validate_case_patch_node,
         "route_patch_validity": route_patch_validity_node,
+        "read_only_case_response": read_only_case_response_node,
+        "append_audit_only": append_audit_only_node,
         "persist_case_state_dossier_audit": persist_case_state_dossier_audit_node,
         "reject_patch_explain": reject_patch_explain_node,
         "respond_to_user": respond_to_user_node,
@@ -187,7 +196,9 @@ def compile_case_turn_graph():
     )
     graph.add_edge("classify_turn_intent", "build_turn_contract")
     graph.add_edge("build_turn_contract", "assemble_case_context")
-    graph.add_edge("assemble_case_context", "route_turn_intent")
+    graph.add_edge("assemble_case_context", "llm_turn_classifier")
+    graph.add_edge("llm_turn_classifier", "deterministic_classifier_guard")
+    graph.add_edge("deterministic_classifier_guard", "route_turn_intent")
     graph.add_conditional_edges(
         "route_turn_intent",
         _route_turn_intent,
@@ -202,13 +213,17 @@ def compile_case_turn_graph():
             "create_case": "materials_guidance_node",
         },
     )
-    graph.add_edge("materials_guidance_node", "propose_case_patch")
-    graph.add_edge("case_status_summary_node", "propose_case_patch")
-    graph.add_edge("off_topic_reject_node", "validate_case_patch")
+    graph.add_conditional_edges(
+        "materials_guidance_node",
+        _route_guidance_persistence,
+        {"mutable": "propose_case_patch", "read_only": "read_only_case_response"},
+    )
+    graph.add_edge("case_status_summary_node", "read_only_case_response")
+    graph.add_edge("off_topic_reject_node", "read_only_case_response")
     graph.add_edge("correct_evidence_node", "recompute_case_analysis")
     graph.add_edge("withdraw_evidence_node", "recompute_case_analysis")
-    graph.add_edge("recompute_case_analysis", "propose_case_patch")
-    graph.add_edge("final_memo_gate", "propose_case_patch")
+    graph.add_edge("recompute_case_analysis", "read_only_case_response")
+    graph.add_edge("final_memo_gate", "merge_review_outputs")
     graph.add_edge("build_candidate_evidence", "route_evidence_type")
     graph.add_conditional_edges(
         "route_evidence_type",
@@ -233,7 +248,7 @@ def compile_case_turn_graph():
     graph.add_edge("p2p_amount_reconciliation_explanation", "p2p_missing_evidence_questions")
     graph.add_edge("p2p_missing_evidence_questions", "p2p_patch_proposal")
     graph.add_edge("p2p_patch_proposal", "p2p_process_patch_validator")
-    graph.add_edge("p2p_process_patch_validator", "llm_turn_classifier")
+    graph.add_edge("p2p_process_patch_validator", "llm_evidence_extractor")
     for branch_node in (
         "purchase_requisition_review_subgraph",
         "expense_review_subgraph",
@@ -242,8 +257,7 @@ def compile_case_turn_graph():
         "budget_exception_review_subgraph",
         "generic_evidence_review_subgraph",
     ):
-        graph.add_edge(branch_node, "llm_turn_classifier")
-    graph.add_edge("llm_turn_classifier", "llm_evidence_extractor")
+        graph.add_edge(branch_node, "llm_evidence_extractor")
     graph.add_edge("llm_evidence_extractor", "llm_policy_interpreter")
     graph.add_edge("llm_policy_interpreter", "llm_contradiction_reviewer")
     graph.add_edge("llm_contradiction_reviewer", "llm_reviewer_memo")
@@ -260,6 +274,8 @@ def compile_case_turn_graph():
         _route_patch_validity,
         {"valid": "persist_case_state_dossier_audit", "invalid": "reject_patch_explain"},
     )
+    graph.add_edge("read_only_case_response", "append_audit_only")
+    graph.add_edge("append_audit_only", "respond_to_user")
     graph.add_edge("persist_case_state_dossier_audit", "respond_to_user")
     graph.add_edge("reject_patch_explain", "respond_to_user")
     graph.add_edge("respond_to_user", END)
@@ -614,6 +630,34 @@ def llm_turn_classifier_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     return _llm_stage_role_node(state, "turn_classifier", "llm_turn_classifier")
 
 
+def deterministic_classifier_guard_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    deterministic_intent = state.get("intent", "ask_status")
+    outputs = dict(state.get("stage_model_role_outputs", {}) or {})
+    role_output = outputs.get("turn_classifier", {}) or {}
+    warnings = list(state.get("warnings", []))
+    guarded_intent = deterministic_intent
+    candidate_intent = str(role_output.get("turn_intent") or "").strip()
+
+    if candidate_intent and not role_output.get("skipped"):
+        allowed = set(getattr(state["contract"], "allowed_intents", []) or [])
+        if candidate_intent in allowed and _classifier_override_allowed(state, deterministic_intent, candidate_intent):
+            guarded_intent = candidate_intent
+        elif candidate_intent != deterministic_intent:
+            warnings.append(
+                f"LLM turn classifier proposed {candidate_intent}, but deterministic guard kept {deterministic_intent}."
+            )
+
+    if guarded_intent != deterministic_intent:
+        state = {**state, "intent": guarded_intent, "branch": _context_branch_for_intent(guarded_intent)}
+    return {
+        **state,
+        "deterministic_intent": deterministic_intent,
+        "classifier_guard_intent": guarded_intent,
+        "warnings": _unique(warnings),
+        "graph_steps": _steps(state, "deterministic_classifier_guard"),
+    }
+
+
 def llm_evidence_extractor_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     return _llm_stage_role_node(state, "evidence_extractor", "llm_evidence_extractor")
 
@@ -643,7 +687,7 @@ def aggregate_llm_stage_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraph
         }
     decision = harness.stage_model.aggregate_role_outputs(
         outputs,
-        deterministic_intent="submit_evidence",
+        deterministic_intent=state.get("intent", "submit_evidence"),
         warnings=[f"{role} 未返回可用结构化结果：{error}" for role, error in errors.items() if error],
     )
     return {
@@ -747,6 +791,67 @@ def route_patch_validity_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     return {**state, "graph_steps": _steps(state, "route_patch_validity")}
 
 
+def read_only_case_response_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    harness = state["harness"]
+    review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch=state.get("branch", "ask_status"))
+    patch = state.get("patch")
+    if patch is None:
+        patch = harness._build_patch(
+            state=state["case_state"],
+            turn_id=state["turn_id"],
+            intent=state.get("intent", "ask_status"),
+            accepted=[],
+            rejected=[],
+            review=review,
+            warnings=list(state.get("warnings", [])),
+            created_new=False,
+            model_decision=None,
+            model_error=state.get("model_error", ""),
+        )
+    patch = harness.validator.validate(state["case_state"], patch, state["contract"], review=review)
+    dossier = harness.store.read_dossier(state["case_state"].case_id) or render_case_dossier(state["case_state"], review, patch)
+    return {
+        **state,
+        "review": review,
+        "patch": patch,
+        "dossier": dossier,
+        "read_only_turn": True,
+        "graph_steps": _steps(state, "read_only_case_response"),
+    }
+
+
+def append_audit_only_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    harness = state["harness"]
+    case_state = state["case_state"]
+    event_name = "case_read_only_turn"
+    if state.get("intent") == "off_topic":
+        event_name = "off_topic_rejected"
+    elif state.get("intent") in {"correct_previous_evidence", "withdraw_evidence"}:
+        event_name = "case_revision_request_recorded"
+    events = list(state.get("audit_events", []))
+    events.append(
+        _event(
+            state["turn_id"],
+            case_state.case_id,
+            event_name,
+            state["now"],
+            {
+                "intent": state.get("intent", "ask_status"),
+                "patch_type": state["patch"].patch_type,
+                "state_mutated": False,
+                "dossier_mutated": False,
+            },
+        )
+    )
+    for event in events:
+        harness.store.append_audit_event(event)
+    return {
+        **state,
+        "audit_events": events,
+        "graph_steps": _steps(state, "append_audit_only"),
+    }
+
+
 def persist_case_state_dossier_audit_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     harness = state["harness"]
     request = state["request"]
@@ -838,6 +943,9 @@ def reject_patch_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 def respond_to_user_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     case_state = state["case_state"]
+    operation_scope = "read_only_case_turn" if state.get("read_only_turn") else "persistent_case_turn"
+    if state.get("conflict"):
+        operation_scope = "persistent_case_turn_conflict"
     response = CaseTurnResponse(
         case_state=case_state,
         contract=contract_for_state(case_state),
@@ -846,7 +954,7 @@ def respond_to_user_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         dossier=state["dossier"],
         audit_events=state.get("audit_events", []),
         storage_paths=state["harness"].store.paths_for(case_state.case_id),
-        operation_scope="persistent_case_turn_conflict" if state.get("conflict") else "persistent_case_turn",
+        operation_scope=operation_scope,
         non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
     )
     return {**state, "response": response, "graph_steps": _steps(state, "respond_to_user")}
@@ -859,6 +967,12 @@ def _route_version_conflict(state: CaseTurnGraphState) -> str:
 def _route_turn_intent(state: CaseTurnGraphState) -> str:
     intent = state.get("intent", "ask_status")
     return intent if intent in {"ask_required_materials", "ask_status", "off_topic", "correct_previous_evidence", "withdraw_evidence", "request_final_memo", "submit_evidence", "create_case"} else "ask_status"
+
+
+def _route_guidance_persistence(state: CaseTurnGraphState) -> str:
+    if state.get("intent") == "create_case" or state.get("existing_state") is None:
+        return "mutable"
+    return "read_only"
 
 
 def _route_evidence_type(state: CaseTurnGraphState) -> str:
@@ -882,6 +996,23 @@ def _context_branch_for_intent(intent: str) -> str:
     if intent == "submit_evidence":
         return "submit_evidence"
     return "generic_case_turn"
+
+
+def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent: str, candidate_intent: str) -> bool:
+    request = state["request"]
+    if candidate_intent == deterministic_intent:
+        return True
+    if deterministic_intent in {"off_topic", "request_final_memo"}:
+        return False
+    if request.extra_evidence:
+        return candidate_intent == "submit_evidence"
+    if candidate_intent == "submit_evidence":
+        return deterministic_intent == "submit_evidence"
+    if candidate_intent == "create_case":
+        return state.get("existing_state") is None
+    if candidate_intent in {"ask_status", "ask_required_materials", "off_topic"}:
+        return True
+    return False
 
 
 def _evidence_branch(state: CaseTurnGraphState) -> str:
@@ -960,7 +1091,7 @@ def _llm_stage_role_node(state: CaseTurnGraphState, role: str, step: str) -> Cas
             context_pack=state.get("context_pack", {}),
             candidates=state.get("candidates", []),
             review=review,
-            deterministic_intent="submit_evidence",
+            deterministic_intent=state.get("intent", "submit_evidence"),
         )
     output, error = harness.stage_model.review_role(role, payload=payload, role_outputs=outputs)
     outputs[role] = output or {"skipped": bool(error), "error": error, "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT}

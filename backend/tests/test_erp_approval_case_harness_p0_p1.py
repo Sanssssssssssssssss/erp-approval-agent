@@ -163,8 +163,8 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             self.assertEqual(len(off_topic.case_state.accepted_evidence), accepted_before)
             self.assertEqual(off_topic.case_state.last_valid_turn_id, valid_turn_before)
             self.assertGreaterEqual(len(state.accepted_evidence), 3)
-            self.assertEqual(state.turn_count, 6)
-            self.assertGreaterEqual(state.dossier_version, 6)
+            self.assertEqual(state.turn_count, 5)
+            self.assertGreaterEqual(state.dossier_version, 5)
             self.assertIn("No ERP write action was executed", final_memo.dossier)
 
             events = harness.store.read_audit_events(case_id, limit=200)
@@ -496,11 +496,12 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
 
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertTrue(response.patch.model_review["used"])
-            self.assertEqual(len(model.messages), 5)
+            self.assertEqual(len(model.messages), 6)
         self.assertTrue(any("未返回可用结构化结果" in warning for warning in response.patch.warnings))
 
     def test_stage_model_off_topic_or_execution_output_cannot_pollute_case(self) -> None:
         role_outputs = [
+            '{"turn_intent":"create_case","patch_type":"create_case","warnings":[],"confidence":0.9}',
             '{"turn_intent":"off_topic","patch_type":"no_case_change","warnings":[],"confidence":0.9}',
             '{"evidence_decision":"accepted","accepted_source_ids":["local_evidence://quote/pr-p1-offtopic"],"warnings":[],"confidence":0.9}',
             '{"warnings":[],"confidence":0.9}',

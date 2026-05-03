@@ -175,13 +175,29 @@ async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
     if executor.response is None:
         raise HTTPException(status_code=500, detail="ERP approval case turn did not produce a response")
     payload = executor.response.model_dump()
-    payload["operation_scope"] = "persistent_case_turn"
-    payload["persistence"] = "writes_local_case_state_dossier_and_audit_log_only"
+    payload["operation_scope"] = executor.response.operation_scope
+    payload["persistence"] = (
+        "writes_local_audit_log_only"
+        if executor.response.operation_scope == "read_only_case_turn"
+        else "writes_local_case_state_dossier_and_audit_log_only"
+    )
     payload["harness_run"] = {
         "run_id": events[0].run_id if events else "",
         "orchestration_engine": "langgraph_case_turn",
         "graph_name": CASE_TURN_GRAPH_NAME,
         "graph_steps": executor.graph_steps,
+        "stage_model_used": bool((executor.response.patch.model_review or {}).get("used")),
+        "stage_model_role_status": {
+            role: (
+                "skipped"
+                if details.get("skipped")
+                else "error"
+                if details.get("error")
+                else "executed"
+            )
+            for role, details in (executor.response.patch.model_review or {}).get("role_outputs", {}).items()
+            if isinstance(details, dict)
+        },
         "event_names": [event.name for event in events],
         "events": [_event_summary(event) for event in events],
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
