@@ -19,12 +19,16 @@ CaseStage = Literal[
 ]
 CaseTurnIntent = Literal[
     "create_case",
+    "ask_how_to_prepare",
+    "ask_missing_requirements",
+    "ask_policy_failure",
     "ask_required_materials",
     "submit_evidence",
     "correct_previous_evidence",
     "withdraw_evidence",
     "ask_status",
     "request_final_memo",
+    "request_final_review",
     "off_topic",
 ]
 CasePatchType = Literal[
@@ -68,6 +72,18 @@ class CaseRejectedEvidence(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class CasePolicyFailure(BaseModel):
+    requirement_id: str = ""
+    policy_source_id: str = ""
+    policy_clause_id: str = ""
+    policy_clause_text: str = ""
+    why_failed: str = ""
+    how_to_fix: str = ""
+    source_id: str = ""
+    resolved: bool = False
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class CasePatch(BaseModel):
     patch_id: str
     turn_id: str
@@ -77,6 +93,7 @@ class CasePatch(BaseModel):
     evidence_decision: EvidencePatchDecision = "not_evidence"
     accepted_evidence: list[CaseAcceptedEvidence] = Field(default_factory=list)
     rejected_evidence: list[CaseRejectedEvidence] = Field(default_factory=list)
+    policy_failures: list[CasePolicyFailure] = Field(default_factory=list)
     requirements_satisfied: list[str] = Field(default_factory=list)
     requirements_missing: list[str] = Field(default_factory=list)
     dossier_patch: str = ""
@@ -112,6 +129,7 @@ class ApprovalCaseState(BaseModel):
     request: dict[str, Any] = Field(default_factory=dict)
     accepted_evidence: list[CaseAcceptedEvidence] = Field(default_factory=list)
     rejected_evidence: list[CaseRejectedEvidence] = Field(default_factory=list)
+    policy_failures: list[CasePolicyFailure] = Field(default_factory=list)
     evidence_requirements: list[dict[str, Any]] = Field(default_factory=list)
     claims: list[dict[str, Any]] = Field(default_factory=list)
     contradictions: dict[str, Any] = Field(default_factory=dict)

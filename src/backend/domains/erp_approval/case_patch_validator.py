@@ -88,6 +88,24 @@ class CasePatchValidator:
                 warnings.append(
                     f"accepted evidence {evidence.source_id} has no same-source claim support for requirements: {', '.join(missing_requirement_links)}."
                 )
+        if patch.patch_type == "final_memo":
+            unresolved_policy_failures = [failure for failure in state.policy_failures if not getattr(failure, "resolved", False)]
+            if unresolved_policy_failures:
+                allowed = False
+                warnings.append("final_memo is blocked because unresolved policy_failures remain in case_state.")
+            if review is not None:
+                sufficiency = getattr(review, "evidence_sufficiency", None) or (review.get("evidence_sufficiency") if isinstance(review, dict) else {})
+                control_matrix = getattr(review, "control_matrix", None) or (review.get("control_matrix") if isinstance(review, dict) else {})
+                contradictions = getattr(review, "contradictions", None) or (review.get("contradictions") if isinstance(review, dict) else {})
+                if not dict(sufficiency or {}).get("passed"):
+                    allowed = False
+                    warnings.append("final_memo is blocked because evidence_sufficiency has not passed.")
+                if not dict(control_matrix or {}).get("passed"):
+                    allowed = False
+                    warnings.append("final_memo is blocked because control_matrix has not passed.")
+                if dict(contradictions or {}).get("has_conflict"):
+                    allowed = False
+                    warnings.append("final_memo is blocked because unresolved contradictions exist.")
         return patch.model_copy(update={"allowed_to_apply": allowed, "warnings": _unique(warnings)})
 
 
@@ -148,25 +166,41 @@ def _drop_non_action_statements(value: Any) -> Any:
 def contract_for_state(state: ApprovalCaseState) -> CaseTurnContract:
     if state.stage in {"ready_for_final_review", "final_memo_ready"}:
         allowed_intents = [
+            "ask_how_to_prepare",
+            "ask_missing_requirements",
+            "ask_policy_failure",
             "ask_required_materials",
             "submit_evidence",
             "correct_previous_evidence",
             "withdraw_evidence",
             "ask_status",
             "request_final_memo",
+            "request_final_review",
             "off_topic",
         ]
     elif state.stage == "blocked":
-        allowed_intents = ["ask_status", "submit_evidence", "request_final_memo", "off_topic"]
+        allowed_intents = [
+            "ask_missing_requirements",
+            "ask_policy_failure",
+            "ask_status",
+            "submit_evidence",
+            "request_final_memo",
+            "request_final_review",
+            "off_topic",
+        ]
     else:
         allowed_intents = [
             "create_case",
+            "ask_how_to_prepare",
+            "ask_missing_requirements",
+            "ask_policy_failure",
             "ask_required_materials",
             "submit_evidence",
             "correct_previous_evidence",
             "withdraw_evidence",
             "ask_status",
             "request_final_memo",
+            "request_final_review",
             "off_topic",
         ]
     return CaseTurnContract(

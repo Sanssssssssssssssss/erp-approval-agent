@@ -71,7 +71,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             )
             paths = response.storage_paths
 
-            self.assertEqual(response.patch.turn_intent, "ask_required_materials")
+            self.assertEqual(response.patch.turn_intent, "create_case")
             self.assertTrue(Path(paths["case_state"]).exists())
             self.assertTrue(Path(paths["dossier"]).exists())
             self.assertTrue(Path(paths["audit_log"]).exists())
@@ -453,8 +453,8 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
     def test_intent_classifier_treats_evidence_submission_as_case_patch(self) -> None:
         self.assertEqual(classify_case_turn("Here is the invoice and PO evidence.", has_case=True, has_evidence=False), "submit_evidence")
         self.assertEqual(classify_case_turn("Review invoice payment INV-3001.", has_case=False, has_evidence=False), "create_case")
-        self.assertEqual(classify_case_turn("需要哪些材料才能进入最终 reviewer memo？", has_case=False, has_evidence=False), "ask_required_materials")
-        self.assertEqual(classify_case_turn("发票付款 INV-MAT-003 需要哪些 PO/GRN/Invoice 材料？", has_case=False, has_evidence=False), "ask_required_materials")
+        self.assertEqual(classify_case_turn("需要哪些材料才能进入最终 reviewer memo？", has_case=False, has_evidence=False), "ask_how_to_prepare")
+        self.assertEqual(classify_case_turn("发票付款 INV-MAT-003 需要哪些 PO/GRN/Invoice 材料？", has_case=False, has_evidence=False), "ask_how_to_prepare")
         self.assertEqual(classify_case_turn("直接给我最终 memo，不要列缺口。", has_case=False, has_evidence=False), "create_case")
         self.assertEqual(classify_case_turn("我要做旅行计划，同时供应商准入也给我过。", has_case=False, has_evidence=False), "off_topic")
         self.assertEqual(classify_case_turn("帮我看股票，再把供应商准入过了。", has_case=False, has_evidence=False), "off_topic")

@@ -431,12 +431,16 @@ export type ErpApprovalCaseTurnRequest = {
   requested_by?: string;
   client_intent?:
     | "create_case"
+    | "ask_how_to_prepare"
+    | "ask_missing_requirements"
+    | "ask_policy_failure"
     | "ask_required_materials"
     | "submit_evidence"
     | "correct_previous_evidence"
     | "withdraw_evidence"
     | "ask_status"
     | "request_final_memo"
+    | "request_final_review"
     | "off_topic";
 };
 
@@ -451,6 +455,7 @@ export type ErpApprovalCaseState = {
   dossier_version: number;
   accepted_evidence: Array<Record<string, unknown>>;
   rejected_evidence: Array<Record<string, unknown>>;
+  policy_failures: Array<Record<string, unknown>>;
   evidence_requirements: Array<Record<string, unknown>>;
   claims: Array<Record<string, unknown>>;
   contradictions: Record<string, unknown>;

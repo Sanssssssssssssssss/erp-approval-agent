@@ -31,7 +31,7 @@ Hard constraints:
 ROLE_PROMPTS: dict[str, str] = {
     "turn_classifier": """Role: turn classifier.
 Decide the current turn intent only. Return JSON:
-{"turn_intent":"create_case|ask_required_materials|submit_evidence|correct_previous_evidence|withdraw_evidence|ask_status|request_final_memo|off_topic","patch_type":"create_case|accept_evidence|reject_evidence|answer_status|final_memo|no_case_change","warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}""",
+{"turn_intent":"create_case|ask_how_to_prepare|ask_missing_requirements|ask_policy_failure|submit_evidence|correct_previous_evidence|withdraw_evidence|request_final_review|off_topic","patch_type":"create_case|accept_evidence|reject_evidence|answer_status|final_memo|no_case_change","warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}""",
     "evidence_extractor": """Role: evidence extractor.
 Review current candidate evidence and extracted claims. Return JSON:
 {"evidence_decision":"accepted|rejected|needs_clarification|not_evidence","accepted_source_ids":[],"rejected_evidence":[{"source_id":"...","reasons":["中文原因"]}],"requirements_satisfied":[],"next_questions":["中文补证问题"],"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}""",

@@ -31,6 +31,11 @@ from src.backend.domains.erp_approval.p2p_process_review import (
     render_p2p_review_notes,
     review_p2p_process_evidence,
 )
+from src.backend.domains.erp_approval.policy_guidance import (
+    build_policy_guidance,
+    render_materials_guidance,
+    render_policy_failures,
+)
 
 CASE_TURN_GRAPH_NAME = "erp_approval_dynamic_case_turn_graph"
 CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
@@ -44,6 +49,7 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "route_turn_intent",
     "materials_guidance_node",
     "case_status_summary_node",
+    "policy_failure_explain_node",
     "off_topic_reject_node",
     "correct_evidence_node",
     "withdraw_evidence_node",
@@ -143,6 +149,7 @@ def compile_case_turn_graph():
         "route_turn_intent": route_turn_intent_node,
         "materials_guidance_node": materials_guidance_node,
         "case_status_summary_node": case_status_summary_node,
+        "policy_failure_explain_node": policy_failure_explain_node,
         "off_topic_reject_node": off_topic_reject_node,
         "correct_evidence_node": correct_evidence_node,
         "withdraw_evidence_node": withdraw_evidence_node,
@@ -204,12 +211,16 @@ def compile_case_turn_graph():
         "route_turn_intent",
         _route_turn_intent,
         {
+            "ask_how_to_prepare": "materials_guidance_node",
+            "ask_missing_requirements": "case_status_summary_node",
+            "ask_policy_failure": "policy_failure_explain_node",
             "ask_required_materials": "materials_guidance_node",
             "ask_status": "case_status_summary_node",
             "off_topic": "off_topic_reject_node",
             "correct_previous_evidence": "correct_evidence_node",
             "withdraw_evidence": "withdraw_evidence_node",
             "request_final_memo": "final_memo_gate",
+            "request_final_review": "final_memo_gate",
             "submit_evidence": "build_candidate_evidence",
             "create_case": "materials_guidance_node",
         },
@@ -220,6 +231,7 @@ def compile_case_turn_graph():
         {"mutable": "propose_case_patch", "read_only": "read_only_case_response"},
     )
     graph.add_edge("case_status_summary_node", "read_only_case_response")
+    graph.add_edge("policy_failure_explain_node", "read_only_case_response")
     graph.add_edge("off_topic_reject_node", "read_only_case_response")
     graph.add_edge("correct_evidence_node", "recompute_case_analysis")
     graph.add_edge("withdraw_evidence_node", "recompute_case_analysis")
@@ -432,13 +444,69 @@ def route_turn_intent_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 
 def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
-    review = _review_without_new_evidence(state, branch="ask_required_materials")
-    return {**state, "review": review, "provisional_review": review, "graph_steps": _steps(state, "materials_guidance_node")}
+    review = _review_without_new_evidence(state, branch="ask_how_to_prepare")
+    guidance = build_policy_guidance(state["case_state"])
+    patch = state["harness"]._build_patch(
+        state=state["case_state"],
+        turn_id=state["turn_id"],
+        intent=state.get("intent", "ask_how_to_prepare"),
+        accepted=[],
+        rejected=[],
+        review=review,
+        warnings=list(state.get("warnings", [])),
+        created_new=state.get("existing_state") is None and state.get("intent") == "create_case",
+        model_decision=None,
+        model_error="",
+    )
+    model_review = dict(patch.model_review or {})
+    model_review["policy_rag"] = {
+        "used": True,
+        "guidance": guidance,
+        "rendered_guidance": render_materials_guidance(guidance),
+    }
+    patch = patch.model_copy(update={"model_review": model_review})
+    return {
+        **state,
+        "review": review,
+        "provisional_review": review,
+        "patch": patch,
+        "graph_steps": _steps(state, "materials_guidance_node"),
+    }
 
 
 def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
-    review = _review_without_new_evidence(state, branch="ask_status")
+    review = _review_without_new_evidence(state, branch="ask_missing_requirements")
     return {**state, "review": review, "provisional_review": review, "graph_steps": _steps(state, "case_status_summary_node")}
+
+
+def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    review = _review_without_new_evidence(state, branch="ask_policy_failure")
+    patch = state["harness"]._build_patch(
+        state=state["case_state"],
+        turn_id=state["turn_id"],
+        intent="ask_policy_failure",
+        accepted=[],
+        rejected=[],
+        review=review,
+        warnings=list(state.get("warnings", [])),
+        created_new=False,
+        model_decision=None,
+        model_error="",
+    )
+    model_review = dict(patch.model_review or {})
+    model_review["policy_failures_answer"] = {
+        "used": True,
+        "source": "case_state.policy_failures",
+        "rendered": render_policy_failures(state["case_state"].policy_failures),
+    }
+    patch = patch.model_copy(update={"model_review": model_review})
+    return {
+        **state,
+        "review": review,
+        "provisional_review": review,
+        "patch": patch,
+        "graph_steps": _steps(state, "policy_failure_explain_node"),
+    }
 
 
 def off_topic_reject_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
@@ -653,7 +721,7 @@ def deterministic_classifier_guard_node(state: CaseTurnGraphState) -> CaseTurnGr
     role_output = outputs.get("turn_classifier", {}) or {}
     warnings = list(state.get("warnings", []))
     guarded_intent = baseline_intent
-    candidate_intent = str(role_output.get("turn_intent") or "").strip()
+    candidate_intent = _canonical_intent(str(role_output.get("turn_intent") or "").strip())
 
     if candidate_intent and not role_output.get("skipped"):
         allowed = set(getattr(state["contract"], "allowed_intents", []) or [])
@@ -860,8 +928,9 @@ def append_audit_only_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
             },
         )
     )
-    for event in events:
-        harness.store.append_audit_event(event)
+    if not (state.get("existing_state") is None and state.get("intent") in {"ask_how_to_prepare", "ask_required_materials"}):
+        for event in events:
+            harness.store.append_audit_event(event)
     return {
         **state,
         "audit_events": events,
@@ -983,11 +1052,24 @@ def _route_version_conflict(state: CaseTurnGraphState) -> str:
 
 def _route_turn_intent(state: CaseTurnGraphState) -> str:
     intent = state.get("intent", "ask_status")
-    return intent if intent in {"ask_required_materials", "ask_status", "off_topic", "correct_previous_evidence", "withdraw_evidence", "request_final_memo", "submit_evidence", "create_case"} else "ask_status"
+    return intent if intent in {
+        "ask_how_to_prepare",
+        "ask_missing_requirements",
+        "ask_policy_failure",
+        "ask_required_materials",
+        "ask_status",
+        "off_topic",
+        "correct_previous_evidence",
+        "withdraw_evidence",
+        "request_final_memo",
+        "request_final_review",
+        "submit_evidence",
+        "create_case",
+    } else "ask_missing_requirements"
 
 
 def _route_guidance_persistence(state: CaseTurnGraphState) -> str:
-    if state.get("intent") == "create_case" or state.get("existing_state") is None:
+    if state.get("intent") == "create_case":
         return "mutable"
     return "read_only"
 
@@ -1006,9 +1088,13 @@ def _route_patch_validity(state: CaseTurnGraphState) -> str:
 
 
 def _context_branch_for_intent(intent: str) -> str:
-    if intent in {"ask_required_materials", "ask_status"}:
-        return intent
-    if intent == "request_final_memo":
+    if intent in {"ask_how_to_prepare", "ask_required_materials"}:
+        return "ask_how_to_prepare"
+    if intent in {"ask_missing_requirements", "ask_status"}:
+        return "ask_missing_requirements"
+    if intent == "ask_policy_failure":
+        return "ask_policy_failure"
+    if intent in {"request_final_memo", "request_final_review"}:
         return "final_memo"
     if intent == "submit_evidence":
         return "submit_evidence"
@@ -1017,17 +1103,21 @@ def _context_branch_for_intent(intent: str) -> str:
 
 def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str) -> tuple[str, list[str]]:
     request = state["request"]
-    requested = str(getattr(request, "client_intent", "") or "").strip()
+    requested = _canonical_intent(str(getattr(request, "client_intent", "") or "").strip())
     if not requested:
         return "", []
     allowed_intents = {
         "create_case",
+        "ask_how_to_prepare",
+        "ask_missing_requirements",
+        "ask_policy_failure",
         "ask_required_materials",
         "submit_evidence",
         "correct_previous_evidence",
         "withdraw_evidence",
         "ask_status",
         "request_final_memo",
+        "request_final_review",
         "off_topic",
     }
     warnings: list[str] = []
@@ -1041,13 +1131,13 @@ def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str)
         if deterministic_intent == "submit_evidence":
             return "submit_evidence", warnings
         return "", ["Client intent submit_evidence was ignored because no evidence payload was provided."]
-    if requested == "request_final_memo" and state.get("existing_state") is None:
-        return "", ["Client intent request_final_memo was ignored because no approval case exists yet."]
-    if requested == "ask_status" and state.get("existing_state") is None:
-        return "", ["Client intent ask_status was ignored because no approval case exists yet."]
+    if requested == "request_final_review" and state.get("existing_state") is None:
+        return "", ["Client intent request_final_review was ignored because no approval case exists yet."]
+    if requested in {"ask_missing_requirements", "ask_policy_failure"} and state.get("existing_state") is None:
+        return "", [f"Client intent {requested} was ignored because no approval case exists yet."]
     if requested == "create_case" and state.get("existing_state") is not None:
         return "", ["Client intent create_case was ignored because the current turn is already bound to a case."]
-    if requested in {"ask_status", "ask_required_materials", "request_final_memo"}:
+    if requested in {"ask_missing_requirements", "ask_how_to_prepare", "ask_policy_failure", "request_final_review"}:
         return requested, warnings
     if requested in {"correct_previous_evidence", "withdraw_evidence"} and state.get("existing_state") is not None:
         return requested, warnings
@@ -1077,10 +1167,12 @@ def _context_pack_summary(context_pack: dict[str, Any]) -> dict[str, Any]:
 
 
 def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent: str, candidate_intent: str) -> bool:
+    deterministic_intent = _canonical_intent(deterministic_intent)
+    candidate_intent = _canonical_intent(candidate_intent)
     request = state["request"]
     if candidate_intent == deterministic_intent:
         return True
-    if deterministic_intent in {"off_topic", "request_final_memo"}:
+    if deterministic_intent in {"off_topic", "request_final_review"}:
         return False
     if request.extra_evidence:
         return candidate_intent == "submit_evidence"
@@ -1088,9 +1180,18 @@ def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent
         return deterministic_intent == "submit_evidence"
     if candidate_intent == "create_case":
         return state.get("existing_state") is None
-    if candidate_intent in {"ask_status", "ask_required_materials", "off_topic"}:
+    if candidate_intent in {"ask_missing_requirements", "ask_how_to_prepare", "ask_policy_failure", "off_topic"}:
         return True
     return False
+
+
+def _canonical_intent(intent: str) -> str:
+    aliases = {
+        "ask_required_materials": "ask_how_to_prepare",
+        "ask_status": "ask_missing_requirements",
+        "request_final_memo": "request_final_review",
+    }
+    return aliases.get(intent, intent)
 
 
 def _evidence_branch(state: CaseTurnGraphState) -> str:

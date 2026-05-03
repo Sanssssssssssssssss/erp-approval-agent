@@ -97,7 +97,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertIn("case_status_summary_node", steps)
             self.assertEqual(response["operation_scope"], "read_only_case_turn")
-            self.assertEqual(turn_received["details"]["client_intent"], "ask_status")
+            self.assertEqual(turn_received["details"]["client_intent"], "ask_missing_requirements")
             self.assertIn("context_summary", turn_received["details"])
             self.assertNotIn("context_pack", turn_received["details"])
             self.assertIn("requirement_count", turn_received["details"]["context_summary"])
@@ -119,6 +119,23 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
             self.assertEqual(turn_received["details"]["client_intent"], "")
             self.assertNotIn("context_pack", turn_received["details"])
+
+    def test_ask_how_to_prepare_uses_policy_rag_without_persisting_new_case(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            response = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "user_message": "我要创建采购申请，需要准备什么材料？",
+                    "client_intent": "ask_how_to_prepare",
+                },
+            ).json()
+
+            self.assertEqual(response["operation_scope"], "read_only_case_turn")
+            self.assertIn("materials_guidance_node", response["harness_run"]["graph_steps"])
+            self.assertIn("policy_rag", response["patch"]["model_review"])
+            self.assertTrue(response["patch"]["model_review"]["policy_rag"]["guidance"]["items"])
+            self.assertFalse(Path(response["storage_paths"]["case_state"]).exists())
 
     def test_extra_evidence_overrides_read_only_client_intent(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
@@ -145,6 +162,47 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("route_evidence_type", steps)
             self.assertIn("purchase_requisition_review_subgraph", steps)
             self.assertNotEqual(response["operation_scope"], "read_only_case_turn")
+
+    def test_rejected_evidence_records_policy_failures_and_can_explain_them(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            created = client.post("/api/erp-approval/cases/turn", json={"user_message": "Review purchase requisition PR-DYN-POLICY."}).json()
+            rejected = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "case_id": created["case_state"]["case_id"],
+                    "user_message": "老板说预算够了，没有文件。",
+                    "extra_evidence": [
+                        {
+                            "title": "口头预算说明",
+                            "record_type": "user_statement",
+                            "source_id": "local_evidence://user_statement/pr-dyn-policy",
+                            "content": "老板说预算够了，没有文件，之后补。",
+                        }
+                    ],
+                },
+            ).json()
+
+            self.assertEqual(rejected["patch"]["patch_type"], "reject_evidence")
+            self.assertTrue(rejected["patch"]["policy_failures"])
+            self.assertTrue(rejected["case_state"]["policy_failures"])
+            failure = rejected["case_state"]["policy_failures"][0]
+            self.assertIn("policy_clause_id", failure)
+            self.assertIn("how_to_fix", failure)
+
+            explained = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "case_id": created["case_state"]["case_id"],
+                    "user_message": "为什么这个材料不符合？",
+                    "client_intent": "ask_policy_failure",
+                },
+            ).json()
+            self.assertEqual(explained["operation_scope"], "read_only_case_turn")
+            self.assertIn("policy_failure_explain_node", explained["harness_run"]["graph_steps"])
+            self.assertIn("policy_failures_answer", explained["patch"]["model_review"])
+            self.assertIn("case_state.policy_failures", explained["patch"]["model_review"]["policy_failures_answer"]["source"])
+            self.assertIn("案卷中已记录", explained["patch"]["model_review"]["policy_failures_answer"]["rendered"])
 
     def test_llm_turn_classifier_runs_before_first_route(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:

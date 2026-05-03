@@ -58,6 +58,18 @@ class CaseContextAssembler:
                     }
                     for item in relevant_rejections
                 ],
+                "policy_failures": [
+                    {
+                        "requirement_id": item.requirement_id,
+                        "policy_clause_id": item.policy_clause_id,
+                        "why_failed": item.why_failed,
+                        "how_to_fix": item.how_to_fix,
+                        "source_id": item.source_id,
+                        "resolved": item.resolved,
+                    }
+                    for item in state.policy_failures[-12:]
+                    if not item.resolved
+                ],
                 "contradictions": state.contradictions,
             },
             "current_user_submission": user_message,
@@ -128,6 +140,13 @@ def _terms(text: str) -> set[str]:
 
 def _branch_context_policy(branch: str) -> dict:
     policies = {
+        "ask_how_to_prepare": {
+            "selection": "policy_rag_requirement_matrix_materials_guidance",
+            "claim_limit": 4,
+            "rejected_evidence_limit": 4,
+            "requirement_limit": 30,
+            "notes": "Answer how to prepare from local policy guidance and the requirement matrix. Do not mutate case evidence.",
+        },
         "ask_required_materials": {
             "selection": "case_summary_requirements_and_missing_items_only",
             "claim_limit": 8,
@@ -135,12 +154,26 @@ def _branch_context_policy(branch: str) -> dict:
             "requirement_limit": 24,
             "notes": "Answer required materials from the case state, evidence matrix, and current blocking gaps.",
         },
+        "ask_missing_requirements": {
+            "selection": "case_state_missing_requirements_policy_failures_recent_evidence",
+            "claim_limit": 12,
+            "rejected_evidence_limit": 8,
+            "requirement_limit": 22,
+            "notes": "Answer current missing requirements from persisted case state and policy_failures, not from raw chat guesses.",
+        },
         "ask_status": {
             "selection": "compact_case_state_blocking_gaps_recent_evidence",
             "claim_limit": 12,
             "rejected_evidence_limit": 8,
             "requirement_limit": 18,
             "notes": "Summarize current status without re-reviewing unrelated materials.",
+        },
+        "ask_policy_failure": {
+            "selection": "persisted_policy_failures_and_rejected_evidence_only",
+            "claim_limit": 6,
+            "rejected_evidence_limit": 12,
+            "requirement_limit": 18,
+            "notes": "Explain why materials failed by reading case_state.policy_failures and rejected_evidence. Do not re-guess.",
         },
         "submit_evidence": {
             "selection": "current_evidence_related_requirements_claims_and_controls",

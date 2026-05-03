@@ -28,6 +28,10 @@ from src.backend.domains.erp_approval.case_state_models import (
     CaseTurnRequest,
     CaseTurnResponse,
 )
+from src.backend.domains.erp_approval.policy_guidance import (
+    policy_failures_for_rejected_evidence,
+    resolve_policy_failures,
+)
 from src.backend.domains.erp_approval.service import parse_approval_request
 
 
@@ -116,7 +120,15 @@ class CaseHarness:
     ) -> tuple[CaseStageModelDecision | None, str]:
         if self.stage_model is None:
             return None, ""
-        if not candidates and deterministic_intent in {"create_case", "ask_required_materials", "ask_status", "off_topic"}:
+        if not candidates and deterministic_intent in {
+            "create_case",
+            "ask_how_to_prepare",
+            "ask_missing_requirements",
+            "ask_policy_failure",
+            "ask_required_materials",
+            "ask_status",
+            "off_topic",
+        }:
             return None, ""
         try:
             return (
@@ -268,8 +280,20 @@ class CaseHarness:
         elif rejected:
             patch_type = "reject_evidence"
             decision = "rejected"
-        elif intent == "request_final_memo":
-            patch_type = "final_memo"
+        elif intent in {"request_final_memo", "request_final_review"}:
+            unresolved_policy_failures = [
+                failure for failure in state.policy_failures if not failure.resolved
+            ]
+            if review.evidence_sufficiency.get("passed") and review.control_matrix.get("passed") and not unresolved_policy_failures:
+                patch_type = "final_memo"
+            else:
+                patch_type = "answer_status"
+                warnings = _unique(
+                    warnings
+                    + [
+                        "最终 reviewer memo 被阻断：仍有 blocking evidence、policy failure、control matrix gap 或 unresolved contradiction。",
+                    ]
+                )
             decision = "not_evidence"
         elif created_new:
             patch_type = "create_case"
@@ -277,6 +301,7 @@ class CaseHarness:
         else:
             patch_type = "answer_status"
             decision = "not_evidence"
+        policy_failures = policy_failures_for_rejected_evidence(rejected, review)
         return CasePatch(
             patch_id=f"case-patch:{state.case_id}:{turn_id}",
             turn_id=turn_id,
@@ -286,6 +311,7 @@ class CaseHarness:
             evidence_decision=decision,  # type: ignore[arg-type]
             accepted_evidence=accepted,
             rejected_evidence=rejected,
+            policy_failures=policy_failures,
             requirements_satisfied=[item.get("requirement_id", "") for item in review.evidence_requirements if item.get("status") == "satisfied"],
             requirements_missing=list(review.evidence_sufficiency.get("missing_requirement_ids") or []),
             dossier_patch=_dossier_patch(intent, accepted, rejected, review),
@@ -311,9 +337,11 @@ class CaseHarness:
     ) -> ApprovalCaseState:
         accepted = list(state.accepted_evidence)
         rejected = list(state.rejected_evidence)
+        policy_failures = list(state.policy_failures)
         if mutate_case:
             accepted = _merge_accepted(accepted, patch.accepted_evidence)
             rejected = _merge_rejected(rejected, patch.rejected_evidence)
+            policy_failures = resolve_policy_failures(policy_failures, patch.policy_failures, patch.requirements_satisfied)
         return state.model_copy(
             update={
                 "stage": _stage_from_review(review),
@@ -321,6 +349,7 @@ class CaseHarness:
                 "turn_count": state.turn_count + 1,
                 "accepted_evidence": accepted,
                 "rejected_evidence": rejected,
+                "policy_failures": policy_failures,
                 "evidence_requirements": review.evidence_requirements,
                 "claims": review.evidence_claims,
                 "contradictions": review.contradictions,
@@ -344,20 +373,27 @@ def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool)
         return "submit_evidence"
     if any(term in text for term in ("撤回", "withdraw", "更正", "correct", "修正")):
         return "correct_previous_evidence"
+    if any(term in text for term in ("为什么", "不符合", "退回原因", "失败原因", "why failed", "why rejected", "policy failure")):
+        return "ask_policy_failure"
+    if not has_case and any(
+        term in text
+        for term in ("建案审查", "创建案卷", "创建审批案件", "review purchase", "review invoice", "review supplier", "open approval case", "create approval case")
+    ):
+        return "create_case"
     if has_case and any(term in text for term in ("当前还缺", "还缺", "还差", "缺口", "进度", "状态", "下一步", "补证", "what is still missing", "still missing", "status")):
         if not any(term in text for term in ("哪些材料", "材料清单", "必备材料", "required materials", "required evidence")):
-            return "ask_status"
+            return "ask_missing_requirements"
     if any(term in text for term in ("需要什么", "哪些材料", "什么材料", "交什么", "缺什么", "材料清单", "必备材料", "required material", "required materials", "required evidence", "what materials", "materials are required")) or ("需要" in text and "材料" in text):
-        return "ask_required_materials"
+        return "ask_how_to_prepare"
     if not has_case:
         return "create_case"
     if any(term in text for term in ("最终", "final", "memo", "报告", "提交人工", "reviewer memo")):
-        return "request_final_memo"
+        return "request_final_review"
     if _looks_like_evidence_submission(text):
         return "submit_evidence"
     if any(term in text for term in ("状态", "进度", "还差", "还缺", "缺口", "status")):
-        return "ask_status"
-    return "ask_status"
+        return "ask_missing_requirements"
+    return "ask_missing_requirements"
 
 
 def infer_case_evidence_record_type(record_type: str, title: str, content: str) -> str:
@@ -418,6 +454,16 @@ def render_case_dossier(state: ApprovalCaseState, review: CaseReviewResponse, pa
             lines.append(f"- `{item.source_id}` {item.title or item.record_type}: {'; '.join(item.reasons) if item.reasons else '未说明'}")
     else:
         lines.append("- 暂无。")
+    policy_failures = resolve_policy_failures(state.policy_failures, patch.policy_failures, patch.requirements_satisfied)
+    lines.extend(["", "## Policy failures / 材料制度失败", ""])
+    unresolved = [item for item in policy_failures if not item.resolved]
+    if unresolved:
+        for item in unresolved:
+            lines.append(
+                f"- `{item.requirement_id}` {item.policy_clause_id}: {item.why_failed} 修正方式：{item.how_to_fix}"
+            )
+    else:
+        lines.append("- 暂无未解决 policy failure。")
     lines.extend(["", "## 当前审查 Memo", "", review.reviewer_memo, "", "## 非执行边界", "", "- No ERP write action was executed."])
     return "\n".join(lines).strip() + "\n"
 
@@ -465,7 +511,7 @@ def _dossier_patch(
         return "本轮材料已通过案卷写入门，新增 accepted_evidence：" + ", ".join(item.source_id for item in accepted)
     if rejected:
         return "本轮材料未通过案卷写入门，写入 rejected_evidence：" + "; ".join(reason for item in rejected for reason in item.reasons)
-    if intent == "request_final_memo":
+    if intent in {"request_final_memo", "request_final_review"}:
         return "用户请求生成 reviewer memo；系统基于当前 case_state 输出非执行审查报告。"
     if intent == "off_topic":
         return "本轮输入与当前审批案件无关，未写入案卷。"

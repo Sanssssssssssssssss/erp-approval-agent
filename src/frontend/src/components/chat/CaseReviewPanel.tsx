@@ -132,12 +132,22 @@ function text(value: unknown, fallback = "未提供") {
   return rendered || fallback;
 }
 
+function labelForPolicyFailure(item: Record<string, unknown>) {
+  const clauseText = text(item.policy_clause_text, "");
+  if (clauseText.includes("：")) return clauseText.split("：")[0];
+  return text(item.requirement_id, "制度要求");
+}
+
 function list(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter(Boolean) : [];
 }
 
 function records(value: unknown) {
   return Array.isArray(value) ? (value.filter((item) => item && typeof item === "object") as Array<Record<string, unknown>>) : [];
+}
+
+function object(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
 function fileExtension(name: string) {
@@ -175,8 +185,23 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const recommendation = review.recommendation ?? {};
   const sufficiency = review.evidence_sufficiency ?? {};
   const patch = response.patch ?? {};
+  const modelReview = object(patch.model_review);
+  const policyRag = object(modelReview.policy_rag);
+  const policyFailureAnswer = object(modelReview.policy_failures_answer);
+  const renderedGuidance = text(policyRag.rendered_guidance, "");
+  const renderedFailureAnswer = text(policyFailureAnswer.rendered, "");
+  if (renderedGuidance) {
+    return makeMessage("agent", renderedGuidance, "材料准备清单", [
+      "政策/RAG",
+      response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
+    ]);
+  }
+  if (renderedFailureAnswer) {
+    return makeMessage("agent", renderedFailureAnswer, "材料退回原因", ["来自案卷状态", "只读答复"]);
+  }
   const accepted = records(patch.accepted_evidence);
   const rejected = records(patch.rejected_evidence);
+  const policyFailures = records(patch.policy_failures).concat(records(response.case_state.policy_failures));
   const gaps = list(sufficiency.blocking_gaps).concat(response.case_state.missing_items ?? []);
   const questions = Array.from(new Set(list(sufficiency.next_questions).concat(response.case_state.next_questions ?? [])));
   const status = labelForStatus(recommendation.status);
@@ -184,6 +209,9 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
     `当前结论：${status}。`,
     accepted.length ? `本轮接受 ${accepted.length} 份材料：${accepted.map((item) => text(item.title || item.source_id)).join("、")}。` : "",
     rejected.length ? `本轮退回 ${rejected.length} 份材料：${rejected.map((item) => text(item.title || item.source_id)).join("、")}。` : "",
+    policyFailures.length
+      ? `退回/政策失败：${policyFailures.slice(0, 3).map((item) => `${labelForPolicyFailure(item)} - ${text(item.how_to_fix || item.why_failed, "请补充可追溯证据")}`).join("；")}。`
+      : "",
     gaps.length ? `关键缺口：${Array.from(new Set(gaps)).slice(0, 5).join("；")}。` : "暂未发现新的 blocking gap，但仍需以案卷详情为准。",
     questions.length ? `下一步建议：${questions.slice(0, 4).join("；")}。` : "",
     "No ERP write action was executed."
@@ -217,6 +245,36 @@ function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   );
 }
 
+function inferClientIntent(
+  outgoing: string,
+  options: { hasCase: boolean; hasQueuedEvidence: boolean }
+): ErpApprovalCaseTurnRequest["client_intent"] {
+  if (options.hasQueuedEvidence) return "submit_evidence";
+  const textValue = outgoing.toLowerCase();
+  if (!options.hasCase && /(建案审查|创建案卷|创建审批案件|open approval case|create approval case)/i.test(outgoing)) {
+    return "create_case";
+  }
+  if (/(为什么|不符合|退回原因|失败原因|why failed|why rejected|policy failure)/i.test(outgoing)) {
+    return options.hasCase ? "ask_policy_failure" : "ask_how_to_prepare";
+  }
+  if (/(需要准备|需要哪些材料|准备什么材料|材料清单|必备材料|required materials|required evidence|what materials)/i.test(outgoing)) {
+    return "ask_how_to_prepare";
+  }
+  if (/(还缺|缺口|还差|当前状态|进度|下一步|补证|status|still missing)/i.test(outgoing)) {
+    return options.hasCase ? "ask_missing_requirements" : "ask_how_to_prepare";
+  }
+  if (/(最终|final|reviewer memo|提交人工|审查 memo|审查报告)/i.test(outgoing)) {
+    return options.hasCase ? "request_final_review" : "ask_how_to_prepare";
+  }
+  if (!options.hasCase) return "create_case";
+  if (
+    /(证明|材料|附件|发票|收据|票据|预算|报价|合同|法务|记录|供应商|准入|制裁|银行|税务|grn|invoice|quote|budget|vendor record)/i.test(textValue)
+  ) {
+    return "submit_evidence";
+  }
+  return undefined;
+}
+
 function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   if (!turn) {
     return (
@@ -235,6 +293,7 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   const missing = Array.from(new Set((state.missing_items ?? []).concat(list(turn.review.evidence_sufficiency?.blocking_gaps))));
   const accepted = state.accepted_evidence ?? [];
   const rejected = state.rejected_evidence ?? [];
+  const policyFailures = records(state.policy_failures).filter((item) => !item.resolved);
   const controls = records(turn.review.control_matrix?.checks);
 
   return (
@@ -296,6 +355,22 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
         </section>
       ) : null}
 
+      {policyFailures.length ? (
+        <section className="case-agent-side-section">
+          <div className="case-agent-section-title">
+            <AlertTriangle size={16} />
+            <strong>材料退回原因</strong>
+          </div>
+          <ul className="case-agent-list">
+            {policyFailures.slice(-5).map((item) => (
+              <li key={`${text(item.requirement_id)}-${text(item.source_id)}`}>
+                {labelForPolicyFailure(item)}：{text(item.how_to_fix, "请补充可追溯证据")}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <details className="case-agent-details">
         <summary>查看案卷详情</summary>
         <div className="case-agent-detail-block">
@@ -317,6 +392,7 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
 
 export function CaseReviewPanel() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     makeMessage(
       "agent",
@@ -339,9 +415,13 @@ export function CaseReviewPanel() {
   const result = caseTurn?.review ?? null;
   const canSend = !loading && (message.trim().length > 0 || queuedEvidence.length > 0);
   const hasCase = Boolean(caseTurn?.case_state?.case_id);
+  const hasPolicyFailures = Boolean(caseTurn?.case_state?.policy_failures?.some((item) => !item.resolved));
   const requestSummary = useMemo(() => result?.approval_request ?? {}, [result]);
 
   useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
     chatEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [messages, loading]);
 
@@ -419,14 +499,19 @@ export function CaseReviewPanel() {
     ]);
 
     try {
+      const inferredIntent = inferClientIntent(outgoing, {
+        hasCase,
+        hasQueuedEvidence: includeEvidence && queuedEvidence.length > 0
+      });
       const response = await applyErpApprovalCaseTurn({
         case_id: caseTurn?.case_state.case_id ?? "",
         user_message: outgoing,
         extra_evidence: includeEvidence ? queuedEvidence : [],
-        client_intent:
-          clientIntent ?? (includeEvidence && queuedEvidence.length ? "submit_evidence" : caseTurn ? undefined : "create_case")
+        client_intent: clientIntent ?? inferredIntent
       });
-      setCaseTurn(response);
+      if (response.operation_scope !== "read_only_case_turn" || caseTurn) {
+        setCaseTurn(response);
+      }
       setMessages((items) => [...items, buildAgentReply(response)]);
       if (includeEvidence) setQueuedEvidence([]);
       if (!override) setMessage("");
@@ -451,7 +536,7 @@ export function CaseReviewPanel() {
       <div className="case-agent-main panel">
         <header className="case-agent-header">
           <div>
-            <p className="pixel-label">Evidence-first case agent</p>
+            <p className="pixel-label">证据优先案卷 Agent</p>
             <h2>审批材料助手</h2>
             <p>像聊天一样提交案件和材料；Agent 负责生成清单、审材料、抽 claim、列缺口和写 reviewer memo。</p>
           </div>
@@ -491,7 +576,7 @@ export function CaseReviewPanel() {
         <div className="case-agent-quick-actions">
           <button
             disabled={!hasCase || loading}
-            onClick={() => ask("请告诉我当前审批案件还缺哪些 blocking evidence，并按优先级给出下一步补证问题。", "ask_status")}
+            onClick={() => ask("请告诉我当前审批案件还缺哪些 blocking evidence，并按优先级给出下一步补证问题。", "ask_missing_requirements")}
             title={hasCase ? "查看当前案卷缺口" : "请先描述案件或选择模板创建案卷"}
             type="button"
           >
@@ -499,9 +584,9 @@ export function CaseReviewPanel() {
             当前还缺什么
           </button>
           <button
-            disabled={!hasCase || loading}
-            onClick={() => ask("请按当前审批类型列出必备材料清单，并说明什么材料会被接受、什么只是用户陈述。", "ask_required_materials")}
-            title={hasCase ? "查看当前审批类型的必备材料" : "请先描述案件或选择模板创建案卷"}
+            disabled={loading}
+            onClick={() => ask("请按当前审批类型列出必备材料清单，说明每项 blocking、对应制度条款、可接受证据形式和不可接受形式。", "ask_how_to_prepare")}
+            title="查看审批类型的必备材料；这是只读答复，不会写入案卷主体"
             type="button"
           >
             <ListChecks size={15} />
@@ -509,16 +594,25 @@ export function CaseReviewPanel() {
           </button>
           <button
             disabled={!hasCase || loading}
-            onClick={() => ask("请尝试生成当前 reviewer memo；如果证据不足，请明确阻断缺口，不能写通过建议。", "request_final_memo")}
+            onClick={() => ask("请尝试生成当前 reviewer memo；如果证据不足，请明确阻断缺口，不能写通过建议。", "request_final_review")}
             title={hasCase ? "生成当前案卷审查 memo" : "请先描述案件或选择模板创建案卷"}
             type="button"
           >
             <ClipboardCheck size={15} />
             生成审查 memo
           </button>
+          <button
+            disabled={!hasCase || !hasPolicyFailures || loading}
+            onClick={() => ask("请解释最近被退回的材料为什么不符合制度要求，以及我应该怎么修正。", "ask_policy_failure")}
+            title={hasPolicyFailures ? "解释材料退回原因" : "当前没有 policy failure 可解释"}
+            type="button"
+          >
+            <AlertTriangle size={15} />
+            为什么不符合
+          </button>
         </div>
 
-        <div className="case-agent-chat">
+        <div className="case-agent-chat" ref={chatScrollRef}>
           {messages.map((item) => (
             <article className={`case-agent-message case-agent-message-${item.role}`} key={item.id}>
               {item.title ? <strong>{item.title}</strong> : null}
