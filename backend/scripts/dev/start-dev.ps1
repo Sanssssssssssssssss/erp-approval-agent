@@ -13,6 +13,7 @@ $root = Split-Path -Parent $backendDir
 $frontendDir = Join-Path $root "src\\frontend"
 $backendPython = Join-Path $backendDir ".venv\\Scripts\\python.exe"
 $frontendNodeModules = Join-Path $frontendDir "node_modules"
+$frontendNextCache = Join-Path $frontendDir ".next"
 $backendEnvFile = Join-Path $backendDir ".env"
 $devScriptsDir = Join-Path $backendDir "scripts\\dev"
 $backendStartScript = Join-Path $devScriptsDir "start-backend-dev.ps1"
@@ -147,6 +148,59 @@ function Wait-ForHttpEndpoint {
         }
     }
     return $false
+}
+
+function Test-FrontendEndpoint {
+    param(
+        [string]$Url
+    )
+
+    try {
+        $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+        $content = [string]$response.Content
+        if ($response.StatusCode -ne 200) {
+            return $false
+        }
+        if ($content -match "Cannot find module|statusCode.:500|Internal Server Error") {
+            return $false
+        }
+        if ($content -notmatch "审批材料助手|case-agent-page|ERP Approval Agent Workbench") {
+            return $false
+        }
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
+function Wait-ForFrontendEndpoint {
+    param(
+        [string]$Url,
+        [int]$TimeoutSeconds = 30
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-FrontendEndpoint -Url $Url) {
+            return $true
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    return $false
+}
+
+function Clear-FrontendBuildCache {
+    if (-not (Test-Path $frontendNextCache)) {
+        return
+    }
+    $resolvedCache = Resolve-Path $frontendNextCache
+    $resolvedFrontend = Resolve-Path $frontendDir
+    if (-not $resolvedCache.Path.StartsWith($resolvedFrontend.Path)) {
+        throw "Refusing to clear frontend cache outside src/frontend: $($resolvedCache.Path)"
+    }
+    Remove-Item -LiteralPath $resolvedCache.Path -Recurse -Force
+    Write-Host "Cleared stale frontend .next cache." -ForegroundColor Yellow
 }
 
 function Ensure-BackendEnvironment {
@@ -292,20 +346,30 @@ else {
 
 if ($frontendProcess) {
     if ($frontendProcess.IsProjectProcess) {
-        Write-Host "Frontend already running on 3000 (PID $($frontendProcess.ProcessId)). Reusing it." -ForegroundColor Yellow
+        if (Wait-ForFrontendEndpoint -Url $frontendUrl -TimeoutSeconds 5) {
+            Write-Host "Frontend already running on 3000 (PID $($frontendProcess.ProcessId)). Reusing it." -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "Frontend listener on 3000 is unhealthy or serving stale cache. Restarting it." -ForegroundColor Yellow
+            Stop-Process -Id $frontendProcess.ProcessId -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+            Clear-FrontendBuildCache
+            $frontendProcess = $null
+        }
     }
-    elseif (Wait-ForHttpEndpoint -Url $frontendUrl -TimeoutSeconds 3) {
+    elseif (Wait-ForFrontendEndpoint -Url $frontendUrl -TimeoutSeconds 3) {
         Write-Host "Frontend is reachable on 3000. Reusing the existing listener." -ForegroundColor Yellow
     }
     else {
         throw "Port 3000 is already in use by PID $($frontendProcess.ProcessId) ($($frontendProcess.Name)). Please stop it first."
     }
 }
-else {
+
+if (-not $frontendProcess) {
     Start-DetachedFrontend
 }
 
-$frontendReady = Wait-ForHttpEndpoint -Url $frontendUrl -TimeoutSeconds 90
+$frontendReady = Wait-ForFrontendEndpoint -Url $frontendUrl -TimeoutSeconds 90
 
 Write-Host ""
 Write-Host "Development services started:" -ForegroundColor Green
