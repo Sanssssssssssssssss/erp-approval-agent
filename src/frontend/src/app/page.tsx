@@ -15,7 +15,7 @@ const TracePanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        正在加载 Audit Trace...
+        正在加载审计轨迹...
       </section>
     ),
     ssr: false
@@ -39,7 +39,7 @@ const InsightsPanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        正在加载管理洞察...
+        正在加载高级洞察...
       </section>
     ),
     ssr: false
@@ -83,28 +83,28 @@ function WorkspaceBottomBar({
           onClick={() => onViewChange("case")}
           type="button"
         >
-          案件审查
+          案件工作台
         </button>
         <button
           className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("trace")}
           type="button"
         >
-          Audit Trace
+          审计轨迹
         </button>
         <button
           className={workspaceView === "assets" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("assets")}
           type="button"
         >
-          证据
+          证据库
         </button>
         <button
           className={workspaceView === "insights" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
           onClick={() => onViewChange("insights")}
           type="button"
         >
-          管理洞察
+          高级洞察
         </button>
         {workspaceView === "trace" && resumableCheckpoint ? (
           <button
@@ -122,10 +122,15 @@ function WorkspaceBottomBar({
       </div>
 
       <div className="pixel-stat">
-        {tokenStats ? (
+        {workspaceView === "case" ? (
           <>
-            <span>{`模型 ${tokenStats.model_call_total_tokens.toLocaleString()} tokens`}</span>
-            <span>{`Audit Trace ${tokenStats.session_trace_tokens.toLocaleString()} tokens`}</span>
+            <span>案卷材料本地保存</span>
+            <span>No ERP write action was executed</span>
+          </>
+        ) : tokenStats ? (
+          <>
+            <span>{`当前会话 ${tokenStats.model_call_total_tokens.toLocaleString()} tokens`}</span>
+            <span>{`审计轨迹 ${tokenStats.session_trace_tokens.toLocaleString()} tokens`}</span>
           </>
         ) : (
           <span>暂无 token 统计</span>
@@ -146,15 +151,16 @@ function Workspace() {
         <Navbar onOpenFiles={() => setFilesOpen(true)} onOpenSessions={() => setSessionsOpen(true)} />
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          {workspaceView === "case" ? (
+          <div className={workspaceView === "case" ? "flex min-h-0 flex-1 overflow-hidden" : "hidden"}>
             <CaseReviewPanel />
-          ) : workspaceView === "trace" ? (
+          </div>
+          {workspaceView === "trace" ? (
             <TracePanel />
           ) : workspaceView === "assets" ? (
             <AssetsPanel />
-          ) : (
+          ) : workspaceView === "insights" ? (
             <InsightsPanel />
-          )}
+          ) : null}
         </div>
 
         <WorkspaceBottomBar onViewChange={setWorkspaceView} workspaceView={workspaceView} />

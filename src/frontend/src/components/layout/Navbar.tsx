@@ -48,6 +48,9 @@ export function Navbar({
     : knowledgeIndexStatus?.ready
       ? `已索引 ${knowledgeIndexStatus.indexed_files} 个文件`
       : "索引离线";
+  const displaySessionTitle = currentSessionTitle === "New Session" || currentSessionTitle === "New session"
+    ? "新审批会话"
+    : currentSessionTitle;
 
   return (
     <header className="panel workspace-topbar">
@@ -58,20 +61,20 @@ export function Navbar({
 
       <div className="workspace-title-wrap">
         <p className="workspace-title-label">当前审批会话</p>
-        <h1 className="workspace-title-text" title={currentSessionTitle}>
-          {currentSessionTitle}
+        <h1 className="workspace-title-text" title={displaySessionTitle}>
+          {displaySessionTitle}
         </h1>
       </div>
 
       <div className="relative" ref={menuRef}>
         <button
-          aria-label="打开 Workflow tools"
+          aria-label="打开工作台工具"
           className="ui-button"
           onClick={() => setMenuOpen((value) => !value)}
           type="button"
         >
           <Wrench size={16} />
-          Workflow tools
+          工作台工具
         </button>
 
         {menuOpen ? (
@@ -96,7 +99,7 @@ export function Navbar({
                 <button
                   className="menu-card"
                   onClick={() => {
-                    const nextTitle = window.prompt("重命名当前审批会话", currentSessionTitle);
+                    const nextTitle = window.prompt("重命名当前审批会话", displaySessionTitle);
                     if (nextTitle) {
                       void renameCurrentSession(nextTitle);
                     }
@@ -106,7 +109,7 @@ export function Navbar({
                 >
                   <div>
                     <div className="menu-card-title">重命名审批会话</div>
-                    <div className="menu-card-copy">{currentSessionTitle}</div>
+                    <div className="menu-card-copy">{displaySessionTitle}</div>
                   </div>
                   <Pencil size={16} />
                 </button>
@@ -142,7 +145,7 @@ export function Navbar({
             </div>
 
             <div className="menu-section">
-              <p className="menu-label">Workflow runtime</p>
+              <p className="menu-label">工作台运行设置</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 <button
                   className="menu-card"
@@ -174,7 +177,7 @@ export function Navbar({
               <div className="menu-inline">
                 <span className="menu-inline-label">
                   <Monitor size={14} />
-                  Shell
+                  运行平台
                 </span>
                 <button
                   className={executionPlatform === "windows" ? "ui-button ui-button-primary" : "ui-button"}

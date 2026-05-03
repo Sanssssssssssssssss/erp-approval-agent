@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, ValidationError
 
@@ -106,9 +108,15 @@ def _case_harness() -> CaseHarness:
     return CaseHarness(_case_review_base_dir(), stage_model=_case_stage_model_reviewer())
 
 
+@lru_cache(maxsize=1)
 def _case_stage_model_reviewer():
+    enabled = os.getenv("ERP_CASE_STAGE_MODEL_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if not enabled:
+        return None
     try:
-        return CaseStageModelReviewer(agent_manager._build_chat_model())
+        timeout = float(os.getenv("ERP_CASE_STAGE_MODEL_ROLE_TIMEOUT_SECONDS", "0.8"))
+        timeout = max(0.2, min(timeout, 8.0))
+        return CaseStageModelReviewer(agent_manager._build_chat_model(), role_timeout_seconds=timeout)
     except Exception:
         return None
 

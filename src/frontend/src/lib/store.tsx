@@ -504,7 +504,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const editableFiles = useMemo(() => buildEditableFiles(skills), [skills]);
   const currentSessionTitle = useMemo(
-    () => sessions.find((session) => session.id === currentSessionId)?.title ?? "New session",
+    () => sessions.find((session) => session.id === currentSessionId)?.title ?? "新审批会话",
     [currentSessionId, sessions]
   );
 

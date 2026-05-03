@@ -719,6 +719,66 @@ a {
   padding-right: 0.35rem;
 }
 
+.case-next-step {
+  margin-bottom: 0.85rem;
+  padding: 1rem;
+}
+
+.case-next-step h2 {
+  margin: 0.25rem 0 0.45rem;
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+
+.case-next-step p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  line-height: 1.7;
+}
+
+.case-next-step-ready {
+  border-color: rgba(84, 211, 138, 0.34);
+  background: rgba(84, 211, 138, 0.06);
+}
+
+.case-next-step-body {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.case-next-step-body > div {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.28);
+  padding: 0.75rem;
+}
+
+.case-next-step-body strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.case-next-step-body ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--color-ink);
+  line-height: 1.65;
+}
+
+.case-guided-actions {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.case-guided-actions-vertical {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
 .case-review-textarea,
 .case-review-input-field {
   width: 100%;
@@ -926,7 +986,8 @@ a {
   font-weight: 700;
 }
 
-.case-state-machine {
+.case-state-machine,
+.case-progress-panel {
   border-color: rgba(125, 211, 252, 0.32);
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(12, 18, 28, 0.82));
 }
@@ -971,6 +1032,33 @@ a {
   margin: 0.2rem 0;
   color: #facc15;
   line-height: 1.45;
+}
+
+.case-technical-details {
+  margin-top: 0.8rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.22);
+}
+
+.case-technical-details summary {
+  cursor: pointer;
+  padding: 0.65rem 0.75rem;
+  color: var(--color-ink-soft);
+  font-size: 0.88rem;
+}
+
+.case-technical-details pre {
+  max-height: 280px;
+  overflow: auto;
+  border-top: 1px solid var(--color-line);
+  margin: 0;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
 }
 
 .case-checklist,
@@ -1287,7 +1375,8 @@ a {
 
   .case-review-layout,
   .case-review-hero,
-  .case-two-col {
+  .case-two-col,
+  .case-next-step-body {
     grid-template-columns: 1fr;
   }
 

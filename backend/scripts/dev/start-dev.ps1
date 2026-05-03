@@ -315,7 +315,7 @@ Write-Host "- Health: $healthUrl"
 Write-Host "- Backend status: $(Get-BackendStatusLabel -IsReady $backendReady)"
 Write-Host "- Frontend status: $(if ($frontendReady) { 'ready' } else { 'starting' })"
 Write-Host "- Startup mode: separate PowerShell windows launched from this VS Code terminal"
-Write-Host "- Case stage model: enabled when local LLM settings are available; deterministic code remains a validation gate"
+Write-Host "- Case stage model: set ERP_CASE_STAGE_MODEL_ENABLED=true for LLM stage review; validator remains the write gate"
 Write-Host ""
 
 if (Test-Path $backendEnvFile) {
