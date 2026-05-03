@@ -75,9 +75,11 @@ Completed:
 - manual real-path smoke report at `reports/evaluations/manual_agent_smoke_latest.md`; it verifies one-sentence prompts do not pass, PR-1001 remains blocked without quote evidence, and complete PR/expense/invoice samples display local evidence links before any recommendation.
 - frontend `Insights` tab for management-efficiency summary counts and trace drill-down.
 - frontend default `Case Review` workspace for evidence-first approval case review: case overview, required evidence checklist, evidence claims, evidence sufficiency, control matrix, contradictions, and reviewer memo.
-- local CaseHarness state machine for multi-turn approval dossiers:
+- HarnessRuntime-owned LangGraph case-turn graph for multi-turn approval dossiers:
   - every user turn is treated as a controlled `CasePatch`, not free chat.
-  - `POST /api/erp-approval/cases/turn` now runs inside `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`.
+  - `POST /api/erp-approval/cases/turn` now runs inside `HarnessRuntime.run_with_executor` with `orchestration_engine=langgraph_case_turn`.
+  - the case-turn graph is `load_case_state -> classify_turn -> assemble_case_context -> review_submission -> propose_patch -> validate_patch -> persist_case -> respond`.
+  - `CaseHarness` is used inside graph nodes as the local case management module; it is not a second runtime or parallel orchestrator.
   - each case turn emits canonical harness trace events: `run.started`, `case.turn.started`, `case.patch.validated`, `case.state.persisted`, and `run.completed`.
   - the configured LLM is the single product review path when local model settings are available. It acts as bounded stage reviewers that propose a JSON `CasePatch`; roles are `turn_classifier`, `evidence_extractor`, `policy_interpreter`, `contradiction_reviewer`, and `reviewer_memo`.
   - deterministic code is not a second user-facing review path. It remains a validator, source/claim gate, test fallback, and no-ERP-write boundary.

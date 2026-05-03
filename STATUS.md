@@ -46,8 +46,9 @@ After manual real-path review, the mock ERP context now includes a visible ficti
 Evidence-first behavior:
 
 - one-sentence input creates a case draft only.
-- each user turn can now be processed through a local CaseHarness state machine: the turn loads `case_state.json`, classifies intent, assembles a bounded case context, validates a `CasePatch`, updates `dossier.md`, appends `audit_log.jsonl`, and then responds.
-- `POST /api/erp-approval/cases/turn` is HarnessRuntime-owned: it runs through `run_with_executor`, emits `case.turn.started`, `case.patch.validated`, and `case.state.persisted`, and completes as a canonical harness run.
+- each user turn is now processed through a HarnessRuntime-owned LangGraph case-turn graph: `load_case_state -> classify_turn -> assemble_case_context -> review_submission -> propose_patch -> validate_patch -> persist_case -> respond`.
+- `POST /api/erp-approval/cases/turn` runs through `run_with_executor` with `orchestration_engine=langgraph_case_turn`, emits `case.turn.started`, `case.patch.validated`, and `case.state.persisted`, and completes as a canonical harness run.
+- `CaseHarness` is now the graph-node case management module for storage/review/validation helpers; it is not a parallel runtime or API-level orchestrator.
 - the configured LLM is the single product review path when local model settings are available. It runs bounded roles for turn classification, evidence extraction, policy interpretation, contradiction review, and reviewer memo drafting; the aggregated structured `CasePatch` still goes through source/claim/action validation before persistence.
 - deterministic code remains the validator, boundary guard, and test fallback; it is no longer presented as a second user-facing review path.
 - case turns are serialized per case id, write local JSON/Markdown artifacts atomically, and can reject stale `expected_turn_count` submissions without mutating the dossier.

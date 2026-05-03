@@ -9,18 +9,22 @@ from src.backend.domains.erp_approval.case_state_models import (
     CaseTurnRequest,
     CaseTurnResponse,
 )
+from src.backend.domains.erp_approval.case_turn_graph import run_case_turn_graph_state_sync
 
 
 class CaseTurnExecutor:
-    """Runs a local approval case turn inside the HarnessRuntime lifecycle."""
+    """Runs one approval case turn through a Harness-owned LangGraph case graph."""
 
     def __init__(self, harness: CaseHarness, request: CaseTurnRequest) -> None:
         self.harness = harness
         self.request = request
         self.response: CaseTurnResponse | None = None
+        self.graph_steps: list[str] = []
 
     async def execute(self, runtime, handle, *, message: str, history: list[dict[str, Any]]) -> None:
         del history
+        graph_name = "erp_approval_case_turn_graph"
+        lock_case_id = self.harness._lock_case_id(self.request)
         await runtime.emit(
             handle,
             "route.decided",
@@ -30,22 +34,35 @@ class CaseTurnExecutor:
                 "needs_retrieval": False,
                 "allowed_tools": [],
                 "confidence": 1.0,
-                "reason_short": "Local evidence-first case turn is handled by CaseHarness.",
-                "source": "case_harness",
+                "reason_short": "Local evidence-first case turn is handled by the LangGraph case-turn graph.",
+                "source": graph_name,
             },
         )
         await runtime.emit(
             handle,
             "case.turn.started",
             {
-                "case_id": self.request.case_id,
+                "case_id": lock_case_id,
                 "requested_by": self.request.requested_by,
                 "extra_evidence_count": len(self.request.extra_evidence),
                 "message_preview": message[:240],
+                "graph_name": graph_name,
+                "graph_nodes": [
+                    "load_case_state",
+                    "classify_turn",
+                    "assemble_case_context",
+                    "review_submission",
+                    "propose_patch",
+                    "validate_patch",
+                    "persist_case",
+                    "respond",
+                ],
                 "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
             },
         )
-        self.response = await asyncio.to_thread(self.harness.handle_turn, self.request)
+        graph_state = await asyncio.to_thread(run_case_turn_graph_state_sync, self.harness, self.request, message=message)
+        self.response = graph_state["response"]
+        self.graph_steps = list(graph_state.get("graph_steps", []))
         patch = self.response.patch
         state = self.response.case_state
         await runtime.emit(
@@ -63,6 +80,8 @@ class CaseTurnExecutor:
                 "missing_requirement_count": len(patch.requirements_missing),
                 "warning_count": len(patch.warnings),
                 "stage_model_used": bool((patch.model_review or {}).get("used")),
+                "graph_name": graph_name,
+                "graph_steps": self.graph_steps,
                 "non_action_statement": patch.non_action_statement,
             },
         )
@@ -75,6 +94,8 @@ class CaseTurnExecutor:
                 "turn_count": state.turn_count,
                 "dossier_version": state.dossier_version,
                 "storage_paths": dict(self.response.storage_paths or {}),
+                "graph_name": graph_name,
+                "graph_steps": self.graph_steps,
                 "non_action_statement": state.non_action_statement,
             },
         )

@@ -160,7 +160,7 @@ async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
         source="internal",
         executor=executor,
         history=[],
-        orchestration_engine="case_harness",
+        orchestration_engine="langgraph_case_turn",
     ):
         events.append(event)
     if executor.response is None:
@@ -170,7 +170,9 @@ async def apply_erp_approval_case_turn(request: CaseTurnRequest) -> dict:
     payload["persistence"] = "writes_local_case_state_dossier_and_audit_log_only"
     payload["harness_run"] = {
         "run_id": events[0].run_id if events else "",
-        "orchestration_engine": "case_harness",
+        "orchestration_engine": "langgraph_case_turn",
+        "graph_name": "erp_approval_case_turn_graph",
+        "graph_steps": executor.graph_steps,
         "event_names": [event.name for event in events],
         "events": [_event_summary(event) for event in events],
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,

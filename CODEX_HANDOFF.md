@@ -21,7 +21,7 @@ The newest post-Phase-14 direction is Harness-governed case state. Treat chat as
 - validate the patch before writing.
 - only then update `case_state.json`, `dossier.md`, `audit_log.jsonl`, and local evidence text.
 
-The local CaseHarness API is `POST /api/erp-approval/cases/turn`. It is now wrapped by `HarnessRuntime.run_with_executor` with `orchestration_engine=case_harness`, so each case turn has canonical harness trace coverage. Expected non-action case-turn events are `case.turn.started`, `case.patch.validated`, and `case.state.persisted`, surrounded by the normal `run.started` / `run.completed` lifecycle. It may write local dossier artifacts under `backend/storage/erp_approval/cases/<case_id>/`, but it must never write to ERP, call `capability_invoke`, or emit `approval.*` events.
+The local case turn API is `POST /api/erp-approval/cases/turn`. It must run through `HarnessRuntime.run_with_executor` with `orchestration_engine=langgraph_case_turn`, then execute the LangGraph case-turn graph: `load_case_state -> classify_turn -> assemble_case_context -> review_submission -> propose_patch -> validate_patch -> persist_case -> respond`. `CaseHarness` is a graph-node domain module, not a second runtime. Expected non-action case-turn events are `case.turn.started`, `case.patch.validated`, and `case.state.persisted`, surrounded by the normal `run.started` / `run.completed` lifecycle. It may write local dossier artifacts under `backend/storage/erp_approval/cases/<case_id>/`, but it must never write to ERP, call `capability_invoke`, or emit `approval.*` events.
 
 CaseHarness uses the configured chat model as the single product review path when local model settings are available. The model runs five bounded roles for the current turn: `turn_classifier`, `evidence_extractor`, `policy_interpreter`, `contradiction_reviewer`, and `reviewer_memo`. The aggregated output becomes a proposed JSON `CasePatch`. The model is allowed to judge evidence quality, reject weak material, interpret policy gaps, challenge contradictions, add Chinese reviewer notes, and ask follow-up questions. It is not allowed to write state directly. Deterministic code remains a validator, source/claim gate, no-action boundary, and test fallback; do not reintroduce a user-facing deterministic preview route or stage-model feature toggle.
 
@@ -98,8 +98,8 @@ Current capabilities:
 
 - LLM-first ERP intake and reasoning prompts.
 - evidence-first case file, evidence requirements, evidence claims, evidence sufficiency gate, control matrix, and adversarial review.
-- local CaseHarness state machine for multi-turn approval dossiers, with validated `CasePatch` writes to `case_state.json`, `dossier.md`, and `audit_log.jsonl`.
-- HarnessRuntime-owned local case turns via `POST /api/erp-approval/cases/turn`; do not bypass runtime lifecycle when extending this path.
+- LangGraph case-turn graph for multi-turn approval dossiers, with validated `CasePatch` writes to `case_state.json`, `dossier.md`, and `audit_log.jsonl`.
+- HarnessRuntime-owned local case turns via `POST /api/erp-approval/cases/turn`; do not bypass runtime lifecycle or reintroduce a direct `CaseHarness` orchestration path when extending this flow.
 - optional stage-limited LLM `CasePatch` proposal loop; keep the model as reviewer/proposer and the validator as writer.
 - mock ERP/policy context.
 - deterministic recommendation guard via `human_review_required`.

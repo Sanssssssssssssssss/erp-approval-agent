@@ -42,9 +42,9 @@ class CaseHarness:
         self.stage_model = stage_model
 
     def handle_turn(self, request: CaseTurnRequest) -> CaseTurnResponse:
-        lock_case_id = self._lock_case_id(request)
-        with self.store.case_lock(lock_case_id):
-            return self._handle_turn_locked(request)
+        from src.backend.domains.erp_approval.case_turn_graph import run_case_turn_graph_sync  # pylint: disable=import-outside-toplevel
+
+        return run_case_turn_graph_sync(self, request)
 
     def _handle_turn_locked(self, request: CaseTurnRequest) -> CaseTurnResponse:
         now = _now()
