@@ -786,6 +786,15 @@ export type KnowledgeIndexStatus = {
   bm25_ready: boolean;
 };
 
+export type WorkspaceMarkdownFile = {
+  path: string;
+  name: string;
+  category: string;
+  size_bytes: number;
+  updated_at: number;
+  read_only: boolean;
+};
+
 export type SessionSummary = {
   id: string;
   title: string;
@@ -1282,6 +1291,13 @@ export async function getSessionTokens(sessionId: string) {
  */
 export async function listSkills() {
   return request<Array<{ name: string; description: string; path: string }>>("/skills");
+}
+
+/**
+ * Returns local Markdown files that may be shown to the model through workspace, memory, skill, or policy context.
+ */
+export async function listWorkspaceMarkdownFiles() {
+  return request<WorkspaceMarkdownFile[]>("/files/catalog");
 }
 
 /**

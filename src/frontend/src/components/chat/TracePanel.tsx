@@ -4,6 +4,7 @@ import { memo, useMemo, useRef, useState } from "react";
 import { MessageSquareText, Route, Sparkles } from "lucide-react";
 
 import { ContextTracePanel } from "@/components/chat/ContextTracePanel";
+import { LlmContextLibraryPanel } from "@/components/chat/LlmContextLibraryPanel";
 import { RetrievalCard } from "@/components/chat/RetrievalCard";
 import { ThoughtChain } from "@/components/chat/ThoughtChain";
 import { VirtualizedStack } from "@/components/chat/VirtualizedStack";
@@ -135,7 +136,7 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
 
 export function TracePanel() {
   const { messages, streamingMessages, isStreaming } = useChatStore();
-  const [view, setView] = useState<"execution" | "context">("context");
+  const [view, setView] = useState<"execution" | "context" | "llm">("context");
   const turnCacheRef = useRef(
     new Map<
       string,
@@ -202,6 +203,15 @@ export function TracePanel() {
   return (
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="panel flex min-h-0 flex-1 flex-col px-4 pb-4 pt-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="pixel-label">审计轨迹</p>
+            <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">模型上下文、运行事件和提示文件</h3>
+            <p className="pixel-note mt-2 max-w-3xl">
+              这里用于调试 Agent 为什么这么回答：先看“模型可见上下文”，再看“事件轨迹”，最后看进入提示/RAG 的 Markdown 文件。
+            </p>
+          </div>
+        </div>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
             className={`pixel-button px-4 py-2 text-sm ${view === "context" ? "is-active" : ""}`}
@@ -209,6 +219,13 @@ export function TracePanel() {
             type="button"
           >
             模型可见上下文
+          </button>
+          <button
+            className={`pixel-button px-4 py-2 text-sm ${view === "llm" ? "is-active" : ""}`}
+            onClick={() => setView("llm")}
+            type="button"
+          >
+            LLM Markdown / 当前上下文
           </button>
           <button
             className={`pixel-button px-4 py-2 text-sm ${view === "execution" ? "is-active" : ""}`}
@@ -219,7 +236,11 @@ export function TracePanel() {
           </button>
         </div>
 
-        {view === "context" ? (
+        {view === "llm" ? (
+          <div className="trace-scroll-area flex-1 overflow-y-auto pr-2">
+            <LlmContextLibraryPanel />
+          </div>
+        ) : view === "context" ? (
           <div className="trace-scroll-area flex-1 overflow-y-auto pr-2">
             <ContextTracePanel />
           </div>

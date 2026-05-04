@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { HitlRecommendationReviewCard } from "@/components/chat/HitlRecommendationReviewCard";
+import { LlmContextLibraryPanel } from "@/components/chat/LlmContextLibraryPanel";
 import { useChatStore, useSessionStore } from "@/lib/store";
 
 const ERP_RECOMMENDATION_REVIEW_CAPABILITY_ID = "erp_approval_recommendation_review";
@@ -77,8 +78,11 @@ export function AssetsPanel() {
           <div>
             <p className="pixel-label">证据</p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
-              Checkpoint、审批上下文记忆、HITL 请求与 workflow capabilities
+              案件证据、模型上下文和人工复核材料
             </h3>
+            <p className="pixel-note mt-2 max-w-3xl">
+              普通用户先看 HITL 和案卷证据；调模型时再展开 LLM Markdown 与当前上下文。不展示任何真实 ERP 写动作。
+            </p>
           </div>
           <button className="ui-button" disabled={assetsLoading || isStreaming} onClick={() => void refreshAssets()} type="button">
             {assetsLoading ? "正在刷新..." : "刷新"}
@@ -90,6 +94,8 @@ export function AssetsPanel() {
             还没有活动审批会话。
           </div>
         ) : null}
+
+        <LlmContextLibraryPanel compact />
 
         <section className="pixel-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

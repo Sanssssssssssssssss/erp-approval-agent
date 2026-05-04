@@ -1865,6 +1865,34 @@ a {
   font-size: 0.8rem;
 }
 
+.llm-md-file-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.45rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.22);
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.llm-md-file-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.llm-md-file-row:hover,
+.llm-md-file-row.is-active {
+  border-color: rgba(121, 184, 255, 0.45);
+  background: rgba(47, 129, 247, 0.08);
+  color: var(--color-ink);
+}
+
 .case-agent-mobile-summary {
   display: none;
 }

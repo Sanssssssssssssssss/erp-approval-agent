@@ -31,6 +31,7 @@ import type {
   SavedErpApprovalAuditPackageManifest
 } from "@/lib/api";
 import { ConnectorDiagnosticsPanel } from "@/components/chat/ConnectorDiagnosticsPanel";
+import { LlmContextLibraryPanel } from "@/components/chat/LlmContextLibraryPanel";
 
 type TraceFilters = {
   approval_type: string;
@@ -850,8 +851,11 @@ export function InsightsPanel() {
           <div>
             <p className="pixel-label">管理洞察</p>
             <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
-              只读 ERP 审批 Trace Explorer
+              管理视图、Trace Explorer 和模型调试
             </h3>
+            <p className="pixel-note mt-2 max-w-3xl">
+              默认展示管理者能看懂的风险、缺口和 trace；连接器、RAG、prompt 上下文都放在调试区，避免和案件操作混在一起。
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="ui-button" disabled={loading} onClick={loadDashboard} type="button">
@@ -867,6 +871,27 @@ export function InsightsPanel() {
         </div>
 
         {error ? <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-danger)]">{error}</div> : null}
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="pixel-card-soft p-4">
+            <p className="pixel-label">1. 管理摘要</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+              看 trace 数量、人工复核、被阻断 proposal 和高风险案件，判断流程是否顺畅。
+            </p>
+          </div>
+          <div className="pixel-card-soft p-4">
+            <p className="pixel-label">2. Trace drill-down</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+              选中单个 trace，查看缺失材料、风险、proposal、审计包和 reviewer notes。
+            </p>
+          </div>
+          <div className="pixel-card-soft p-4">
+            <p className="pixel-label">3. 模型调试</p>
+            <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+              查看 policy RAG、connector replay、LLM Markdown 文件和当前上下文，定位模型为什么这么判断。
+            </p>
+          </div>
+        </section>
 
         <section className="pixel-card-soft grid gap-3 p-4 md:grid-cols-5">
           <label className="text-sm">
@@ -937,6 +962,8 @@ export function InsightsPanel() {
         </section>
 
         <ConnectorDiagnosticsPanel />
+
+        <LlmContextLibraryPanel compact />
 
         {!summary || loading ? (
           <div className="pixel-card-soft px-4 py-4 text-sm text-[var(--color-ink-soft)]">
