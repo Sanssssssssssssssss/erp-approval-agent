@@ -159,6 +159,26 @@ function object(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
+function policyRagTraceFromModelReview(modelReview: Record<string, unknown>) {
+  const candidates = [
+    object(modelReview.policy_rag),
+    object(object(modelReview.missing_requirements_answer).policy_rag),
+    object(object(modelReview.policy_failures_answer).policy_rag)
+  ];
+  return candidates.find((candidate) => Object.keys(candidate).length > 0) ?? {};
+}
+
+function policyRagPlan(trace: Record<string, unknown>) {
+  const retrieval = object(trace.retrieval);
+  return object(trace.plan || retrieval.plan);
+}
+
+function policyRagEvidences(trace: Record<string, unknown>) {
+  const retrieval = object(trace.retrieval);
+  const direct = records(trace.evidences);
+  return direct.length ? direct : records(retrieval.evidences);
+}
+
 function caseChecklistItems(turn: ErpApprovalCaseTurnResponse) {
   const modelReview = object(turn.patch?.model_review);
   const checklist = object(modelReview.case_checklist);
@@ -333,6 +353,13 @@ function AgentPromptContractPanel({ turn }: { turn: ErpApprovalCaseTurnResponse 
     modelReview.stage_model_status || modelReview.model_status || modelReview.status || "按本轮配置执行，失败会回退到本地校验"
   );
   const graphSteps = list(harnessRun.graph_steps || modelReview.graph_steps || patch.graph_steps);
+  const policyTrace = policyRagTraceFromModelReview(modelReview);
+  const policyPlan = policyRagPlan(policyTrace);
+  const policyEvidences = policyRagEvidences(policyTrace);
+  const rewrittenQueries = list(policyPlan.rewritten_queries || policyTrace.query_rewrite || policyTrace.rewritten_queries);
+  const queryHints = list(policyPlan.query_hints || policyTrace.query_hints);
+  const plannerStatus = text(policyTrace.planner_status || policyPlan.planner_status || policyTrace.model_status, "未触发");
+  const retrievalStatus = text(policyTrace.retrieval_status || policyTrace.status, "未检索");
 
   return (
     <details className="case-agent-details case-agent-prompt-contract">
@@ -362,6 +389,48 @@ function AgentPromptContractPanel({ turn }: { turn: ErpApprovalCaseTurnResponse 
         {graphSteps.length ? <p><strong>本轮节点：</strong>{graphSteps.slice(-8).join(" -> ")}</p> : null}
         <p>No ERP write action was executed.</p>
       </div>
+      {Object.keys(policyTrace).length ? (
+        <div className="case-agent-detail-block case-agent-policy-rag-trace">
+          <h4>Policy RAG trace</h4>
+          <div className="case-agent-trace-grid">
+            <div>
+              <strong>Planner status</strong>
+              <p>{plannerStatus}</p>
+            </div>
+            <div>
+              <strong>Retrieval status</strong>
+              <p>{retrievalStatus}</p>
+            </div>
+          </div>
+          {rewrittenQueries.length ? (
+            <>
+              <strong>Query rewrite</strong>
+              <ul className="case-agent-list">
+                {rewrittenQueries.slice(0, 4).map((query) => (
+                  <li key={query}>{query}</li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {queryHints.length ? (
+            <p><strong>Query hints：</strong>{queryHints.slice(0, 8).join(" / ")}</p>
+          ) : null}
+          {policyEvidences.length ? (
+            <div className="case-agent-rag-snippets">
+              <strong>Policy snippets</strong>
+              {policyEvidences.slice(0, 4).map((evidence, index) => (
+                <div className="case-agent-rag-snippet" key={`${text(evidence.source_path)}-${text(evidence.locator)}-${index}`}>
+                  <p><strong>Source：</strong>{text(evidence.source_path, "unknown")}</p>
+                  <p><strong>Locator：</strong>{text(evidence.locator, "unknown")}</p>
+                  <p>{text(evidence.snippet, "没有 snippet")}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="case-agent-muted">本轮没有命中 policy snippet；模型会回退到 requirement matrix 和本地校验。</p>
+          )}
+        </div>
+      ) : null}
     </details>
   );
 }

@@ -34,6 +34,7 @@ def build_policy_guidance(state: ApprovalCaseState, *, approval_type: str | None
                 "label": requirement.get("label", ""),
                 "blocking": bool(requirement.get("blocking", False)),
                 "status": requirement.get("status", "missing"),
+                "required_level": requirement.get("required_level", "required"),
                 "policy": clause,
                 "acceptable_evidence": acceptable_evidence_forms(requirement),
                 "unacceptable_evidence": unacceptable_evidence_forms(requirement),
@@ -103,22 +104,84 @@ def resolve_policy_failures(
 
 
 def render_materials_guidance(guidance: dict[str, Any], *, max_items: int = 14) -> str:
-    lines = ["必备材料清单（来自本地政策/RAG + requirement matrix）："]
-    for item in guidance.get("items", [])[:max_items]:
-        policy = item.get("policy", {}) or {}
-        blocking = "blocking" if item.get("blocking") else "非阻断/条件项"
-        lines.append(
-            "\n".join(
-                [
-                    f"- {item.get('label') or item.get('requirement_id')} [{blocking}]",
-                    f"  制度条款：{policy.get('policy_clause_id', '')} - {policy.get('policy_clause_text', '')}",
-                    f"  可接受：{'; '.join(item.get('acceptable_evidence') or [])}",
-                    f"  不接受：{'; '.join(item.get('unacceptable_evidence') or [])}",
-                ]
+    items = [item for item in guidance.get("items", []) if isinstance(item, dict)]
+    priority_groups = _prioritize_guidance_items(items)
+    lines = [
+        "材料准备清单（按优先级，来自本地政策/RAG + requirement matrix）：",
+        "",
+        "先补第一优先级。只要 blocking 材料缺失，就不能进入最终 reviewer memo。",
+    ]
+    shown = 0
+    for title, description, group_items in priority_groups:
+        if shown >= max_items:
+            break
+        if not group_items:
+            continue
+        lines.extend(["", f"## {title}", description])
+        for item in group_items:
+            if shown >= max_items:
+                break
+            shown += 1
+            policy = item.get("policy", {}) or {}
+            blocking = "blocking" if item.get("blocking") else "非阻断/条件项"
+            status = str(item.get("status") or "missing")
+            lines.append(
+                "\n".join(
+                    [
+                        f"- {item.get('label') or item.get('requirement_id')} [{blocking}; 当前状态：{status}]",
+                        f"  制度条款：{policy.get('policy_clause_id', '')} - {policy.get('policy_clause_text', '')}",
+                        f"  可接受：{'; '.join(item.get('acceptable_evidence') or [])}",
+                        f"  不接受：{'; '.join(item.get('unacceptable_evidence') or [])}",
+                        "  建议动作：提交可追溯材料，带 source_id、金额/状态/日期/适用单据等具体字段。",
+                    ]
+                )
             )
-        )
+    if shown == 0:
+        lines.append("当前没有可展示的材料要求；请先描述审批类型、金额、供应商、成本中心和业务目的。")
+    remaining = max(0, len(items) - shown)
+    if remaining:
+        lines.extend(["", f"还有 {remaining} 项较低优先级或已满足材料未展开，可在案卷详情中查看。"])
     lines.append("No ERP write action was executed.")
     return "\n".join(lines)
+
+
+def _prioritize_guidance_items(items: list[dict[str, Any]]) -> list[tuple[str, str, list[dict[str, Any]]]]:
+    missing_statuses = {"missing", "partial", "conflict", "failed", "not_submitted", ""}
+
+    def status(item: dict[str, Any]) -> str:
+        return str(item.get("status") or "").strip().lower()
+
+    def required_level(item: dict[str, Any]) -> str:
+        return str(item.get("required_level") or "").strip().lower()
+
+    first = [item for item in items if item.get("blocking") and status(item) in missing_statuses]
+    first_ids = {id(item) for item in first}
+    second = [
+        item
+        for item in items
+        if id(item) not in first_ids
+        and status(item) in missing_statuses
+        and (required_level(item) == "conditional" or not item.get("blocking"))
+    ]
+    used = first_ids | {id(item) for item in second}
+    third = [item for item in items if id(item) not in used]
+    return [
+        (
+            "第一优先级：blocking 且当前缺失",
+            "缺这些材料时，只能 request_more_info / escalate / blocked，不能 recommend_approve。",
+            first,
+        ),
+        (
+            "第二优先级：条件性但本案大概率需要",
+            "这些材料通常用于解释例外、补强制度依据或降低人工复核风险。",
+            second,
+        ),
+        (
+            "第三优先级：支持性 / 可选 / 已满足材料",
+            "这些材料用于完善案卷、支持 reviewer memo，或说明已经满足的证据链。",
+            third,
+        ),
+    ]
 
 
 def render_policy_failures(failures: list[CasePolicyFailure]) -> str:
