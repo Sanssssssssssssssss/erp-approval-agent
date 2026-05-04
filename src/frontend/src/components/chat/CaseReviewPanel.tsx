@@ -668,9 +668,11 @@ export function CaseReviewPanel() {
   ) => {
     const outgoing = (override ?? message).trim() || (queuedEvidence.length ? "这是本轮补充材料，请审查能否写入案卷。" : "");
     if (!outgoing) return;
+    const originalMessage = message;
 
     setLoading(true);
     setError("");
+    if (!override) setMessage("");
     setMessages((items) => [
       ...items,
       makeMessage("user", outgoing, includeEvidence && queuedEvidence.length ? `附带 ${queuedEvidence.length} 份材料` : undefined)
@@ -700,8 +702,8 @@ export function CaseReviewPanel() {
         setEvidenceContent("");
         setShowEvidenceEditor(false);
       }
-      if (!override) setMessage("");
     } catch (err) {
+      if (!override) setMessage((current) => current || originalMessage);
       const detail = err instanceof Error ? err.message : "本轮案卷更新失败";
       setError(detail);
       setMessages((items) => [...items, makeMessage("system", detail, "请求失败")]);
