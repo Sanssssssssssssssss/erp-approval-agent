@@ -8,10 +8,14 @@ import {
   FileText,
   HelpCircle,
   ListChecks,
+  Paperclip,
   RotateCcw,
   SendHorizontal,
   ShieldCheck,
-  Sparkles
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -32,6 +36,7 @@ type ChatMessage = {
   title?: string;
   body: string;
   meta?: string[];
+  attachments?: ErpApprovalCaseReviewEvidenceInput[];
 };
 
 type ClientIntent = NonNullable<ErpApprovalCaseTurnRequest["client_intent"]>;
@@ -114,13 +119,14 @@ const CHECKLIST_STATUS_META: Record<string, { label: string; className: string }
 
 const TEXT_FILE_EXTENSIONS = [".txt", ".md", ".json", ".csv", ".tsv", ".xml", ".log"];
 
-function makeMessage(role: ChatMessage["role"], body: string, title?: string, meta?: string[]): ChatMessage {
+function makeMessage(role: ChatMessage["role"], body: string, title?: string, meta?: string[], attachments?: ErpApprovalCaseReviewEvidenceInput[]): ChatMessage {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     role,
     title,
     body,
-    meta
+    meta,
+    attachments
   };
 }
 
@@ -173,7 +179,69 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse) {
   const agentReply = object(modelReview.agent_reply);
   const markdown = text(agentReply.markdown, text(agentReply.body, ""));
   if (markdown) return markdown;
-  return `模型没有返回主回复。请检查高级洞察里的图路径、LLM role 状态和 system prompt。\n\n${NON_ACTION_STATEMENT}`;
+  return `模型没有返回主回复，本轮没有生成业务结论。请确认本地模型服务可用后重试。\n\n${NON_ACTION_STATEMENT}`;
+}
+
+function formatBytes(value: unknown) {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function evidenceMeta(item: ErpApprovalCaseReviewEvidenceInput) {
+  return object(item.metadata);
+}
+
+function evidenceDisplayName(item: ErpApprovalCaseReviewEvidenceInput) {
+  return text(item.title, text(evidenceMeta(item).file_name, text(item.source_id, "本地材料")));
+}
+
+function evidenceSubtitle(item: ErpApprovalCaseReviewEvidenceInput) {
+  const meta = evidenceMeta(item);
+  const parts = [displayLabel(item.record_type, "材料"), formatBytes(meta.file_size), text(meta.file_type, "")].filter(Boolean);
+  return parts.join(" · ");
+}
+
+function EvidenceAttachmentCards({
+  evidence,
+  onOpen,
+  onRemove,
+  compact = false
+}: {
+  evidence?: ErpApprovalCaseReviewEvidenceInput[];
+  onOpen: (item: ErpApprovalCaseReviewEvidenceInput) => void;
+  onRemove?: (index: number) => void;
+  compact?: boolean;
+}) {
+  if (!evidence?.length) return null;
+  return (
+    <div className={compact ? "case-attachment-list is-compact" : "case-attachment-list"}>
+      {evidence.map((item, index) => (
+        <button className="case-attachment-card" key={`${text(item.source_id)}-${index}`} onClick={() => onOpen(item)} type="button">
+          <span className="case-attachment-icon"><Paperclip size={15} /></span>
+          <span className="case-attachment-main">
+            <strong>{evidenceDisplayName(item)}</strong>
+            <small>{evidenceSubtitle(item) || "本地文本材料"}</small>
+          </span>
+          {onRemove ? (
+            <span
+              className="case-attachment-remove"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove(index);
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <Trash2 size={14} />
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function caseChecklistItems(turn: ErpApprovalCaseTurnResponse | null) {
@@ -312,6 +380,13 @@ function CaseSidePanel({
   const accepted = turn?.case_state.accepted_evidence ?? [];
   const rejected = turn?.case_state.rejected_evidence ?? [];
   const failures = turn?.case_state.policy_failures ?? [];
+  const blockingItems = checklist.filter((item) => {
+    const status = text(item.status, "");
+    return Boolean(item.blocking) && !["accepted", "satisfied", "not_applicable"].includes(status);
+  });
+  const failedItems = checklist.filter((item) => ["review_failed", "conflict", "partial", "incomplete"].includes(text(item.status, "")));
+  const passedItems = checklist.filter((item) => ["accepted", "satisfied"].includes(text(item.status, "")));
+  const nextItems = blockingItems.length ? blockingItems : failedItems.length ? failedItems : checklist.filter((item) => !["accepted", "satisfied"].includes(text(item.status, ""))).slice(0, 4);
 
   if (!turn) {
     return (
@@ -350,9 +425,9 @@ function CaseSidePanel({
       <ProgressDots turn={turn} />
 
       <section className="case-side-section">
-        <h3><ListChecks size={15} />材料清单</h3>
+        <h3><ListChecks size={15} />下一步优先级</h3>
         <div className="case-checklist">
-          {checklist.length ? checklist.map((item, index) => {
+          {nextItems.length ? nextItems.slice(0, 6).map((item, index) => {
             const status = text(item.status, "not_submitted");
             const meta = CHECKLIST_STATUS_META[status] ?? CHECKLIST_STATUS_META.not_submitted;
             return (
@@ -364,8 +439,36 @@ function CaseSidePanel({
                 <p>{text(item.next_action, item.blocking ? "阻断项，缺失时不能形成最终 memo。" : "补充后由 Agent 重新审查。")}</p>
               </article>
             );
-          }) : <p className="case-muted">还没有材料清单。先问“需要准备什么材料”。</p>}
+          }) : <p className="case-muted">没有新的 blocking gap。可以请求生成 memo，并由人工 reviewer 复核。</p>}
         </div>
+      </section>
+
+      <section className="case-side-section">
+        <h3><ListChecks size={15} />材料清单总览</h3>
+        <div className="case-summary-grid">
+          <div><strong>{passedItems.length}</strong><span>已通过</span></div>
+          <div><strong>{blockingItems.length}</strong><span>阻断缺口</span></div>
+          <div><strong>{failedItems.length}</strong><span>需重提</span></div>
+          <div><strong>{checklist.length}</strong><span>总要求</span></div>
+        </div>
+        <details className="case-side-details">
+          <summary>展开全部材料项</summary>
+          <div className="case-checklist mt-3">
+            {checklist.map((item, index) => {
+              const status = text(item.status, "not_submitted");
+              const meta = CHECKLIST_STATUS_META[status] ?? CHECKLIST_STATUS_META.not_submitted;
+              return (
+                <article className="case-checklist-item is-compact" key={`${text(item.requirement_id, String(index))}-all-${index}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <strong>{text(item.label, text(item.requirement_id, "材料要求"))}</strong>
+                    <span className={`case-status-pill ${meta.className}`}>{meta.label}</span>
+                  </div>
+                  <p>{text(item.next_action, item.blocking ? "阻断项。" : "后续由 Agent 复核。")}</p>
+                </article>
+              );
+            })}
+          </div>
+        </details>
       </section>
 
       <section className="case-side-section">
@@ -413,8 +516,12 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
   const [selectedEvidenceType, setSelectedEvidenceType] = useState("approval_request");
   const [queuedEvidence, setQueuedEvidence] = useState<ErpApprovalCaseReviewEvidenceInput[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReadingFiles, setIsReadingFiles] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [openEvidence, setOpenEvidence] = useState<ErpApprovalCaseReviewEvidenceInput | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -440,13 +547,14 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
 
   async function submitTurn(overrideMessage?: string, includeEvidence = true, forcedIntent?: ClientIntent) {
     const outgoing = text(overrideMessage ?? message, "");
-    const evidence = includeEvidence ? queuedEvidence : [];
+    const evidence = includeEvidence ? [...queuedEvidence] : [];
     if (!outgoing && evidence.length === 0) return;
 
     const intent = forcedIntent ?? inferClientIntent(outgoing, Boolean(caseTurn?.case_state.case_id), evidence.length > 0);
     const displayedUserText = outgoing || `提交 ${evidence.length} 份本地材料`;
-    setMessages((current) => [...current, makeMessage("user", displayedUserText)]);
+    setMessages((current) => [...current, makeMessage("user", displayedUserText, undefined, undefined, evidence)]);
     clearComposer();
+    if (includeEvidence && evidence.length > 0) setQueuedEvidence([]);
     setIsSubmitting(true);
 
     try {
@@ -458,9 +566,12 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
         client_intent: intent,
         requested_by: "local_user"
       });
-      if (includeEvidence) setQueuedEvidence([]);
       applyTurnResponse(response);
+      clearComposer();
     } catch (error) {
+      if (includeEvidence && evidence.length > 0) {
+        setQueuedEvidence((current) => [...evidence, ...current]);
+      }
       setMessages((current) => [
         ...current,
         makeMessage("system", error instanceof Error ? error.message : "本轮提交失败，请稍后重试。", "提交失败")
@@ -470,32 +581,43 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
     }
   }
 
-  async function handleFileUpload(files: FileList | null) {
+  async function handleFileUpload(files: FileList | File[] | null) {
     if (!files?.length) return;
+    setIsReadingFiles(true);
     const additions: ErpApprovalCaseReviewEvidenceInput[] = [];
-    for (const file of Array.from(files)) {
-      const lower = file.name.toLowerCase();
-      const canReadText = TEXT_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension));
-      const content = canReadText
-        ? await file.text()
-        : `本地文件 ${file.name} 已登记。当前前端仅登记 PDF/图片元数据；后续需要 OCR/PDF 抽取后才能作为强证据。`;
-      additions.push({
-        source_id: `local_file://${file.name}`,
-        title: file.name,
-        content,
-        record_type: selectedEvidenceType,
-        metadata: {
-          artifact_id: `file-${shortHash(`${file.name}:${file.size}:${file.lastModified}`)}`,
-          artifact_type: canReadText ? "attachment" : "mock_document",
-          file_name: file.name,
-          file_size: file.size,
-          file_type: file.type || "unknown",
-          text_extracted: canReadText,
-          local_only: true
-        }
-      });
+    try {
+      for (const file of Array.from(files)) {
+        const lower = file.name.toLowerCase();
+        const canReadText = TEXT_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension));
+        const artifactId = `file-${shortHash(`${file.name}:${file.size}:${file.lastModified}`)}`;
+        const content = canReadText
+          ? await file.text()
+          : [
+              `本地文件 ${file.name} 已上传到本轮材料队列，但前端未抽取正文。`,
+              `文件类型：${file.type || "unknown"}；文件大小：${file.size} bytes。`,
+              "请注意：PDF/图片需要 OCR/PDF 抽取后才能作为强证据；本轮会把文件元数据提交给 Agent 判断是否可用。"
+            ].join("\n");
+        additions.push({
+          source_id: `local_file://${artifactId}/${encodeURIComponent(file.name)}`,
+          title: file.name,
+          content,
+          record_type: selectedEvidenceType,
+          metadata: {
+            artifact_id: artifactId,
+            artifact_type: canReadText ? "attachment" : "file_metadata",
+            file_name: file.name,
+            file_size: file.size,
+            file_type: file.type || "unknown",
+            text_extracted: canReadText,
+            local_only: true
+          }
+        });
+      }
+      setQueuedEvidence((current) => [...current, ...additions]);
+    } finally {
+      setIsReadingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    setQueuedEvidence((current) => [...current, ...additions]);
   }
 
   function addTextEvidence() {
@@ -503,6 +625,10 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
     const evidence = buildEvidenceInput(message, selectedEvidenceType);
     setQueuedEvidence((current) => [...current, evidence]);
     clearComposer();
+  }
+
+  function removeQueuedEvidence(index: number) {
+    setQueuedEvidence((current) => current.filter((_, itemIndex) => itemIndex !== index));
   }
 
   function loadEvidenceTemplate(type: string) {
@@ -591,6 +717,7 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
             <article className={`case-agent-message is-${item.role}`} key={item.id}>
               {item.title ? <h3>{item.title}</h3> : null}
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.body}</ReactMarkdown>
+              <EvidenceAttachmentCards compact evidence={item.attachments} onOpen={setOpenEvidence} />
               {item.meta?.length ? (
                 <div className="case-chip-row">
                   {item.meta.map((meta) => <span className="case-chip" key={meta}>{meta}</span>)}
@@ -606,7 +733,30 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
           ) : null}
         </div>
 
-        <div className="case-agent-composer">
+        <div
+          className={`case-agent-composer ${isDragActive ? "is-dragging" : ""}`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (event.currentTarget === event.target) setIsDragActive(false);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragActive(true);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDragActive(false);
+            void handleFileUpload(event.dataTransfer.files);
+          }}
+        >
+          <div className="case-drop-hint">
+            <UploadCloud size={17} />
+            <span>拖拽文件到这里，或点击“上传文件”。文本/Markdown/CSV 会抽取正文；PDF/图片先提交元数据。</span>
+          </div>
           <textarea
             ref={composerRef}
             className="pixel-textarea"
@@ -620,6 +770,7 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
             placeholder="描述案件、提问进度，或说明这次提交了什么材料..."
             value={message}
           />
+          <EvidenceAttachmentCards evidence={queuedEvidence} onOpen={setOpenEvidence} onRemove={removeQueuedEvidence} />
           <div className="case-evidence-toolbar">
             <select className="pixel-input" onChange={(event) => loadEvidenceTemplate(event.target.value)} value={selectedEvidenceType}>
               {EVIDENCE_TYPES.map(([value, label]) => (
@@ -633,10 +784,10 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
             <label className="pixel-button">
               <FileText size={15} />
               上传文件
-              <input className="hidden" multiple onChange={(event) => void handleFileUpload(event.target.files)} type="file" />
+              <input ref={fileInputRef} className="hidden" multiple onChange={(event) => void handleFileUpload(event.target.files)} type="file" />
             </label>
-            <span className="case-muted">{queuedEvidenceSummary}</span>
-            <button className="pixel-button pixel-button-primary ml-auto" onClick={() => void submitTurn()} disabled={isSubmitting || (!message.trim() && queuedEvidence.length === 0)} type="button">
+            <span className="case-muted">{isReadingFiles ? "正在读取文件..." : queuedEvidenceSummary}</span>
+            <button className="pixel-button pixel-button-primary ml-auto" onClick={() => void submitTurn()} disabled={isSubmitting || isReadingFiles || (!message.trim() && queuedEvidence.length === 0)} type="button">
               <SendHorizontal size={15} />
               发送给 Agent
             </button>
@@ -646,6 +797,24 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
       </div>
 
       <CaseSidePanel isSubmitting={isSubmitting} onReturnForRework={reviewerReturnForRework} turn={caseTurn} />
+      {openEvidence ? (
+        <div className="case-evidence-modal" role="dialog" aria-modal="true">
+          <div className="case-evidence-modal-card">
+            <header>
+              <div>
+                <p className="pixel-label">本地材料预览</p>
+                <h3>{evidenceDisplayName(openEvidence)}</h3>
+                <p>{evidenceSubtitle(openEvidence)}</p>
+              </div>
+              <button className="pixel-button" onClick={() => setOpenEvidence(null)} type="button">
+                <X size={15} />
+                关闭
+              </button>
+            </header>
+            <pre>{openEvidence.content}</pre>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

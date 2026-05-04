@@ -44,6 +44,8 @@ artifacts/pgdata*/
 artifacts/traces/
 artifacts/load/
 artifacts/coverage/
+.playwright-cli/
+output/
 AGENTS.md
 1.py
 backend/temp_*.txt

@@ -1589,6 +1589,25 @@ a {
   padding: 0.85rem 1rem 1rem;
 }
 
+.case-agent-composer.is-dragging {
+  outline: 2px solid rgba(121, 184, 255, 0.58);
+  outline-offset: -6px;
+  background: color-mix(in srgb, var(--color-panel) 86%, rgba(47, 129, 247, 0.28));
+}
+
+.case-drop-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  border: 1px dashed rgba(121, 184, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(47, 129, 247, 0.055);
+  padding: 0.48rem 0.62rem;
+  color: var(--color-ink-soft);
+  font-size: 0.8rem;
+}
+
 .case-agent-composer textarea,
 .case-agent-evidence-editor input,
 .case-agent-evidence-editor select,
@@ -1619,6 +1638,139 @@ a {
 .case-evidence-toolbar .pixel-button,
 .case-evidence-toolbar .pixel-input {
   width: 100%;
+}
+
+.case-attachment-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.case-attachment-list.is-compact {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 260px));
+}
+
+.case-attachment-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(226, 232, 240, 0.035);
+  padding: 0.58rem 0.65rem;
+  color: var(--color-ink);
+  text-align: left;
+}
+
+.case-attachment-card:hover {
+  border-color: rgba(121, 184, 255, 0.42);
+  background: rgba(47, 129, 247, 0.08);
+}
+
+.case-attachment-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(121, 184, 255, 0.1);
+  color: var(--color-accent-strong);
+}
+
+.case-attachment-main {
+  min-width: 0;
+}
+
+.case-attachment-main strong,
+.case-attachment-main small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-attachment-main strong {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 0.82rem;
+}
+
+.case-attachment-main small {
+  margin-top: 0.1rem;
+  color: var(--color-ink-muted);
+  font-size: 0.72rem;
+}
+
+.case-attachment-remove {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--color-ink-muted);
+}
+
+.case-attachment-remove:hover {
+  background: rgba(248, 113, 113, 0.13);
+  color: #fca5a5;
+}
+
+.case-evidence-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(2, 6, 23, 0.72);
+  padding: 1rem;
+}
+
+.case-evidence-modal-card {
+  width: min(860px, 96vw);
+  max-height: min(760px, 90vh);
+  overflow: hidden;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 10px;
+  background: var(--color-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.case-evidence-modal-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-line);
+  padding: 1rem;
+}
+
+.case-evidence-modal-card h3 {
+  margin: 0.15rem 0 0;
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.case-evidence-modal-card p {
+  margin: 0.25rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+}
+
+.case-evidence-modal-card pre {
+  max-height: 620px;
+  overflow: auto;
+  margin: 0;
+  padding: 1rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-ink);
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.65;
 }
 
 .insight-tile {
@@ -1706,6 +1858,193 @@ a {
 .case-agent-side {
   overflow-y: auto;
   padding: 1rem;
+}
+
+.case-side-header {
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 0.9rem;
+}
+
+.case-side-header h2 {
+  margin: 0.1rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--color-ink);
+  font-size: 1.1rem;
+  font-weight: 750;
+}
+
+.case-side-section,
+.case-side-card,
+.case-progress-card {
+  margin-top: 0.9rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.26);
+  padding: 0.85rem;
+}
+
+.case-side-section h3,
+.case-side-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.65rem;
+  color: var(--color-ink);
+  font-size: 0.92rem;
+}
+
+.case-progress-card strong {
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.case-progress-track {
+  height: 8px;
+  margin-top: 0.65rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.08);
+}
+
+.case-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-accent-strong), #54d38a);
+}
+
+.case-checklist-item {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(226, 232, 240, 0.025);
+  padding: 0.65rem;
+}
+
+.case-checklist-item.is-compact {
+  padding: 0.55rem;
+}
+
+.case-checklist-item strong {
+  min-width: 0;
+  color: var(--color-ink);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.case-checklist-item p {
+  margin: 0.35rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.case-status-pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 0.22rem 0.45rem;
+  color: var(--color-ink-soft);
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.case-status-pill.is-accepted {
+  border-color: rgba(84, 211, 138, 0.34);
+  background: rgba(84, 211, 138, 0.1);
+  color: #9ae6b4;
+}
+
+.case-status-pill.is-failed {
+  border-color: rgba(248, 113, 113, 0.34);
+  background: rgba(248, 113, 113, 0.11);
+  color: #fca5a5;
+}
+
+.case-status-pill.is-partial {
+  border-color: rgba(246, 182, 85, 0.35);
+  background: rgba(246, 182, 85, 0.1);
+  color: #f8d08d;
+}
+
+.case-status-pill.is-missing {
+  background: rgba(226, 232, 240, 0.035);
+}
+
+.case-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.case-summary-grid div {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(226, 232, 240, 0.025);
+  padding: 0.55rem;
+}
+
+.case-summary-grid strong,
+.case-summary-grid span {
+  display: block;
+}
+
+.case-summary-grid strong {
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+
+.case-summary-grid span {
+  margin-top: 0.1rem;
+  color: var(--color-ink-muted);
+  font-size: 0.74rem;
+}
+
+.case-side-details {
+  margin-top: 0.7rem;
+}
+
+.case-side-details summary {
+  cursor: pointer;
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+}
+
+.case-side-line {
+  margin: 0.35rem 0;
+  overflow-wrap: anywhere;
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.case-success-note {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.6rem 0;
+  border: 1px solid rgba(84, 211, 138, 0.3);
+  border-radius: 8px;
+  background: rgba(84, 211, 138, 0.08);
+  padding: 0.65rem;
+}
+
+.case-success-note strong {
+  color: var(--color-ink);
+}
+
+.case-success-note span {
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+}
+
+.case-json-preview {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0.6rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-ink-soft);
+  font-size: 0.72rem;
 }
 
 .case-agent-side-empty {
