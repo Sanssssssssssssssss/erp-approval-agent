@@ -6,6 +6,19 @@ import { useEffect, useMemo, useState } from "react";
 import { listWorkspaceMarkdownFiles, loadFile, type WorkspaceMarkdownFile } from "@/lib/api";
 import { useChatStore } from "@/lib/store";
 
+const FALLBACK_LLM_MARKDOWN_FILES: WorkspaceMarkdownFile[] = [
+  { path: "workspace/SOUL.md", name: "SOUL.md", category: "核心身份 / 系统提示", size_bytes: 0, updated_at: 0, read_only: true },
+  { path: "workspace/IDENTITY.md", name: "IDENTITY.md", category: "核心身份 / 系统提示", size_bytes: 0, updated_at: 0, read_only: true },
+  { path: "workspace/USER.md", name: "USER.md", category: "用户偏好", size_bytes: 0, updated_at: 0, read_only: true },
+  { path: "workspace/AGENTS.md", name: "AGENTS.md", category: "Agent 规则", size_bytes: 0, updated_at: 0, read_only: true },
+  { path: "memory/MEMORY.md", name: "MEMORY.md", category: "长期记忆", size_bytes: 0, updated_at: 0, read_only: true },
+  { path: "SKILLS_SNAPSHOT.md", name: "SKILLS_SNAPSHOT.md", category: "运行清单", size_bytes: 0, updated_at: 0, read_only: true },
+  { path: "knowledge/ERP Approval/README.md", name: "README.md", category: "审批政策 / RAG", size_bytes: 0, updated_at: 0, read_only: true }
+];
+
+const CATALOG_FALLBACK_MESSAGE =
+  "Markdown 文件目录接口暂时不可用，可能需要重启后端。这里先显示核心文件路径；选中文件若无法读取，会显示友好提示。";
+
 function formatSize(bytes: number) {
   if (!Number.isFinite(bytes)) return "-";
   if (bytes < 1024) return `${bytes} B`;
@@ -65,8 +78,17 @@ export function LlmContextLibraryPanel({ compact = false }: { compact?: boolean 
         const file = await loadFile(nextPath);
         setSelectedContent(file.content);
       }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "加载 Markdown 文件失败");
+    } catch {
+      const fallback = [...FALLBACK_LLM_MARKDOWN_FILES];
+      setFiles(fallback);
+      const nextPath = selectedPath || fallback[0]?.path || "";
+      setSelectedPath(nextPath);
+      setSelectedContent(
+        nextPath
+          ? `暂时无法从后端读取 ${nextPath}。\n\n${CATALOG_FALLBACK_MESSAGE}\n\n这不是模型上下文本身的问题，只是文件目录/读取接口没有响应。重启后端后点击“刷新”即可重新读取。`
+          : ""
+      );
+      setError(CATALOG_FALLBACK_MESSAGE);
     } finally {
       setFilesLoading(false);
     }
@@ -102,8 +124,11 @@ export function LlmContextLibraryPanel({ compact = false }: { compact?: boolean 
     try {
       const file = await loadFile(path);
       setSelectedContent(file.content);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "加载文件失败");
+    } catch {
+      setSelectedContent(
+        `暂时无法从后端读取 ${path}。\n\n请确认后端已经重启到最新版本，并且该 Markdown 文件存在于 workspace / memory / skills / knowledge 目录。`
+      );
+      setError("文件读取接口暂时不可用；已保留文件路径供排查。");
     }
   };
 

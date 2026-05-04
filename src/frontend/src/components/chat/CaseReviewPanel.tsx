@@ -147,6 +147,20 @@ const CHECKLIST_STATUS_META: Record<string, { label: string; className: string }
   not_applicable: { label: "不适用", className: "is-muted" }
 };
 
+type LocalHumanReviewDecision = "accepted" | "changes_requested";
+
+type LocalHumanReviewRecord = {
+  decision: LocalHumanReviewDecision;
+  reviewer: string;
+  note: string;
+  decided_at: string;
+  dossier_version: number;
+  non_action_statement: string;
+};
+
+const HUMAN_REVIEW_NON_ACTION_STATEMENT =
+  "This is a local human review record only. No ERP write action was executed.";
+
 function list(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter(Boolean) : [];
 }
@@ -205,6 +219,39 @@ function caseChecklistItems(turn: ErpApprovalCaseTurnResponse) {
       next_step: "请提交带来源的正式文件、ERP 记录或政策证据。"
     };
   });
+}
+
+function humanReviewStorageKey(caseId: string) {
+  return `erp-human-review:${caseId}`;
+}
+
+function humanReviewGate(turn: ErpApprovalCaseTurnResponse) {
+  const checklist = caseChecklistItems(turn);
+  const unresolvedChecklist = checklist
+    .map((item) => object(item))
+    .filter((item) => {
+      const status = text(item.status, "not_submitted");
+      return status !== "accepted" && status !== "not_applicable";
+    })
+    .map((item) => text(item.display_label || item.label || item.requirement_id, "未命名材料"));
+  const policyFailures = records(turn.case_state.policy_failures).filter((item) => !item.resolved);
+  const contradictions = records(turn.case_state.contradictions).filter((item) => {
+    const severity = text(item.severity || item.status);
+    return severity !== "resolved" && severity !== "not_applicable";
+  });
+  const blockingGaps = Array.from(
+    new Set(
+      list(turn.case_state.missing_items)
+        .concat(list(turn.review.evidence_sufficiency?.blocking_gaps))
+        .concat(unresolvedChecklist)
+    )
+  );
+  return {
+    ready: blockingGaps.length === 0 && policyFailures.length === 0 && contradictions.length === 0,
+    blockingGaps,
+    policyFailureCount: policyFailures.length,
+    contradictionCount: contradictions.length
+  };
 }
 
 function fileExtension(name: string) {
@@ -341,6 +388,95 @@ function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
       <small className="case-agent-progress-summary">{state ? `已通过 ${accepted} 项 · 未提交 ${missing} 项 · 待处理 ${pending} 项` : "像聊天一样描述案件或提交材料，Agent 会自动更新清单。"}</small>
       <small>{state ? `${satisfied}/${required.length} 项已满足` : "先描述审批案件，Agent 会生成材料清单"}</small>
     </div>
+  );
+}
+
+function HumanReviewPanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
+  const state = turn.case_state;
+  const gate = humanReviewGate(turn);
+  const [reviewer, setReviewer] = useState("本地 reviewer");
+  const [note, setNote] = useState("");
+  const [record, setRecord] = useState<LocalHumanReviewRecord | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !state.case_id) return;
+    const raw = window.localStorage.getItem(humanReviewStorageKey(state.case_id));
+    if (!raw) {
+      setRecord(null);
+      return;
+    }
+    try {
+      setRecord(JSON.parse(raw) as LocalHumanReviewRecord);
+    } catch {
+      setRecord(null);
+    }
+  }, [state.case_id, state.dossier_version, state.turn_count]);
+
+  const saveDecision = (decision: LocalHumanReviewDecision) => {
+    if (typeof window === "undefined" || !state.case_id) return;
+    const next: LocalHumanReviewRecord = {
+      decision,
+      reviewer: reviewer.trim() || "本地 reviewer",
+      note: note.trim(),
+      decided_at: new Date().toISOString(),
+      dossier_version: state.dossier_version,
+      non_action_statement: HUMAN_REVIEW_NON_ACTION_STATEMENT
+    };
+    window.localStorage.setItem(humanReviewStorageKey(state.case_id), JSON.stringify(next));
+    setRecord(next);
+    setNote("");
+  };
+
+  return (
+    <section className="case-agent-side-section case-human-review-panel">
+      <div className="case-agent-section-title">
+        <ShieldCheck size={16} />
+        <strong>人工复核</strong>
+      </div>
+      <p className="case-agent-muted">
+        这里记录本地 reviewer 是否接受当前案卷 memo。它不会通过、驳回、付款或路由任何 ERP 单据。
+      </p>
+      {gate.ready ? (
+        <div className="case-human-review-ready">证据缺口已清空，可以由人工 reviewer 复核 memo。</div>
+      ) : (
+        <div className="case-human-review-blocked">
+          还不能接受 memo：{gate.blockingGaps.slice(0, 2).join("；") || "仍有未解决风险"}
+          {gate.policyFailureCount ? `；${gate.policyFailureCount} 个制度失败未解决` : ""}
+          {gate.contradictionCount ? `；${gate.contradictionCount} 个冲突未解决` : ""}
+        </div>
+      )}
+      {record ? (
+        <div className={`case-human-review-record ${record.decision === "accepted" ? "is-accepted" : "is-rejected"}`}>
+          <strong>{record.decision === "accepted" ? "已接受当前 memo" : "已退回继续补充"}</strong>
+          <p>{record.reviewer} · v{record.dossier_version ?? "?"} · {new Date(record.decided_at).toLocaleString()}</p>
+          {record.dossier_version !== state.dossier_version ? <p>案卷已更新，请重新复核当前 v{state.dossier_version}。</p> : null}
+          {record.note ? <p>{record.note}</p> : null}
+        </div>
+      ) : null}
+      <label className="case-human-review-field">
+        <span>Reviewer</span>
+        <input className="pixel-field" onChange={(event) => setReviewer(event.target.value)} value={reviewer} />
+      </label>
+      <label className="case-human-review-field">
+        <span>复核备注</span>
+        <textarea
+          className="pixel-field"
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="例如：接受当前 memo，或说明需要补哪项材料。"
+          rows={3}
+          value={note}
+        />
+      </label>
+      <div className="case-human-review-actions">
+        <button className="ui-button ui-button-primary" disabled={!gate.ready} onClick={() => saveDecision("accepted")} type="button">
+          接受当前 memo
+        </button>
+        <button className="ui-button" onClick={() => saveDecision("changes_requested")} type="button">
+          退回继续补充
+        </button>
+      </div>
+      <p className="case-agent-boundary">{HUMAN_REVIEW_NON_ACTION_STATEMENT}</p>
+    </section>
   );
 }
 
@@ -526,6 +662,8 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
         </div>
         <ProgressDots turn={turn} />
       </section>
+
+      <HumanReviewPanel turn={turn} />
 
       {text(casePlan.strategy, "") ? (
         <section className="case-agent-side-section">

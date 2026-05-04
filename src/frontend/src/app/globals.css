@@ -1687,6 +1687,66 @@ a {
   margin-bottom: 0.55rem;
 }
 
+.case-human-review-panel {
+  border: 1px solid rgba(121, 184, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(47, 129, 247, 0.06);
+  padding: 0.85rem;
+}
+
+.case-human-review-ready,
+.case-human-review-blocked,
+.case-human-review-record {
+  margin-top: 0.65rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  color: var(--color-ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.case-human-review-ready,
+.case-human-review-record.is-accepted {
+  border-color: rgba(84, 211, 138, 0.3);
+  background: rgba(84, 211, 138, 0.09);
+}
+
+.case-human-review-blocked,
+.case-human-review-record.is-rejected {
+  border-color: rgba(246, 182, 85, 0.3);
+  background: rgba(246, 182, 85, 0.08);
+}
+
+.case-human-review-record strong {
+  color: var(--color-ink);
+}
+
+.case-human-review-record p {
+  margin: 0.25rem 0 0;
+}
+
+.case-human-review-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+}
+
+.case-human-review-field input,
+.case-human-review-field textarea {
+  padding: 0.55rem 0.65rem;
+  line-height: 1.5;
+}
+
+.case-human-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
 .case-agent-list {
   margin: 0;
   padding-left: 1.15rem;
