@@ -317,6 +317,48 @@ function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   );
 }
 
+function AgentPromptContractPanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
+  const patch = object(turn.patch);
+  const modelReview = object(patch.model_review);
+  const harnessRun = object(turn.harness_run);
+  const graphName = text(harnessRun.graph_name || harnessRun.graph || "erp_approval_dynamic_case_turn_graph");
+  const modelStatus = text(
+    modelReview.stage_model_status || modelReview.model_status || modelReview.status || "按本轮配置执行，失败会回退到本地校验"
+  );
+  const graphSteps = list(harnessRun.graph_steps || modelReview.graph_steps || patch.graph_steps);
+
+  return (
+    <details className="case-agent-details case-agent-prompt-contract">
+      <summary>查看 Agent 提示契约</summary>
+      <div className="case-agent-detail-block">
+        <h4>System prompt 可视化</h4>
+        <div className="case-agent-contract-grid">
+          <div>
+            <strong>角色</strong>
+            <p>审批资料专员：审材料、抽 claim、列缺口、写 reviewer memo；不能直接审批。</p>
+          </div>
+          <div>
+            <strong>上下文</strong>
+            <p>只装配当前案卷状态、材料清单、本轮输入、相关 policy/RAG 和必要证据摘要。</p>
+          </div>
+          <div>
+            <strong>模型输出</strong>
+            <p>只能提出 CasePatch、证据 claims、制度解释和 memo 草案；不能直接写案卷。</p>
+          </div>
+          <div>
+            <strong>写入门禁</strong>
+            <p>CasePatchValidator 通过后才写入 case_state、dossier.md 和 audit_log。</p>
+          </div>
+        </div>
+        <p><strong>Graph：</strong>{graphName}</p>
+        <p><strong>模型状态：</strong>{modelStatus}</p>
+        {graphSteps.length ? <p><strong>本轮节点：</strong>{graphSteps.slice(-8).join(" -> ")}</p> : null}
+        <p>No ERP write action was executed.</p>
+      </div>
+    </details>
+  );
+}
+
 function inferClientIntent(
   outgoing: string,
   options: { hasCase: boolean; hasQueuedEvidence: boolean }
@@ -505,6 +547,8 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
         </section>
       ) : null}
 
+      <AgentPromptContractPanel turn={turn} />
+
       <details className="case-agent-details">
         <summary>查看案卷详情</summary>
         <div className="case-agent-detail-block">
@@ -649,7 +693,13 @@ export function CaseReviewPanel() {
       // asking follow-up questions and submit evidence without restarting.
       setCaseTurn(response);
       setMessages((items) => [...items, buildAgentReply(response)]);
-      if (includeEvidence) setQueuedEvidence([]);
+      if (includeEvidence) {
+        setQueuedEvidence([]);
+        setFileStatus("");
+        setEvidenceTitle("");
+        setEvidenceContent("");
+        setShowEvidenceEditor(false);
+      }
       if (!override) setMessage("");
     } catch (err) {
       const detail = err instanceof Error ? err.message : "本轮案卷更新失败";
@@ -686,6 +736,10 @@ export function CaseReviewPanel() {
               onClick={() => {
                 setCaseTurn(null);
                 setQueuedEvidence([]);
+                setFileStatus("");
+                setEvidenceTitle("");
+                setEvidenceContent("");
+                setShowEvidenceEditor(false);
                 setMessages([
                   makeMessage("agent", "已开启一个新的本地案卷。请描述审批案件，或选择模板开始。", "新案卷")
                 ]);
@@ -840,7 +894,16 @@ export function CaseReviewPanel() {
             <label className="ui-button cursor-pointer">
               <FilePlus2 size={16} />
               上传文件
-              <input className="sr-only" multiple onChange={(event) => void addEvidenceFiles(event.target.files)} type="file" />
+              <input
+                className="sr-only"
+                multiple
+                onChange={(event) => {
+                  const files = event.currentTarget.files;
+                  void addEvidenceFiles(files);
+                  event.currentTarget.value = "";
+                }}
+                type="file"
+              />
             </label>
             <button className="ui-button ui-button-primary ml-auto" disabled={!canSend} onClick={() => void submitTurn()} type="button">
               {loading ? <RotateCcw size={16} /> : <SendHorizontal size={16} />}

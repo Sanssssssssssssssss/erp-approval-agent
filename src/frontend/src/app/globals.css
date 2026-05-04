@@ -1805,6 +1805,33 @@ a {
   line-height: 1.55;
 }
 
+.case-agent-contract-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.6rem 0 0.7rem;
+}
+
+.case-agent-contract-grid div {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.26);
+  padding: 0.65rem;
+}
+
+.case-agent-contract-grid strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--color-ink);
+  font-size: 0.8rem;
+}
+
+.case-agent-contract-grid p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+}
+
 .case-agent-mobile-summary {
   display: none;
 }
@@ -1865,6 +1892,10 @@ a {
   }
 
   .case-agent-evidence-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .case-agent-contract-grid {
     grid-template-columns: 1fr;
   }
 }
