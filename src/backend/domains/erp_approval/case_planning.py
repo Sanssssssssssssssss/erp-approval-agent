@@ -58,12 +58,125 @@ def build_case_supervisor_plan(state: ApprovalCaseState, review: CaseReviewRespo
 
     return {
         "role": "case_supervisor",
+        "planner": "deterministic_fallback",
         "ready_for_final_memo": ready,
         "next_action": next_action,
         "priority_requirements": [_plan_item(item) for item in next_items],
         "unresolved_policy_failure_count": len(unresolved_policy),
         "strategy": _strategy_text(state.approval_type, next_items, ready, unresolved_policy),
         "suggested_user_prompt": _suggested_prompt(next_items, ready, unresolved_policy),
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+
+
+def build_case_supervisor_plan_with_model(
+    *,
+    stage_model: Any | None,
+    state: ApprovalCaseState,
+    review: CaseReviewResponse,
+    patch: CasePatch | None = None,
+    context_pack: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    fallback = build_case_supervisor_plan(state, review, patch)
+    if stage_model is None:
+        return fallback
+    payload = {
+        "case_state": {
+            "case_id": state.case_id,
+            "approval_type": state.approval_type,
+            "approval_id": state.approval_id,
+            "stage": state.stage,
+            "accepted_evidence": [item.model_dump() for item in state.accepted_evidence[-20:]],
+            "rejected_evidence": [item.model_dump() for item in state.rejected_evidence[-12:]],
+            "policy_failures": [item.model_dump() for item in state.policy_failures if not item.resolved],
+            "missing_items": state.missing_items,
+            "next_questions": state.next_questions,
+        },
+        "current_patch": patch.model_dump() if patch is not None else {},
+        "review": {
+            "evidence_requirements": review.evidence_requirements,
+            "evidence_sufficiency": review.evidence_sufficiency,
+            "control_matrix": review.control_matrix,
+            "contradictions": review.contradictions,
+            "recommendation": review.recommendation,
+        },
+        "case_context_pack": context_pack or {},
+        "fallback_plan": fallback,
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    output, error = stage_model.review_custom_json_role(
+        role_name="case_supervisor",
+        system_prompt=CASE_SUPERVISOR_PROMPT,
+        payload=payload,
+    )
+    if error or not output:
+        return {**fallback, "planner": "deterministic_fallback", "model_error": error or "empty supervisor plan"}
+    return validate_case_supervisor_plan(output, state=state, review=review, patch=patch, fallback=fallback, model_error=error)
+
+
+def validate_case_supervisor_plan(
+    output: dict[str, Any],
+    *,
+    state: ApprovalCaseState,
+    review: CaseReviewResponse,
+    patch: CasePatch | None,
+    fallback: dict[str, Any],
+    model_error: str = "",
+) -> dict[str, Any]:
+    known_requirements = {str(item.get("requirement_id", "") or "") for item in review.evidence_requirements}
+    known_sources = {item.source_id for item in state.accepted_evidence}
+    if patch is not None:
+        known_sources.update(item.source_id for item in patch.accepted_evidence)
+        known_sources.update(item.source_id for item in patch.rejected_evidence)
+
+    warnings: list[str] = []
+    sanitized_items: list[dict[str, Any]] = []
+    for item in output.get("priority_requirements") or []:
+        if not isinstance(item, dict):
+            continue
+        requirement_id = str(item.get("requirement_id", "") or "").strip()
+        if requirement_id and requirement_id not in known_requirements:
+            warnings.append(f"LLM supervisor referenced unknown requirement_id: {requirement_id}")
+            continue
+        source_ids = [str(source_id).strip() for source_id in item.get("source_ids", []) or [] if str(source_id or "").strip()]
+        unknown_sources = [source_id for source_id in source_ids if source_id not in known_sources]
+        if unknown_sources:
+            warnings.append(f"LLM supervisor referenced source_id outside current case: {', '.join(unknown_sources)}")
+            source_ids = [source_id for source_id in source_ids if source_id in known_sources]
+        sanitized_items.append(
+            {
+                "requirement_id": requirement_id,
+                "label": str(item.get("label") or requirement_id),
+                "status": str(item.get("status") or "missing"),
+                "blocking": bool(item.get("blocking", True)),
+                "why_now": _clean_text(str(item.get("why_now") or item.get("reason") or "当前优先补齐")),
+                "source_ids": source_ids,
+            }
+        )
+
+    strategy = _clean_text(str(output.get("strategy") or fallback.get("strategy") or ""))
+    suggested_prompt = _clean_text(str(output.get("suggested_user_prompt") or fallback.get("suggested_user_prompt") or ""))
+    next_action = str(output.get("next_action") or fallback.get("next_action") or "collect_priority_evidence")
+    if next_action not in {"collect_priority_evidence", "fix_rejected_policy_failures", "generate_final_reviewer_memo", "ask_clarifying_question", "escalate_to_human_reviewer"}:
+        warnings.append(f"LLM supervisor proposed unsupported next_action: {next_action}")
+        next_action = str(fallback.get("next_action") or "collect_priority_evidence")
+    ready = bool(output.get("ready_for_final_memo", fallback.get("ready_for_final_memo", False)))
+    if ready and not fallback.get("ready_for_final_memo"):
+        warnings.append("LLM supervisor claimed final memo readiness, but deterministic gates are not ready.")
+        ready = False
+        next_action = str(fallback.get("next_action") or "collect_priority_evidence")
+
+    return {
+        **fallback,
+        "planner": "llm_case_supervisor",
+        "ready_for_final_memo": ready,
+        "next_action": next_action,
+        "priority_requirements": sanitized_items or list(fallback.get("priority_requirements") or []),
+        "strategy": strategy or str(fallback.get("strategy") or ""),
+        "suggested_user_prompt": suggested_prompt or str(fallback.get("suggested_user_prompt") or ""),
+        "model_confidence": _float_or_default(output.get("confidence"), 0.0),
+        "model_warnings": warnings + [str(item) for item in output.get("warnings", []) or [] if str(item or "").strip()],
+        "model_error": model_error,
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
     }
 
@@ -107,3 +220,82 @@ def _suggested_prompt(next_items: list[dict[str, Any]], ready: bool, unresolved_
         label = str(next_items[0].get("label") or next_items[0].get("requirement_id"))
         return f"请先提交「{label}」对应的可追溯材料。"
     return "请提交下一份带 source_id 的正式证据材料。"
+
+
+CASE_SUPERVISOR_PROMPT = """Role: LLM Case Supervisor for an evidence-first ERP approval case.
+
+You do not approve, reject, pay, route, comment, update suppliers, update budgets, sign contracts, or execute ERP actions.
+You only propose the next case-planning step for a local approval dossier.
+
+Use the current case_state, evidence requirements, policy failures, sufficiency report, control matrix, contradictions,
+and current patch. Decide the most useful next step for the human user.
+
+Return JSON only:
+{
+  "ready_for_final_memo": false,
+  "next_action": "collect_priority_evidence|fix_rejected_policy_failures|generate_final_reviewer_memo|ask_clarifying_question|escalate_to_human_reviewer",
+  "priority_requirements": [
+    {
+      "requirement_id": "known requirement_id only",
+      "label": "中文短标签",
+      "status": "missing|partial|conflict|satisfied|review_failed",
+      "blocking": true,
+      "why_now": "中文说明为什么下一步先处理它",
+      "source_ids": []
+    }
+  ],
+  "strategy": "中文案卷推进计划，说明优先级和原因",
+  "suggested_user_prompt": "中文，建议用户下一轮可以怎么说或提交什么",
+  "warnings": [],
+  "confidence": 0.0,
+  "non_action_statement": "This is a local approval case state update. No ERP write action was executed."
+}
+
+Rules:
+- Reference only requirement_id values present in the input.
+- Reference only source_id values present in current case evidence or current patch.
+- If deterministic fallback says not ready, do not claim ready_for_final_memo=true.
+- If policy_failures are unresolved, prioritize fixing rejected policy failures.
+- If blocking evidence is missing, prioritize the top 1-4 missing blocking requirements.
+- Never include ERP execution wording.
+- Keep explanations practical and concise.
+"""
+
+
+FORBIDDEN_PLAN_TERMS = (
+    "execute",
+    "executed",
+    "approve in erp",
+    "reject in erp",
+    "send payment",
+    "post comment",
+    "route in erp",
+    "activate supplier",
+    "update budget",
+    "sign contract",
+    "执行审批",
+    "执行付款",
+    "写入erp",
+    "通过erp",
+    "驳回erp",
+    "发送评论",
+    "激活供应商",
+    "更新预算",
+    "签署合同",
+)
+
+
+def _clean_text(value: str) -> str:
+    text = str(value or "").strip()
+    lowered = text.lower()
+    if any(term in lowered for term in FORBIDDEN_PLAN_TERMS):
+        return "该建议包含执行语义，已由本地门禁替换为仅补证/人工复核计划。"
+    return text
+
+
+def _float_or_default(value: Any, default: float) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, min(1.0, number))

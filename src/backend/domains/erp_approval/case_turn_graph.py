@@ -12,7 +12,7 @@ from src.backend.domains.erp_approval.case_harness import (
     render_case_dossier,
 )
 from src.backend.domains.erp_approval.case_patch_validator import contract_for_state
-from src.backend.domains.erp_approval.case_planning import build_case_supervisor_plan
+from src.backend.domains.erp_approval.case_planning import build_case_supervisor_plan_with_model
 from src.backend.domains.erp_approval.case_state_models import (
     ApprovalCaseState,
     CASE_HARNESS_NON_ACTION_STATEMENT,
@@ -974,7 +974,13 @@ def propose_case_patch_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         patch = patch.model_copy(update={"model_review": model_review})
     model_review = dict(patch.model_review or {})
     model_review["case_checklist"] = _build_case_checklist_model_review(state, final_review, patch, use_model=False)
-    model_review["case_supervisor_plan"] = build_case_supervisor_plan(state["case_state"], final_review, patch)
+    model_review["case_supervisor_plan"] = build_case_supervisor_plan_with_model(
+        stage_model=state["harness"].stage_model,
+        state=state["case_state"],
+        review=final_review,
+        patch=patch,
+        context_pack=state.get("context_pack") or {},
+    )
     patch = patch.model_copy(update={"model_review": model_review})
     return {
         **state,

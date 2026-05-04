@@ -364,7 +364,7 @@ class CaseHarness:
                 "reviewer_memo": review.reviewer_memo,
                 "missing_items": list(review.evidence_sufficiency.get("blocking_gaps") or []),
                 "next_questions": list(review.evidence_sufficiency.get("next_questions") or []),
-                "case_plan": build_case_supervisor_plan(state, review, patch).copy(),
+                "case_plan": dict((patch.model_review or {}).get("case_supervisor_plan") or build_case_supervisor_plan(state, review, patch)),
                 "last_valid_turn_id": turn_id if mutate_case else state.last_valid_turn_id,
                 "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
             }
