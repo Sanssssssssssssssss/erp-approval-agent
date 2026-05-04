@@ -51,43 +51,43 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
     "policy_guidance": CasePromptSpec(
         prompt_id="policy_guidance",
         node_id="materials_guidance_node",
-        label="材料准备顾问",
+        label="材料准备 Observation",
         category="materials",
-        description="结合 requirement matrix 与 policy RAG，告诉用户必须准备哪些材料。只回答，不写入案卷。",
+        description="结合 requirement matrix 与 policy RAG 生成材料准备 observation；最终用户话术必须交给 llm_user_response_writer。",
         default_prompt=(
-            "Role: policy/RAG materials guidance specialist.\n"
-            "You are an ERP approval materials advisor. Use the local requirement matrix, the user's scenario, and retrieved policy evidence to explain what materials are required.\n"
-            "Write in natural Chinese and do not sound like a backend status dump.\n"
-            "Prioritize blocking items first. For each item explain: material name, whether it is blocking, policy clause/source if available, acceptable evidence forms, unacceptable evidence forms, and a practical next step.\n"
-            "Do not create a case unless the graph has already decided this is a create_case turn. Do not make an approval recommendation.\n"
-            f"Return JSON only: {{\"rendered_guidance\":\"Chinese materials guidance\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
+            "Role: materials observation specialist.\n"
+            "Use the local requirement matrix, user scenario, and retrieved policy evidence to produce structured observations for the response writer.\n"
+            "Do not write the final user-facing answer. Do not create a case. Do not make an approval recommendation.\n"
+            "Prioritize blocking items first. For each item include material name, blocking flag, policy source/clause if available, acceptable evidence forms, unacceptable evidence forms, and practical next step.\n"
+            f"Return JSON only: {{\"materials_observation\":{{\"priority_groups\":[],\"policy_sources\":[],\"acceptable_forms\":[],\"unacceptable_forms\":[],\"next_steps\":[]}},\"rendered_guidance\":\"brief structured observation, not final answer\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
         ),
     ),
     "missing_requirements_answer": CasePromptSpec(
         prompt_id="missing_requirements_answer",
         node_id="case_status_summary_node",
-        label="当前缺口顾问",
+        label="当前缺口 Observation",
         category="status",
-        description="从案卷状态、已接受/退回材料和 policy failures 解释当前还缺什么。",
+        description="从案卷状态、已接受/退回材料和 policy failures 生成缺口 observation；最终用户话术必须交给 llm_user_response_writer。",
         default_prompt=(
-            "Role: missing requirements advisor.\n"
+            "Role: missing requirements observation specialist.\n"
             "Read only persisted case_state, evidence_sufficiency, control_matrix, policy_failures, and relevant policy snippets.\n"
-            "Explain current gaps in Chinese as a helpful case specialist. Separate blocking gaps, policy failures, conflicts, and optional improvements.\n"
-            "Recommend the next one or two materials the user should submit. Do not re-guess from raw chat history and do not claim an ERP action happened.\n"
-            f"Return JSON only: {{\"rendered\":\"Chinese current gap explanation\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
+            "Produce structured observations about blocking gaps, policy failures, conflicts, optional improvements, and the next one or two materials.\n"
+            "Do not write the final user-facing answer. Do not re-guess from raw chat history and do not claim an ERP action happened.\n"
+            f"Return JSON only: {{\"missing_observation\":{{\"blocking_gaps\":[],\"policy_failures\":[],\"conflicts\":[],\"recommended_next_submissions\":[]}},\"rendered\":\"brief structured observation, not final answer\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
         ),
     ),
     "policy_failure_explainer": CasePromptSpec(
         prompt_id="policy_failure_explainer",
         node_id="policy_failure_explain_node",
-        label="退回原因解释员",
+        label="退回原因 Observation",
         category="policy",
-        description="解释材料为什么不符合制度，以及如何补正。",
+        description="基于 policy_failures 与退回证据生成事实 observation；最终用户话术必须交给 llm_user_response_writer。",
         default_prompt=(
-            "Role: policy failure explainer.\n"
+            "Role: policy failure observation specialist.\n"
             "Use only case_state.policy_failures, rejected_evidence, and retrieved policy snippets. Do not invent new failures.\n"
-            "Explain in Chinese why the material failed, which policy clause it relates to, and exactly how the user can fix it.\n"
-            f"Return JSON only: {{\"rendered\":\"Chinese failure explanation\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
+            "Produce structured observations: failed requirement_id, policy source/clause, why_failed, and how_to_fix.\n"
+            "Do not write the final user-facing answer.\n"
+            f"Return JSON only: {{\"failure_observation\":{{\"failures\":[],\"fix_plan\":[]}},\"rendered\":\"brief structured observation, not final answer\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
         ),
     ),
     "llm_user_response_writer": CasePromptSpec(
@@ -114,24 +114,6 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
             "You may express your judgment fully. If deterministic boundary snapshots disagree with you, mention the disagreement as a review risk instead of silently hiding it.\n"
             "Never claim that ERP approval, rejection, payment, comment, route, supplier activation, budget update, or contract signing happened.\n"
             f"Return JSON only: {{\"title\":\"short Chinese title\",\"markdown\":\"Chinese Markdown user-facing answer\",\"body\":\"same answer as plain text or Markdown\",\"meta\":[\"short tags\"],\"next_suggested_user_message\":\"optional next message\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
-        ),
-    ),
-    "agent_reply": CasePromptSpec(
-        prompt_id="agent_reply",
-        node_id="llm_user_response_writer",
-        label="最终用户回复",
-        category="reply",
-        description="每轮最终展示给用户的主回复。它必须像审批资料专员，不是后端模板。",
-        default_prompt=(
-            "Role: LLM ERP approval case agent.\n"
-            "You are the user-facing approval materials specialist. Write the main reply for this turn in natural Chinese.\n"
-            "Do not sound like a backend status template. Use current case state, policy/RAG evidence, patch proposal, review gates, and model role outputs.\n"
-            "Only persisted case_state.accepted_evidence can prove a requirement is satisfied. Policy RAG is policy context, not submitted business evidence.\n"
-            "If evidence is missing, explain what is missing and what the user should submit next. If evidence was accepted, explain what you accepted, which requirement it supports, and what remains.\n"
-            "If evidence was rejected, explain why and how to fix it. If final memo was requested but not ready, backtrack to missing materials.\n"
-            "If final memo is ready, write a reviewer-facing memo/submission package summary.\n"
-            "Never imply ERP approval, rejection, payment, comment, route, supplier activation, budget update, or contract signing.\n"
-            f"Return JSON only: {{\"title\":\"short Chinese title\",\"body\":\"Chinese user-facing answer\",\"meta\":[\"short tags\"],\"next_suggested_user_message\":\"optional next message\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
         ),
     ),
     "case_checklist_updater": CasePromptSpec(
@@ -191,6 +173,7 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
 
 
 CASE_PROMPT_ALIASES = {
+    "agent_reply": "llm_user_response_writer",
     "materials_advisor": "llm_user_response_writer",
     "missing_items_advisor": "llm_user_response_writer",
     "policy_failure_explainer": "policy_failure_explainer",
@@ -256,6 +239,7 @@ def case_prompt_text(prompt_id: str, default_prompt: str, base_dir: Path | str |
 
 
 def custom_case_prompt(prompt_id: str, base_dir: Path | str | None = None) -> str:
+    prompt_id = CASE_PROMPT_ALIASES.get(prompt_id, prompt_id)
     spec = CUSTOM_CASE_PROMPTS[prompt_id]
     return case_prompt_text(prompt_id, spec.default_prompt, base_dir)
 
@@ -270,15 +254,22 @@ def build_case_prompt_catalog(*, base_dir: Path | str, role_prompts: dict[str, s
         "contradiction_reviewer": "llm_contradiction_reviewer",
         "reviewer_memo": "llm_reviewer_memo",
     }
+    role_label_map = {
+        "turn_classifier": "Turn Classifier",
+        "evidence_extractor": "Evidence Reader / Claim Extractor",
+        "policy_interpreter": "Policy Reviewer",
+        "contradiction_reviewer": "Conflict and Boundary Reviewer",
+        "reviewer_memo": "Review Synthesizer",
+    }
     for role, prompt in role_prompts.items():
         prompt_id = f"role:{role}"
         items.append(
             {
                 "prompt_id": prompt_id,
                 "node_id": role_node_map.get(role, role),
-                "label": role.replace("_", " "),
+                "label": role_label_map.get(role, role.replace("_", " ")),
                 "category": "llm_role",
-                "description": "Bounded LLM role. It may propose structured outputs but cannot write case_state directly.",
+                "description": "Specialist observation role. It may propose structured outputs for the graph but cannot write case_state or final user replies directly.",
                 "default_prompt": prompt,
                 "prompt": overrides.get(prompt_id, prompt),
                 "overridden": prompt_id in overrides,

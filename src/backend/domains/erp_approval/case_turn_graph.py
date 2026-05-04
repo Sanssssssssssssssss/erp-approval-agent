@@ -460,9 +460,11 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         state,
         role_name="policy_guidance",
         system_prompt=(
-            "Role: policy/RAG materials guidance specialist. Use the local requirement matrix and policy guidance payload "
-            "plus retrieved policy evidence to decide what materials the user must prepare. Return JSON only: "
-            '{"rendered_guidance":"中文材料清单，逐项包含材料、blocking、制度条款、可接受证据、不接受证据、下一步",'
+            "Role: materials observation specialist. Use the local requirement matrix and policy guidance payload "
+            "plus retrieved policy evidence to produce structured observations for the final response writer. "
+            "Do not write the final user-facing answer. Return JSON only: "
+            '{"materials_observation":{"priority_groups":[],"policy_sources":[],"acceptable_forms":[],"unacceptable_forms":[],"next_steps":[]},'
+            '"rendered_guidance":"brief structured observation, not final answer",'
             '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."} '
             "Ground policy clauses in policy_rag.evidences when available. Do not create a case, do not make an approval recommendation, and do not execute ERP actions."
         ),
@@ -527,9 +529,10 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         state,
         role_name="missing_requirements_answer",
         system_prompt=(
-            "Role: missing requirements explainer. Read only persisted case_state, evidence_sufficiency, control_matrix, "
-            "and policy_failures. Return JSON only: "
-            '{"rendered":"中文当前缺口说明，必须区分blocking缺口、policy failure、下一步补证问题",'
+            "Role: missing requirements observation specialist. Read only persisted case_state, evidence_sufficiency, control_matrix, "
+            "and policy_failures. Produce structured observations for the final response writer. Return JSON only: "
+            '{"missing_observation":{"blocking_gaps":[],"policy_failures":[],"conflicts":[],"recommended_next_submissions":[]},'
+            '"rendered":"brief structured observation, not final answer",'
             '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
         ),
         payload={
@@ -588,9 +591,10 @@ def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState
         state,
         role_name="policy_failure_explainer",
         system_prompt=(
-            "Role: policy failure explainer. Use only case_state.policy_failures and rejected_evidence. "
-            "Do not invent new failures. Return JSON only: "
-            '{"rendered":"中文解释材料为什么不符合制度、对应条款、如何修正",'
+            "Role: policy failure observation specialist. Use only case_state.policy_failures and rejected_evidence. "
+            "Do not invent new failures. Produce structured observations for the final response writer. Return JSON only: "
+            '{"failure_observation":{"failures":[],"fix_plan":[]},'
+            '"rendered":"brief structured observation, not final answer",'
             '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
         ),
         payload={
