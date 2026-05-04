@@ -190,16 +190,27 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const modelReview = object(patch.model_review);
   const policyRag = object(modelReview.policy_rag);
   const policyFailureAnswer = object(modelReview.policy_failures_answer);
+  const missingAnswer = object(modelReview.missing_requirements_answer);
   const renderedGuidance = text(policyRag.rendered_guidance, "");
   const renderedFailureAnswer = text(policyFailureAnswer.rendered, "");
+  const renderedMissingAnswer = text(missingAnswer.rendered, "");
   if (renderedGuidance) {
     return makeMessage("agent", renderedGuidance, "材料准备清单", [
-      "政策/RAG",
+      policyRag.used ? "模型+政策/RAG" : "政策/RAG fallback",
       response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
     ]);
   }
   if (renderedFailureAnswer) {
-    return makeMessage("agent", renderedFailureAnswer, "材料不符合制度的原因", ["来自案卷状态", "只读答复"]);
+    return makeMessage("agent", renderedFailureAnswer, "材料不符合制度的原因", [
+      policyFailureAnswer.used ? "模型解释" : "本地解释",
+      "只读答复"
+    ]);
+  }
+  if (renderedMissingAnswer) {
+    return makeMessage("agent", renderedMissingAnswer, "当前缺口", [
+      missingAnswer.used ? "模型判断" : "本地判断",
+      "只读答复"
+    ]);
   }
   const accepted = records(patch.accepted_evidence);
   const rejected = records(patch.rejected_evidence);

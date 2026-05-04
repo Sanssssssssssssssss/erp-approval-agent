@@ -137,6 +137,32 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertTrue(response["patch"]["model_review"]["policy_rag"]["guidance"]["items"])
             self.assertFalse(Path(response["storage_paths"]["case_state"]).exists())
 
+    def test_ask_how_to_prepare_uses_stage_model_policy_guidance_when_configured(self) -> None:
+        model_json = """
+        {
+          "rendered_guidance": "模型材料清单：请准备预算证明、供应商准入记录、报价或合同依据、审批矩阵。每项材料都必须可追溯到 source_id。",
+          "warnings": [],
+          "confidence": 0.91,
+          "non_action_statement": "This is a local approval case state update. No ERP write action was executed."
+        }
+        """
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(_FakeModel(model_json)))
+            graph_state = run_case_turn_graph_state_sync(
+                harness,
+                CaseTurnRequest(user_message="I need to prepare a purchase requisition case. Please tell me the required materials first."),
+            )
+            response = graph_state["response"]
+            model_review = response.patch.model_review
+
+            self.assertEqual(response.operation_scope, "read_only_case_turn")
+            self.assertEqual(response.patch.turn_intent, "ask_how_to_prepare")
+            self.assertIn("materials_guidance_node", graph_state["graph_steps"])
+            self.assertTrue(model_review["used"])
+            self.assertTrue(model_review["policy_rag"]["used"])
+            self.assertIn("模型材料清单", model_review["policy_rag"]["rendered_guidance"])
+            self.assertFalse(Path(response.storage_paths["case_state"]).exists())
+
     def test_prepare_template_with_case_review_words_stays_read_only_guidance(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             client = self._client(Path(temp_dir))

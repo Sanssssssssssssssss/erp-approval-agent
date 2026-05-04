@@ -446,6 +446,25 @@ def route_turn_intent_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_how_to_prepare")
     guidance = build_policy_guidance(state["case_state"])
+    model_output = _run_custom_stage_model_role(
+        state,
+        role_name="policy_guidance",
+        system_prompt=(
+            "Role: policy/RAG materials guidance specialist. Use the local requirement matrix and policy guidance payload "
+            "to decide what materials the user must prepare. Return JSON only: "
+            '{"rendered_guidance":"中文材料清单，逐项包含材料、blocking、制度条款、可接受证据、不接受证据、下一步",'
+            '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."} '
+            "Do not create a case, do not make an approval recommendation, and do not execute ERP actions."
+        ),
+        payload={
+            "turn_intent": state.get("intent", "ask_how_to_prepare"),
+            "user_message": state["request"].user_message,
+            "case_summary": (state.get("context_pack") or {}).get("case_summary", {}),
+            "policy_guidance": guidance,
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        },
+    )
+    rendered_guidance = str(model_output.get("rendered_guidance") or "").strip() or render_materials_guidance(guidance)
     patch = state["harness"]._build_patch(
         state=state["case_state"],
         turn_id=state["turn_id"],
@@ -459,10 +478,13 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         model_error="",
     )
     model_review = dict(patch.model_review or {})
+    model_review["used"] = bool(model_output.get("used"))
     model_review["policy_rag"] = {
-        "used": True,
+        "used": bool(model_output.get("used")),
+        "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
         "guidance": guidance,
-        "rendered_guidance": render_materials_guidance(guidance),
+        "role_output": model_output,
+        "rendered_guidance": rendered_guidance,
     }
     patch = patch.model_copy(update={"model_review": model_review})
     return {
@@ -476,11 +498,65 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_missing_requirements")
-    return {**state, "review": review, "provisional_review": review, "graph_steps": _steps(state, "case_status_summary_node")}
+    model_output = _run_custom_stage_model_role(
+        state,
+        role_name="missing_requirements_answer",
+        system_prompt=(
+            "Role: missing requirements explainer. Read only persisted case_state, evidence_sufficiency, control_matrix, "
+            "and policy_failures. Return JSON only: "
+            '{"rendered":"中文当前缺口说明，必须区分blocking缺口、policy failure、下一步补证问题",'
+            '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
+        ),
+        payload={
+            "case_state": state["case_state"].model_dump(),
+            "evidence_sufficiency": review.evidence_sufficiency,
+            "control_matrix": review.control_matrix,
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        },
+    )
+    patch = state["harness"]._build_patch(
+        state=state["case_state"],
+        turn_id=state["turn_id"],
+        intent="ask_missing_requirements",
+        accepted=[],
+        rejected=[],
+        review=review,
+        warnings=list(state.get("warnings", [])),
+        created_new=False,
+        model_decision=None,
+        model_error="",
+    )
+    fallback_rendered = _render_missing_requirements_answer(state, review)
+    model_review = dict(patch.model_review or {})
+    model_review["used"] = bool(model_output.get("used"))
+    model_review["missing_requirements_answer"] = {
+        "used": bool(model_output.get("used")),
+        "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
+        "role_output": model_output,
+        "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
+    }
+    patch = patch.model_copy(update={"model_review": model_review})
+    return {**state, "review": review, "provisional_review": review, "patch": patch, "graph_steps": _steps(state, "case_status_summary_node")}
 
 
 def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_policy_failure")
+    fallback_rendered = render_policy_failures(state["case_state"].policy_failures)
+    model_output = _run_custom_stage_model_role(
+        state,
+        role_name="policy_failure_explainer",
+        system_prompt=(
+            "Role: policy failure explainer. Use only case_state.policy_failures and rejected_evidence. "
+            "Do not invent new failures. Return JSON only: "
+            '{"rendered":"中文解释材料为什么不符合制度、对应条款、如何修正",'
+            '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
+        ),
+        payload={
+            "policy_failures": [item.model_dump() for item in state["case_state"].policy_failures],
+            "rejected_evidence": [item.model_dump() for item in state["case_state"].rejected_evidence],
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        },
+    )
     patch = state["harness"]._build_patch(
         state=state["case_state"],
         turn_id=state["turn_id"],
@@ -494,10 +570,13 @@ def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState
         model_error="",
     )
     model_review = dict(patch.model_review or {})
+    model_review["used"] = bool(model_output.get("used"))
     model_review["policy_failures_answer"] = {
-        "used": True,
+        "used": bool(model_output.get("used")),
+        "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
         "source": "case_state.policy_failures",
-        "rendered": render_policy_failures(state["case_state"].policy_failures),
+        "role_output": model_output,
+        "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
     }
     patch = patch.model_copy(update={"model_review": model_review})
     return {
@@ -1328,6 +1407,62 @@ def _p2p_explanation_node(state: CaseTurnGraphState, step: str, prompt: str) -> 
         "branch_review_outputs": outputs,
         "graph_steps": _steps(state, step),
     }
+
+
+def _run_custom_stage_model_role(
+    state: CaseTurnGraphState,
+    *,
+    role_name: str,
+    system_prompt: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    harness = state["harness"]
+    if harness.stage_model is None:
+        return {
+            "used": False,
+            "status": "skipped",
+            "reason": "stage_model_not_configured",
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+    output, error = harness.stage_model.review_custom_json_role(
+        role_name=role_name,
+        system_prompt=system_prompt,
+        payload=payload,
+    )
+    if error:
+        return {
+            "used": False,
+            "status": "error",
+            "error": error,
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+    return {
+        **(output or {}),
+        "used": True,
+        "status": "executed",
+        "non_action_statement": output.get("non_action_statement", CASE_HARNESS_NON_ACTION_STATEMENT) if isinstance(output, dict) else CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+
+
+def _render_missing_requirements_answer(state: CaseTurnGraphState, review: Any) -> str:
+    case_state = state["case_state"]
+    gaps = list(review.evidence_sufficiency.get("blocking_gaps") or []) or list(case_state.missing_items or [])
+    questions = list(review.evidence_sufficiency.get("next_questions") or []) or list(case_state.next_questions or [])
+    failures = [item for item in case_state.policy_failures if not item.resolved]
+    lines = ["当前缺口（来自案卷状态、证据充分性和控制矩阵）："]
+    if gaps:
+        lines.append("Blocking 缺口：")
+        lines.extend(f"- {item}" for item in gaps[:12])
+    else:
+        lines.append("- 暂无新的 blocking gap，但仍需 human reviewer 查看完整案卷。")
+    if failures:
+        lines.append("未解决 policy failure：")
+        lines.extend(f"- {item.requirement_id}: {item.how_to_fix}" for item in failures[:8])
+    if questions:
+        lines.append("下一步补证问题：")
+        lines.extend(f"- {item}" for item in questions[:8])
+    lines.append("No ERP write action was executed.")
+    return "\n".join(lines)
 
 
 def _steps(state: CaseTurnGraphState, step: str) -> list[str]:

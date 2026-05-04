@@ -182,7 +182,7 @@ class CaseStageModelReviewer:
         except TimeoutError:
             future.cancel()
             executor.shutdown(wait=False, cancel_futures=True)
-            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，已退回本地 P2P deterministic gate。"
+            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，已退回本地确定性门禁。"
         except Exception as exc:
             executor.shutdown(wait=False, cancel_futures=True)
             return {}, f"{type(exc).__name__}: {exc}"
