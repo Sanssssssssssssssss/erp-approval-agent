@@ -80,6 +80,22 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertNotIn("persist_case_state_dossier_audit", steps)
             self.assertEqual(response["case_state"]["dossier_version"], created["case_state"]["dossier_version"])
 
+    def test_created_case_returns_controlled_material_checklist(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            response = client.post(
+                "/api/erp-approval/cases/turn",
+                json={"user_message": "Review purchase requisition PR-DYN-CHECKLIST."},
+            ).json()
+            checklist = response["patch"]["model_review"]["case_checklist"]
+            statuses = {item["status"] for item in checklist["items"]}
+
+            self.assertTrue(checklist["items"])
+            self.assertIn("not_submitted", statuses)
+            self.assertIn("allowed_statuses", checklist)
+            self.assertIn("未提交", checklist["allowed_statuses"].values())
+            self.assertIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
+
     def test_client_intent_routes_quick_status_without_polluting_context_audit(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             client = self._client(Path(temp_dir))
@@ -157,7 +173,9 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertEqual(response.operation_scope, "read_only_case_turn")
             self.assertEqual(response.patch.turn_intent, "ask_how_to_prepare")
+            self.assertEqual(response.patch.patch_type, "answer_status")
             self.assertIn("materials_guidance_node", graph_state["graph_steps"])
+            self.assertNotIn("persist_case_state_dossier_audit", graph_state["graph_steps"])
             self.assertTrue(model_review["used"])
             self.assertTrue(model_review["policy_rag"]["used"])
             self.assertIn("模型材料清单", model_review["policy_rag"]["rendered_guidance"])

@@ -138,6 +138,15 @@ function labelForPolicyFailure(item: Record<string, unknown>) {
   return text(item.requirement_id, "制度要求");
 }
 
+const CHECKLIST_STATUS_META: Record<string, { label: string; className: string }> = {
+  accepted: { label: "已通过", className: "is-accepted" },
+  not_submitted: { label: "未提交", className: "is-missing" },
+  review_failed: { label: "审核没通过", className: "is-failed" },
+  incomplete: { label: "待补充", className: "is-partial" },
+  conflict: { label: "有冲突", className: "is-conflict" },
+  not_applicable: { label: "不适用", className: "is-muted" }
+};
+
 function list(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter(Boolean) : [];
 }
@@ -148,6 +157,34 @@ function records(value: unknown) {
 
 function object(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function caseChecklistItems(turn: ErpApprovalCaseTurnResponse) {
+  const modelReview = object(turn.patch?.model_review);
+  const checklist = object(modelReview.case_checklist);
+  const modelItems = records(checklist.items);
+  if (modelItems.length) return modelItems;
+  return records(turn.case_state.evidence_requirements).map((item) => {
+    const status = text(item.status, "missing");
+    const mappedStatus =
+      status === "satisfied"
+        ? "accepted"
+        : status === "partial"
+          ? "incomplete"
+          : status === "conflict"
+            ? "conflict"
+            : status === "not_applicable"
+              ? "not_applicable"
+              : "not_submitted";
+    return {
+      ...item,
+      status: mappedStatus,
+      status_label: CHECKLIST_STATUS_META[mappedStatus]?.label ?? mappedStatus,
+      display_label: text(item.label || item.requirement_id),
+      short_reason: mappedStatus === "accepted" ? "已有可追溯证据支持。" : "尚未提交可接受证据。",
+      next_step: "请提交带来源的正式文件、ERP 记录或政策证据。"
+    };
+  });
 }
 
 function fileExtension(name: string) {
@@ -321,6 +358,12 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   const rejected = state.rejected_evidence ?? [];
   const policyFailures = records(state.policy_failures).filter((item) => !item.resolved);
   const controls = records(turn.review.control_matrix?.checks);
+  const checklistItems = caseChecklistItems(turn);
+  const checklistCounts = checklistItems.reduce<Record<string, number>>((acc, item) => {
+    const status = text(item.status, "not_submitted");
+    acc[status] = (acc[status] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return (
     <aside className="case-agent-side panel">
@@ -333,6 +376,42 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
           <span>{state.turn_count} 轮 / v{state.dossier_version}</span>
         </div>
         <ProgressDots turn={turn} />
+      </section>
+
+      <section className="case-agent-side-section">
+        <div className="case-agent-section-title">
+          <ListChecks size={16} />
+          <strong>材料清单</strong>
+        </div>
+        <div className="case-agent-checklist-summary">
+          <span>已通过 {checklistCounts.accepted ?? 0}</span>
+          <span>未提交 {checklistCounts.not_submitted ?? 0}</span>
+          <span>没通过 {checklistCounts.review_failed ?? 0}</span>
+          <span>待补充 {checklistCounts.incomplete ?? 0}</span>
+        </div>
+        {checklistItems.length ? (
+          <ul className="case-agent-checklist">
+            {checklistItems.slice(0, 10).map((item) => {
+              const checklistItem = object(item);
+              const status = text(checklistItem.status, "not_submitted");
+              const meta = CHECKLIST_STATUS_META[status] ?? CHECKLIST_STATUS_META.not_submitted;
+              const requirementId = text(checklistItem.requirement_id || checklistItem.display_label);
+              const displayLabel = text(checklistItem.display_label || checklistItem.label || checklistItem.requirement_id);
+              const nextStep = text(checklistItem.next_step || checklistItem.short_reason, "请提交可追溯材料。");
+              return (
+                <li key={requirementId}>
+                  <div>
+                    <strong>{displayLabel}</strong>
+                    <p>{nextStep}</p>
+                  </div>
+                  <span className={`case-agent-check-status ${meta.className}`}>{text(checklistItem.status_label, meta.label)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="case-agent-muted">创建案卷后会在这里显示必备材料和审核状态。</p>
+        )}
       </section>
 
       <section className="case-agent-side-section">

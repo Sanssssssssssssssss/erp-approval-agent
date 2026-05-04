@@ -1678,6 +1678,89 @@ a {
   line-height: 1.65;
 }
 
+.case-agent-checklist-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.7rem;
+}
+
+.case-agent-checklist-summary span {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.28);
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+  padding: 0.42rem 0.5rem;
+}
+
+.case-agent-checklist {
+  display: grid;
+  gap: 0.48rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case-agent-checklist li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.65rem;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 0.58rem 0.62rem;
+}
+
+.case-agent-checklist strong {
+  display: block;
+  color: var(--color-ink);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.case-agent-checklist p {
+  margin: 0.22rem 0 0;
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.case-agent-check-status {
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  white-space: nowrap;
+  color: var(--color-ink);
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.32rem 0.45rem;
+}
+
+.case-agent-check-status.is-accepted {
+  border-color: rgba(84, 211, 138, 0.35);
+  background: rgba(84, 211, 138, 0.11);
+  color: #9ae6b4;
+}
+
+.case-agent-check-status.is-failed,
+.case-agent-check-status.is-conflict {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+
+.case-agent-check-status.is-partial {
+  border-color: rgba(246, 182, 85, 0.35);
+  background: rgba(246, 182, 85, 0.12);
+  color: #f8d08d;
+}
+
+.case-agent-check-status.is-missing,
+.case-agent-check-status.is-muted {
+  color: var(--color-ink-soft);
+}
+
 .case-agent-details {
   color: var(--color-ink-soft);
 }

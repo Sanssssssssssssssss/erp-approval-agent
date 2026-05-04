@@ -483,7 +483,7 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         rejected=[],
         review=review,
         warnings=list(state.get("warnings", [])),
-        created_new=state.get("existing_state") is None and state.get("intent") == "create_case",
+        created_new=state.get("existing_state") is None and (state.get("intent") == "create_case" or _should_persist_guidance_case(state)),
         model_decision=None,
         model_error="",
     )
@@ -500,6 +500,7 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         "role_output": model_output,
         "rendered_guidance": rendered_guidance,
     }
+    model_review["case_checklist"] = _build_case_checklist_model_review(state, review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
     return {
         **state,
@@ -560,6 +561,7 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         "role_output": model_output,
         "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
     }
+    model_review["case_checklist"] = _build_case_checklist_model_review(state, review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
     return {**state, "review": review, "provisional_review": review, "patch": patch, "graph_steps": _steps(state, "case_status_summary_node")}
 
@@ -969,6 +971,9 @@ def propose_case_patch_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         if state.get("p2p_review") is not None:
             model_review["p2p_review"] = state["p2p_review"].model_dump()
         patch = patch.model_copy(update={"model_review": model_review})
+    model_review = dict(patch.model_review or {})
+    model_review["case_checklist"] = _build_case_checklist_model_review(state, final_review, patch, use_model=False)
+    patch = patch.model_copy(update={"model_review": model_review})
     return {
         **state,
         "intent": intent,
@@ -1184,9 +1189,13 @@ def _route_turn_intent(state: CaseTurnGraphState) -> str:
 
 
 def _route_guidance_persistence(state: CaseTurnGraphState) -> str:
-    if state.get("intent") == "create_case":
+    if state.get("intent") == "create_case" or _should_persist_guidance_case(state):
         return "mutable"
     return "read_only"
+
+
+def _should_persist_guidance_case(state: CaseTurnGraphState) -> bool:
+    return state.get("existing_state") is None and state.get("intent") == "ask_required_materials"
 
 
 def _route_evidence_type(state: CaseTurnGraphState) -> str:
@@ -1252,7 +1261,7 @@ def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str)
         return "", [f"Client intent {requested} was ignored because no approval case exists yet."]
     if requested == "create_case" and state.get("existing_state") is not None:
         return "", ["Client intent create_case was ignored because the current turn is already bound to a case."]
-    if requested in {"ask_missing_requirements", "ask_how_to_prepare", "ask_policy_failure", "request_final_review"}:
+    if requested in {"ask_missing_requirements", "ask_how_to_prepare", "ask_required_materials", "ask_policy_failure", "request_final_review"}:
         return requested, warnings
     if requested in {"correct_previous_evidence", "withdraw_evidence"} and state.get("existing_state") is not None:
         return requested, warnings
@@ -1289,6 +1298,8 @@ def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent
         return True
     if deterministic_intent in {"off_topic", "request_final_review"}:
         return False
+    if deterministic_intent == "ask_required_materials":
+        return candidate_intent in {"ask_required_materials", "ask_missing_requirements", "ask_policy_failure", "off_topic"}
     if deterministic_intent == "ask_how_to_prepare":
         return candidate_intent in {"ask_how_to_prepare", "ask_missing_requirements", "ask_policy_failure", "off_topic"}
     if request.extra_evidence:
@@ -1304,7 +1315,6 @@ def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent
 
 def _canonical_intent(intent: str) -> str:
     aliases = {
-        "ask_required_materials": "ask_how_to_prepare",
         "ask_status": "ask_missing_requirements",
         "request_final_memo": "request_final_review",
     }
@@ -1480,6 +1490,157 @@ def _run_custom_stage_model_role(
         "status": "executed",
         "non_action_statement": output.get("non_action_statement", CASE_HARNESS_NON_ACTION_STATEMENT) if isinstance(output, dict) else CASE_HARNESS_NON_ACTION_STATEMENT,
     }
+
+
+CHECKLIST_STATUS_LABELS = {
+    "accepted": "已通过",
+    "not_submitted": "未提交",
+    "review_failed": "审核没通过",
+    "incomplete": "待补充",
+    "conflict": "有冲突",
+    "not_applicable": "不适用",
+}
+
+
+def _build_case_checklist_model_review(state: CaseTurnGraphState, review: Any, patch: CasePatch, *, use_model: bool = True) -> dict[str, Any]:
+    deterministic_items = _deterministic_checklist_items(state, review, patch)
+    if use_model:
+        model_output = _run_custom_stage_model_role(
+            state,
+            role_name="case_checklist_updater",
+            system_prompt=(
+                "Role: approval case checklist updater. You may only make the checklist easier for the user to understand. "
+                "Do not create new requirements. Do not mark evidence as accepted. Do not approve, reject, route, pay, comment, "
+                "or execute ERP actions. Return JSON only: "
+                '{"items":[{"requirement_id":"...","display_label":"short Chinese label","short_reason":"why this status","next_step":"what the user should submit next"}],'
+                '"summary":"one short Chinese sentence","warnings":[],"confidence":0.0,'
+                '"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
+            ),
+            payload={
+                "case_id": state["case_state"].case_id,
+                "approval_type": state["case_state"].approval_type,
+                "deterministic_checklist": deterministic_items,
+                "patch_type": patch.patch_type,
+                "accepted_evidence": [item.model_dump() for item in patch.accepted_evidence],
+                "rejected_evidence": [item.model_dump() for item in patch.rejected_evidence],
+                "policy_failures": [item.model_dump() for item in patch.policy_failures],
+                "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+            },
+        )
+    else:
+        model_output = {
+            "used": False,
+            "status": "deterministic",
+            "reason": "checklist status derived from evidence gates after evidence review",
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+    return _sanitize_case_checklist_update(deterministic_items, model_output)
+
+
+def _deterministic_checklist_items(state: CaseTurnGraphState, review: Any, patch: CasePatch) -> list[dict[str, Any]]:
+    requirements = list(getattr(review, "evidence_requirements", None) or [])
+    policy_failures = [failure for failure in [*state["case_state"].policy_failures, *patch.policy_failures] if not getattr(failure, "resolved", False)]
+    failure_requirement_ids = {str(failure.requirement_id or "") for failure in policy_failures if str(failure.requirement_id or "")}
+    accepted_requirement_ids = {str(item) for evidence in [*state["case_state"].accepted_evidence, *patch.accepted_evidence] for item in evidence.requirement_ids}
+    items: list[dict[str, Any]] = []
+    for requirement in requirements:
+        requirement_id = str(requirement.get("requirement_id") or "")
+        if not requirement_id:
+            continue
+        raw_status = str(requirement.get("status") or "missing")
+        if requirement_id in failure_requirement_ids:
+            status = "review_failed"
+        elif raw_status == "satisfied" or requirement_id in accepted_requirement_ids:
+            status = "accepted"
+        elif raw_status == "conflict":
+            status = "conflict"
+        elif raw_status == "partial":
+            status = "incomplete"
+        elif raw_status == "not_applicable":
+            status = "not_applicable"
+        else:
+            status = "not_submitted"
+        items.append(
+            {
+                "requirement_id": requirement_id,
+                "label": str(requirement.get("label") or requirement_id),
+                "status": status,
+                "status_label": CHECKLIST_STATUS_LABELS[status],
+                "blocking": bool(requirement.get("blocking")),
+                "required_level": str(requirement.get("required_level") or ""),
+                "expected_record_types": list(requirement.get("expected_record_types") or []),
+                "policy_refs": list(requirement.get("policy_refs") or []),
+                "satisfied_by_claim_ids": list(requirement.get("satisfied_by_claim_ids") or []),
+            }
+        )
+    return items
+
+
+def _sanitize_case_checklist_update(items: list[dict[str, Any]], model_output: dict[str, Any]) -> dict[str, Any]:
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in model_output.get("items") or []:
+        if isinstance(item, dict):
+            requirement_id = str(item.get("requirement_id") or "")
+            if requirement_id:
+                by_id[requirement_id] = item
+    merged: list[dict[str, Any]] = []
+    for item in items:
+        model_item = by_id.get(str(item.get("requirement_id") or ""), {})
+        merged.append(
+            {
+                **item,
+                "display_label": str(model_item.get("display_label") or item.get("label") or item.get("requirement_id"))[:120],
+                "short_reason": str(model_item.get("short_reason") or _default_checklist_reason(item))[:260],
+                "next_step": str(model_item.get("next_step") or _default_checklist_next_step(item))[:260],
+            }
+        )
+    return {
+        "used": bool(model_output.get("used")),
+        "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
+        "role_output": model_output,
+        "items": merged,
+        "summary": str(model_output.get("summary") or _checklist_summary(merged))[:300],
+        "allowed_statuses": dict(CHECKLIST_STATUS_LABELS),
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+
+
+def _default_checklist_reason(item: dict[str, Any]) -> str:
+    status = item.get("status")
+    if status == "accepted":
+        return "已有可追溯证据支持该材料要求。"
+    if status == "review_failed":
+        return "已提交过相关材料，但未满足制度或证据要求。"
+    if status == "incomplete":
+        return "已有部分材料，但还不足以满足 blocking evidence。"
+    if status == "conflict":
+        return "当前证据之间存在冲突，需要先澄清。"
+    if status == "not_applicable":
+        return "当前案件暂不适用。"
+    return "尚未提交可接受证据。"
+
+
+def _default_checklist_next_step(item: dict[str, Any]) -> str:
+    expected = ", ".join(str(value) for value in item.get("expected_record_types") or [] if str(value))
+    if item.get("status") == "accepted":
+        return "无需重复提交，后续由 reviewer 复核。"
+    if item.get("status") == "review_failed":
+        return "按退回原因重新提交可追溯材料。"
+    if expected:
+        return f"请提交 {expected} 类型的材料，并包含 source_id 或文件来源。"
+    return "请提交带来源的正式文件、ERP 记录或政策证据。"
+
+
+def _checklist_summary(items: list[dict[str, Any]]) -> str:
+    counts = {status: 0 for status in CHECKLIST_STATUS_LABELS}
+    for item in items:
+        status = str(item.get("status") or "")
+        if status in counts:
+            counts[status] += 1
+    return (
+        f"材料清单：已通过 {counts['accepted']} 项，未提交 {counts['not_submitted']} 项，"
+        f"审核没通过 {counts['review_failed']} 项，待补充 {counts['incomplete']} 项，冲突 {counts['conflict']} 项。"
+    )
 
 
 def _render_missing_requirements_answer(state: CaseTurnGraphState, review: Any) -> str:

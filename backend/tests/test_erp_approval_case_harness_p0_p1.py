@@ -494,7 +494,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
 
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertTrue(response.patch.model_review["used"])
-            self.assertEqual(len(model.messages), 8)
+            self.assertEqual(len(model.messages), 9)
         self.assertTrue(any("未返回可用结构化结果" in warning for warning in response.patch.warnings))
 
     def test_stage_model_off_topic_or_execution_output_cannot_pollute_case(self) -> None:
