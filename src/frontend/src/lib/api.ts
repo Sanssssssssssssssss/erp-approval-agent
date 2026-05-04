@@ -462,6 +462,7 @@ export type ErpApprovalCaseState = {
   evidence_sufficiency: Record<string, unknown>;
   control_matrix: Record<string, unknown>;
   recommendation: Record<string, unknown>;
+  case_plan?: Record<string, unknown>;
   missing_items: string[];
   next_questions: string[];
   non_action_statement: string;

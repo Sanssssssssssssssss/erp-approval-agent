@@ -12,6 +12,7 @@ from src.backend.domains.erp_approval.case_harness import (
     render_case_dossier,
 )
 from src.backend.domains.erp_approval.case_patch_validator import contract_for_state
+from src.backend.domains.erp_approval.case_planning import build_case_supervisor_plan
 from src.backend.domains.erp_approval.case_state_models import (
     ApprovalCaseState,
     CASE_HARNESS_NON_ACTION_STATEMENT,
@@ -973,6 +974,7 @@ def propose_case_patch_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         patch = patch.model_copy(update={"model_review": model_review})
     model_review = dict(patch.model_review or {})
     model_review["case_checklist"] = _build_case_checklist_model_review(state, final_review, patch, use_model=False)
+    model_review["case_supervisor_plan"] = build_case_supervisor_plan(state["case_state"], final_review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
     return {
         **state,
@@ -1217,6 +1219,13 @@ def _conversation_reply_text(response: CaseTurnResponse) -> str:
         lines.append("退回原因：" + "；".join(patch.rejection_reasons[:5]))
     if state.stage == "ready_for_final_review":
         lines.append("所有当前 blocking evidence 已满足。是否生成最终 reviewer memo / submission package？")
+    elif state.case_plan:
+        strategy = str(state.case_plan.get("strategy") or "").strip()
+        suggested = str(state.case_plan.get("suggested_user_prompt") or "").strip()
+        if strategy:
+            lines.append("案卷推进计划：" + strategy)
+        if suggested:
+            lines.append("建议下一轮：" + suggested)
     elif state.missing_items:
         lines.append("当前仍缺：" + "；".join(state.missing_items[:6]))
     else:

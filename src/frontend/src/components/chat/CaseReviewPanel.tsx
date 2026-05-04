@@ -225,6 +225,7 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const patchIntent = text(patch.turn_intent, "");
   const patchType = text(patch.patch_type, "");
   const modelReview = object(patch.model_review);
+  const casePlan = object(modelReview.case_supervisor_plan || response.case_state.case_plan);
   const policyRag = object(modelReview.policy_rag);
   const policyFailureAnswer = object(modelReview.policy_failures_answer);
   const missingAnswer = object(modelReview.missing_requirements_answer);
@@ -263,6 +264,8 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const isMissingAsk = patchIntent === "ask_missing_requirements" || patchIntent === "ask_status";
   const isEvidenceSubmission = patchIntent === "submit_evidence" || ["accept_evidence", "reject_evidence"].includes(patchType);
   const readyForMemo = response.case_state.stage === "ready_for_final_review" && !["request_final_memo", "request_final_review"].includes(patchIntent);
+  const planStrategy = text(casePlan.strategy, "");
+  const suggestedPrompt = text(casePlan.suggested_user_prompt, "");
   const title = readyForMemo ? "案卷已可生成最终审查单" : isMissingAsk ? "当前缺口" : isEvidenceSubmission ? "本轮材料审核结果" : "Agent 审查结果";
   const leadingLine = isMissingAsk
     ? "当前缺口如下。"
@@ -276,6 +279,8 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
     policyFailures.length
       ? `退回/政策失败：${policyFailures.slice(0, 3).map((item) => `${labelForPolicyFailure(item)} - ${text(item.how_to_fix || item.why_failed, "请补充可追溯证据")}`).join("；")}。`
       : "",
+    planStrategy ? `案卷推进计划：${planStrategy}` : "",
+    suggestedPrompt ? `建议你下一轮：${suggestedPrompt}` : "",
     gaps.length ? `关键缺口：${Array.from(new Set(gaps)).slice(0, 5).join("；")}。` : "暂未发现新的 blocking gap，但仍需以案卷详情为准。",
     questions.length ? `下一步建议：${questions.slice(0, 4).join("；")}。` : "",
     readyForMemo ? "当前 blocking evidence 已满足，控制矩阵已通过。你可以点击“生成审查 memo”，让我基于本案卷生成最终 reviewer memo / submission package。" : "",
@@ -432,6 +437,8 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   const policyFailures = records(state.policy_failures).filter((item) => !item.resolved);
   const controls = records(turn.review.control_matrix?.checks);
   const checklistItems = caseChecklistItems(turn);
+  const casePlan = object(state.case_plan);
+  const planItems = records(casePlan.priority_requirements);
   const checklistCounts = checklistItems.reduce<Record<string, number>>((acc, item) => {
     const status = text(item.status, "not_submitted");
     acc[status] = (acc[status] ?? 0) + 1;
@@ -450,6 +457,25 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
         </div>
         <ProgressDots turn={turn} />
       </section>
+
+      {text(casePlan.strategy, "") ? (
+        <section className="case-agent-side-section">
+          <div className="case-agent-section-title">
+            <Sparkles size={16} />
+            <strong>下一步计划</strong>
+          </div>
+          <p className="case-agent-muted">{text(casePlan.strategy)}</p>
+          {planItems.length ? (
+            <ul className="case-agent-list">
+              {planItems.slice(0, 4).map((item) => (
+                <li key={text(item.requirement_id || item.label)}>
+                  {text(item.label || item.requirement_id)}：{text(item.why_now, "优先补齐")}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="case-agent-side-section">
         <div className="case-agent-section-title">

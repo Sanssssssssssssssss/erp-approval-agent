@@ -9,6 +9,7 @@ from typing import Any
 from src.backend.domains.erp_approval.case_context import CaseContextAssembler
 from src.backend.domains.erp_approval.case_memory_store import CaseMemoryStore
 from src.backend.domains.erp_approval.case_patch_validator import CasePatchValidator
+from src.backend.domains.erp_approval.case_planning import build_case_supervisor_plan
 from src.backend.domains.erp_approval.case_review import APPROVAL_TYPE_CN
 from src.backend.domains.erp_approval.case_review_service import (
     CaseReviewEvidenceInput,
@@ -363,6 +364,7 @@ class CaseHarness:
                 "reviewer_memo": review.reviewer_memo,
                 "missing_items": list(review.evidence_sufficiency.get("blocking_gaps") or []),
                 "next_questions": list(review.evidence_sufficiency.get("next_questions") or []),
+                "case_plan": build_case_supervisor_plan(state, review, patch).copy(),
                 "last_valid_turn_id": turn_id if mutate_case else state.last_valid_turn_id,
                 "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
             }

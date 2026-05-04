@@ -139,6 +139,7 @@ class ApprovalCaseState(BaseModel):
     reviewer_memo: str = ""
     missing_items: list[str] = Field(default_factory=list)
     next_questions: list[str] = Field(default_factory=list)
+    case_plan: dict[str, Any] = Field(default_factory=dict)
     last_valid_turn_id: str = ""
     audit_event_count: int = 0
     non_action_statement: str = CASE_HARNESS_NON_ACTION_STATEMENT
