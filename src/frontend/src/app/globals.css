@@ -1645,6 +1645,12 @@ a {
   font-size: 0.82rem;
 }
 
+.case-agent-progress-summary {
+  display: block;
+  color: var(--color-ink) !important;
+  font-weight: 700;
+}
+
 .case-agent-progress strong {
   color: var(--color-ink);
 }

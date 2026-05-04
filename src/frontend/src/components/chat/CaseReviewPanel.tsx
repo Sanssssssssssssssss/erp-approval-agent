@@ -289,10 +289,18 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
 
 function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   const state = turn?.case_state;
-  const required = state?.evidence_requirements ?? [];
-  const satisfied = required.filter((item) => item.status === "satisfied").length;
-  const total = required.length || 1;
-  const percent = Math.round((satisfied / total) * 100);
+  const checklist = turn ? caseChecklistItems(turn) : [];
+  const actionable = checklist.filter((item) => text(object(item).status) !== "not_applicable");
+  const accepted = actionable.filter((item) => text(object(item).status) === "accepted").length;
+  const missing = actionable.filter((item) => text(object(item).status) === "not_submitted").length;
+  const failed = actionable.filter((item) => text(object(item).status) === "review_failed").length;
+  const partial = actionable.filter((item) => text(object(item).status) === "incomplete").length;
+  const conflict = actionable.filter((item) => text(object(item).status) === "conflict").length;
+  const total = actionable.length || 1;
+  const percent = Math.round((accepted / total) * 100);
+  const pending = failed + partial + conflict;
+  const required = actionable;
+  const satisfied = accepted;
 
   return (
     <div className="case-agent-progress">
@@ -303,6 +311,7 @@ function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
       <div className="case-agent-progress-bar">
         <span style={{ width: `${state ? percent : 0}%` }} />
       </div>
+      <small className="case-agent-progress-summary">{state ? `已通过 ${accepted} 项 · 未提交 ${missing} 项 · 待处理 ${pending} 项` : "像聊天一样描述案件或提交材料，Agent 会自动更新清单。"}</small>
       <small>{state ? `${satisfied}/${required.length} 项已满足` : "先描述审批案件，Agent 会生成材料清单"}</small>
     </div>
   );
