@@ -78,6 +78,7 @@ class Settings:
     llm_model: str
     llm_api_key: str | None
     llm_base_url: str
+    llm_temperature: float
     llm_thinking_type: str | None
     router_model: str
     router_api_key: str | None
@@ -288,6 +289,17 @@ def _resolve_int_config(*names: str, default: int) -> int:
     return value if value > 0 else default
 
 
+def _resolve_float_config(*names: str, default: float) -> float:
+    raw = _first_config_value(*names)
+    if raw is None:
+        return default
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return value if value >= 0 else default
+
+
 def _detect_host_execution_platform() -> str:
     """Return one canonical execution-platform label for the current host OS."""
 
@@ -328,6 +340,7 @@ def get_settings() -> Settings:
         llm_model=_resolve_llm_model(llm_provider),
         llm_api_key=_resolve_llm_api_key(llm_provider),
         llm_base_url=_resolve_llm_base_url(llm_provider),
+        llm_temperature=_resolve_float_config("LLM_TEMPERATURE", default=1.0),
         llm_thinking_type=_resolve_llm_thinking_type(),
         router_model=_resolve_router_model(),
         router_api_key=_resolve_router_api_key(),

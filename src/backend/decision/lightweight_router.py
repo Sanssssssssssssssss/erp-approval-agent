@@ -570,7 +570,8 @@ class LightweightLLMRouter:
     def _create_model(self, *, model_name: str, api_key: str, base_url: str, thinking_type: str | None):
         from langchain_openai import ChatOpenAI  # pylint: disable=import-outside-toplevel
 
-        temperature = 1 if str(model_name or "").startswith("kimi-") else 0.1
+        settings = get_settings()
+        temperature = settings.llm_temperature if str(model_name or "").startswith("kimi-") else 0.1
         kwargs: dict[str, Any] = {
             "model": model_name,
             "api_key": api_key,
@@ -580,8 +581,7 @@ class LightweightLLMRouter:
         }
         if model_name == "kimi-k2.5" and thinking_type:
             kwargs["extra_body"] = {"thinking": {"type": thinking_type}}
-            if thinking_type == "disabled":
-                kwargs["temperature"] = None
+            kwargs["temperature"] = temperature
         return ChatOpenAI(**kwargs)
 
     def _build_small_model(self):

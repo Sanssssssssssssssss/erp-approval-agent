@@ -767,7 +767,7 @@ def p2p_missing_evidence_questions_node(state: CaseTurnGraphState) -> CaseTurnGr
     return _p2p_explanation_node(
         state,
         "p2p_missing_evidence_questions",
-        "Draft missing P2P evidence questions from the current deterministic P2P review. Return JSON with questions, source_ids, warnings, and non_action_statement.",
+        "Draft missing P2P evidence questions from the current P2P review. Return JSON with questions, source_ids, warnings, and non_action_statement.",
     )
 
 
@@ -1618,6 +1618,9 @@ def _attach_agent_reply(
             "Role: LLM ERP approval case agent. You are the user-facing approval materials specialist. "
             "Write the main reply for this turn in natural Chinese. Do not sound like a backend status template. "
             "Use the current case state, policy/RAG evidence, patch proposal, review gates, and model role outputs. "
+            "Only persisted case_state.accepted_evidence can prove a requirement is satisfied. "
+            "For materials guidance or other read-only turns, do not say any requirement is 已通过/完成 unless it is backed by accepted_evidence in case_state. "
+            "Do not treat mock policy/RAG snippets as submitted business evidence. "
             "If evidence is missing, explain what is missing and what the user should submit next. "
             "If evidence was accepted, explain what you accepted, which requirement it supports, and what remains. "
             "If evidence was rejected, explain why and how to fix it. "
@@ -1635,6 +1638,13 @@ def _attach_agent_reply(
             "user_message": state["request"].user_message,
             "case_state": state["case_state"].model_dump(),
             "operation_scope": "read_only_case_turn" if state.get("read_only_turn") else "persistent_case_turn",
+            "reply_contract": {
+                "read_only_turn": bool(state.get("read_only_turn")),
+                "materials_guidance_turn": purpose == "materials_advisor",
+                "requirements_can_be_marked_satisfied_only_from_case_state_accepted_evidence": True,
+                "policy_rag_is_policy_context_not_submitted_business_evidence": True,
+                "do_not_claim_items_are_passed_on_new_case_without_accepted_evidence": True,
+            },
             "patch": patch.model_dump(),
             "review_summary": _review_summary_for_agent_reply(review),
             "context_pack": state.get("context_pack") or {},

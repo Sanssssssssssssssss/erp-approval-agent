@@ -177,13 +177,12 @@ class SkillGate:
             "model": settings.llm_model,
             "api_key": settings.llm_api_key,
             "base_url": settings.llm_base_url,
-            "temperature": 0.2,
+            "temperature": settings.llm_temperature if settings.llm_model.startswith("kimi-") else 0.2,
             "max_tokens": 120,
         }
         if settings.llm_model == "kimi-k2.5" and settings.llm_thinking_type:
             kwargs["extra_body"] = {"thinking": {"type": settings.llm_thinking_type}}
-            if settings.llm_thinking_type == "disabled":
-                kwargs["temperature"] = None
+            kwargs["temperature"] = settings.llm_temperature
         self._model = ChatOpenAI(**kwargs)
         return self._model
 

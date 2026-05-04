@@ -221,15 +221,12 @@ class AgentManager:
             "model": settings.llm_model,
             "api_key": settings.llm_api_key,
             "base_url": settings.llm_base_url,
-            "temperature": 1,
+            "temperature": settings.llm_temperature,
         }
 
         if settings.llm_model == "kimi-k2.5" and settings.llm_thinking_type:
             kwargs["extra_body"] = {"thinking": {"type": settings.llm_thinking_type}}
-            if settings.llm_thinking_type == "disabled":
-                kwargs["temperature"] = None
-            else:
-                kwargs["temperature"] = 1
+            kwargs["temperature"] = settings.llm_temperature
 
         return kwargs
 

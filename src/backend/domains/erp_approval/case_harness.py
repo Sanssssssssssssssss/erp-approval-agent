@@ -112,7 +112,7 @@ class CaseHarness:
         request_data = dict(state.request or {})
         request_data["user_message"] = state.source_request or user_message
         request_data["extra_evidence"] = [item.model_dump() for item in evidence]
-        request_data["include_mock_context"] = True
+        request_data["include_mock_context"] = False
         return run_local_case_review(CaseReviewRequest.model_validate(request_data), base_dir=self.base_dir)
 
     def _review_with_stage_model(
@@ -121,11 +121,11 @@ class CaseHarness:
         context_pack: dict[str, Any],
         candidates: list[CaseReviewEvidenceInput],
         review: CaseReviewResponse,
-        deterministic_intent: CaseTurnIntent,
+        routing_intent: CaseTurnIntent,
     ) -> tuple[CaseStageModelDecision | None, str]:
         if self.stage_model is None:
             return None, ""
-        if not candidates and deterministic_intent in {
+        if not candidates and routing_intent in {
             "create_case",
             "ask_how_to_prepare",
             "ask_missing_requirements",
@@ -141,7 +141,7 @@ class CaseHarness:
                     context_pack=context_pack,
                     candidates=candidates,
                     review=review,
-                    deterministic_intent=deterministic_intent,
+                    routing_intent=routing_intent,
                 ),
                 "",
             )
@@ -156,15 +156,15 @@ class CaseHarness:
 
     def _intent_from_stage_model(
         self,
-        deterministic_intent: CaseTurnIntent,
+        routing_intent: CaseTurnIntent,
         decision: CaseStageModelDecision | None,
         contract,
     ) -> CaseTurnIntent:
         if decision is None or not decision.turn_intent:
-            return deterministic_intent
+            return routing_intent
         if decision.turn_intent in contract.allowed_intents:
             return decision.turn_intent  # type: ignore[return-value]
-        return deterministic_intent
+        return routing_intent
 
     def _review_candidate_evidence(
         self,
@@ -837,3 +837,555 @@ def _unique(values: list[str]) -> list[str]:
             seen.add(text)
             output.append(text)
     return output
+
+
+# Clean runtime overrides.
+# Some earlier Chinese literals in this module were corrupted by a bad encoding
+# round-trip. The bindings below keep the active case-turn path readable for the
+# LLM and for users while preserving the public module API.
+
+
+def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool) -> CaseTurnIntent:  # type: ignore[no-redef]
+    text = str(user_message or "").lower()
+    if _looks_off_topic(text):
+        return "off_topic"
+    if has_evidence:
+        return "submit_evidence"
+    if _asks_how_to_prepare(text):
+        return "ask_how_to_prepare"
+    if has_case and re.search(r"(收据|发票|receipt|invoice).*(丢了|遗失|lost)|((确实|已经)?花了钱)", user_message, re.IGNORECASE):
+        return "submit_evidence"
+    if any(term in text for term in ("撤回", "withdraw", "更正", "correct", "修正")):
+        return "correct_previous_evidence"
+    if any(term in text for term in ("为什么", "不符合", "退回原因", "失败原因", "why failed", "why rejected", "policy failure")):
+        return "ask_policy_failure"
+    if not has_case and any(
+        term in text
+        for term in ("创建案卷", "开始建案", "确认创建", "创建审批案件", "open approval case", "create approval case", "confirm case creation")
+    ):
+        return "create_case"
+    if has_case and any(term in text for term in ("当前还缺", "还缺", "还差", "缺口", "进度", "状态", "下一步", "补证", "what is still missing", "still missing", "status")):
+        if not any(term in text for term in ("哪些材料", "材料清单", "必备材料", "required materials", "required evidence")):
+            return "ask_missing_requirements"
+    if not has_case:
+        return "create_case"
+    if any(term in text for term in ("最终", "final", "memo", "报告", "提交人工", "reviewer memo", "生成memo", "生成 memo")):
+        return "request_final_review"
+    if _looks_like_evidence_submission(text):
+        return "submit_evidence"
+    if any(term in text for term in ("状态", "进度", "还差", "还缺", "缺口", "status")):
+        return "ask_missing_requirements"
+    return "ask_missing_requirements"
+
+
+def _asks_how_to_prepare(text: str) -> bool:  # type: ignore[no-redef]
+    normalized = str(text or "").lower()
+    terms = (
+        "需要准备",
+        "需要哪些材料",
+        "必须提交哪些材料",
+        "先告诉我必须提交",
+        "请先告诉我必须提交",
+        "准备什么材料",
+        "需要什么材料",
+        "哪些材料",
+        "什么材料",
+        "交什么材料",
+        "需要交什么证明",
+        "什么证明",
+        "材料清单",
+        "必备材料",
+        "required material",
+        "required materials",
+        "required evidence",
+        "what materials",
+        "materials are required",
+    )
+    return any(term in normalized for term in terms) or ("需要" in normalized and "材料" in normalized)
+
+
+def infer_case_evidence_record_type(record_type: str, title: str, content: str) -> str:  # type: ignore[no-redef]
+    explicit = re.sub(r"[^a-z0-9_]+", "_", str(record_type or "").strip().lower()).strip("_")
+    if explicit:
+        return explicit
+    text = f"{title}\n{content}".lower()
+    patterns: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("purchase_order", ("purchase order", "po-", " po ", "采购订单")),
+        ("goods_receipt", ("goods receipt", "grn", "收货", "入库")),
+        ("invoice", ("invoice", "发票")),
+        ("receipt", ("receipt", "收据", "小票")),
+        ("quote", ("quote", "quotation", "报价", "比价")),
+        ("budget", ("budget", "预算")),
+        ("vendor", ("vendor", "supplier", "供应商", "准入")),
+        ("sanctions_check", ("sanctions", "制裁")),
+        ("bank_info", ("bank", "银行")),
+        ("tax_info", ("tax", "税务", "税号")),
+        ("contract", ("contract", "合同", "框架协议")),
+        ("policy", ("policy", "政策", "制度", "矩阵")),
+        ("approval_request", ("approval request", "purchase requisition", "pr-", "审批单", "采购申请")),
+        ("payment_terms", ("payment terms", "付款条款")),
+        ("duplicate_check", ("duplicate", "重复")),
+        ("limit_check", ("limit", "限额")),
+        ("clear_invoice_event", ("clear invoice", "cleared invoice")),
+        ("process_log", ("process log", "event log", "bpi", "workflow event")),
+    )
+    for candidate, needles in patterns:
+        if any(needle in text for needle in needles):
+            return candidate
+    return "local_note"
+
+
+def render_case_dossier(state: ApprovalCaseState, review: CaseReviewResponse, patch: CasePatch) -> str:  # type: ignore[no-redef]
+    lines = [
+        f"# {state.case_id} 审批案卷",
+        "",
+        "## 案卷状态",
+        "",
+        f"- 阶段：{state.stage}",
+        f"- 审批类型：{APPROVAL_TYPE_CN.get(state.approval_type, state.approval_type)}",
+        f"- 审批单号：{state.approval_id or '未识别'}",
+        f"- 当前轮次：{state.turn_count}",
+        f"- 案卷版本：{state.dossier_version + 1}",
+        f"- 本轮 patch：{patch.patch_type} / {patch.evidence_decision}",
+        "",
+        "## 已接受证据",
+        "",
+    ]
+    if state.accepted_evidence or patch.accepted_evidence:
+        for item in _merge_accepted(state.accepted_evidence, patch.accepted_evidence):
+            lines.append(f"- `{item.source_id}` {item.title or item.record_type} -> claims: {', '.join(item.claim_ids) if item.claim_ids else '无'}")
+    else:
+        lines.append("- 暂无。")
+    lines.extend(["", "## 被拒绝材料", ""])
+    if state.rejected_evidence or patch.rejected_evidence:
+        for item in _merge_rejected(state.rejected_evidence, patch.rejected_evidence):
+            lines.append(f"- `{item.source_id}` {item.title or item.record_type}: {'; '.join(item.reasons) if item.reasons else '未说明'}")
+    else:
+        lines.append("- 暂无。")
+    policy_failures = resolve_policy_failures(state.policy_failures, patch.policy_failures, patch.requirements_satisfied)
+    lines.extend(["", "## Policy failures / 材料制度失败", ""])
+    unresolved = [item for item in policy_failures if not item.resolved]
+    if unresolved:
+        for item in unresolved:
+            lines.append(f"- `{item.requirement_id}` {item.policy_clause_id}: {item.why_failed} 修正方式：{item.how_to_fix}")
+    else:
+        lines.append("- 暂无未解决 policy failure。")
+    lines.extend(["", "## 当前审查 Memo", "", review.reviewer_memo, "", "## 非执行边界", "", "- No ERP write action was executed."])
+    return "\n".join(lines).strip() + "\n"
+
+
+def _rejected(item: CaseReviewEvidenceInput, now: str, reasons: list[str]) -> CaseRejectedEvidence:  # type: ignore[no-redef]
+    return CaseRejectedEvidence(
+        source_id=item.source_id,
+        title=item.title,
+        record_type=item.record_type,
+        content_preview=item.content[:600],
+        rejected_at=now,
+        reasons=[_clean_reason(reason) for reason in reasons],
+        metadata=dict(item.metadata or {}),
+    )
+
+
+def _dossier_patch(  # type: ignore[no-redef]
+    intent: CaseTurnIntent,
+    accepted: list[CaseAcceptedEvidence],
+    rejected: list[CaseRejectedEvidence],
+    review: CaseReviewResponse,
+) -> str:
+    if accepted:
+        return "本轮材料已通过案卷写入门，新增 accepted_evidence：" + ", ".join(item.source_id for item in accepted)
+    if rejected:
+        return "本轮材料未通过案卷写入门，写入 rejected_evidence：" + "; ".join(reason for item in rejected for reason in item.reasons)
+    if intent in {"request_final_memo", "request_final_review"}:
+        return "用户请求生成 reviewer memo；系统基于当前 case_state 输出非执行审查报告。"
+    if intent == "off_topic":
+        return "本轮输入与当前审批案件无关，未写入案卷。"
+    missing = review.evidence_sufficiency.get("blocking_gaps") or []
+    return "本轮未新增证据。当前阻断缺口：" + ("; ".join(missing) if missing else "无")
+
+
+def _looks_like_evidence_submission(text: str) -> bool:  # type: ignore[no-redef]
+    text = str(text or "").lower()
+    evidence_terms = (
+        "证明",
+        "材料",
+        "附件",
+        "发票",
+        "收据",
+        "票据",
+        "预算",
+        "报价",
+        "合同",
+        "法务",
+        "记录",
+        "供应商",
+        "准入",
+        "制裁",
+        "银行",
+        "税务",
+        "grn",
+        "invoice",
+        "quote",
+        "budget record",
+        "vendor record",
+    )
+    if not any(term in text for term in evidence_terms) and not re.search(r"\bpo[-_\s][a-z0-9]{2,}\b|\bpo\d{2,}\b|\bpo\b", text):
+        return False
+    submission_terms = (
+        "这是",
+        "提交",
+        "上传",
+        "补充",
+        "提供",
+        "附上",
+        "粘贴",
+        "给你",
+        "见附件",
+        "here is",
+        "attached",
+        "submit",
+        "upload",
+        "provide",
+        "evidence:",
+        "record:",
+    )
+    question_terms = ("怎么", "如何", "为什么", "哪些", "需要", "可以吗", "行不行", "what", "how", "why", "?", "？")
+    if any(term in text for term in submission_terms):
+        return True
+    if any(term in text for term in question_terms):
+        return False
+    record_markers = 0
+    record_markers += 1 if re.search(r"\b(pr|po|inv|grn|bud|vend|con|exp)[-_]?[a-z0-9]{2,}\b", text) else 0
+    record_markers += 1 if re.search(r"\b(usd|cny|eur|gbp)\s*\d+|\d+(?:\.\d+)?\s*(usd|cny|eur|gbp)\b", text) else 0
+    record_markers += 1 if any(term in text for term in ("status", "状态", "active", "blocked", "approved", "pending")) else 0
+    record_markers += 1 if any(term in text for term in ("source_id", "sha-256", "成本中心", "cost center", "供应商", "vendor", "supplier")) else 0
+    return record_markers >= 2
+
+
+def _looks_off_topic(text: str) -> bool:  # type: ignore[no-redef]
+    text = str(text or "").lower()
+    off_topic = any(
+        term in text
+        for term in (
+            "营销文案",
+            "写首诗",
+            "天气",
+            "股票",
+            "旅行计划",
+            "写代码",
+            "讲笑话",
+            "marketing copy",
+            "poem",
+            "weather",
+            "stock price",
+            "travel plan",
+            "write code",
+            "joke",
+        )
+    )
+    if not off_topic:
+        return False
+    if any(term in text for term in ("顺便", "同时", "再把", "also", "while you")):
+        return True
+    return not _looks_like_evidence_submission(text)
+
+
+def _looks_like_weak_user_statement(item: CaseReviewEvidenceInput) -> bool:  # type: ignore[no-redef]
+    if item.metadata.get("submitted_via") != "user_message":
+        return False
+    text = str(item.content or "").lower()
+    weak_terms = (
+        "肯定",
+        "问过",
+        "老板",
+        "同意",
+        "就当",
+        "口头",
+        "丢了",
+        "之后补",
+        "以后补",
+        "下个月会补",
+        "暂时没有文件",
+        "没有文件",
+        "没法上传",
+        "相信我",
+        "不用",
+        "不需要",
+        "直接",
+        "verbal",
+        "lost",
+        "pending",
+        "no file",
+        "no document",
+        "will provide later",
+        "boss",
+        "trust me",
+        "already approved",
+        "no citation",
+    )
+    hard_reject_terms = (
+        "口头",
+        "丢了",
+        "之后补",
+        "以后补",
+        "下个月会补",
+        "暂时没有文件",
+        "没有文件",
+        "没法上传",
+        "verbal",
+        "lost",
+        "pending",
+        "no file",
+        "no document",
+        "will provide later",
+        "trust me",
+        "no citation",
+    )
+    if any(term in text for term in hard_reject_terms):
+        return True
+    markers = 0
+    markers += 1 if any(term in text for term in weak_terms) else 0
+    markers += 1 if not re.search(r"\b(pr|po|inv|grn|bud|vend|con|exp)[-_]?[a-z0-9]{2,}\b", text) else 0
+    markers += 1 if "source_id" not in text and "来源" not in text and "记录编号" not in text else 0
+    markers += 1 if not re.search(r"\b(usd|cny|eur|gbp)\s*\d+|\d+(?:\.\d+)?\s*(usd|cny|eur|gbp)\b", text) else 0
+    return markers >= 3
+
+
+def _clean_candidate_evidence(
+    self: CaseHarness,
+    request: CaseTurnRequest,
+    state: ApprovalCaseState,
+    turn_id: str,
+    intent: CaseTurnIntent,
+) -> list[CaseReviewEvidenceInput]:
+    candidates = [_normalize_evidence_input(item, state.case_id, turn_id, index) for index, item in enumerate(request.extra_evidence, start=1)]
+    if not candidates and intent == "submit_evidence":
+        record_type = infer_case_evidence_record_type("", "本轮用户提交材料", request.user_message)
+        candidates.append(
+            CaseReviewEvidenceInput(
+                title="本轮用户提交材料",
+                record_type=record_type,
+                content=request.user_message,
+                source_id=f"local_evidence://{record_type}/{_source_slug(state.case_id)}/{turn_id}-1",
+                metadata={"submitted_via": "user_message", "read_only": True},
+            )
+        )
+    return candidates
+
+
+def _clean_review_with_stage_model(
+    self: CaseHarness,
+    *,
+    context_pack: dict[str, Any],
+    candidates: list[CaseReviewEvidenceInput],
+    review: CaseReviewResponse,
+    routing_intent: CaseTurnIntent,
+) -> tuple[CaseStageModelDecision | None, str]:
+    if self.stage_model is None:
+        return None, ""
+    if not candidates and routing_intent in {
+        "create_case",
+        "ask_how_to_prepare",
+        "ask_missing_requirements",
+        "ask_policy_failure",
+        "ask_required_materials",
+        "ask_status",
+        "off_topic",
+    }:
+        return None, ""
+    try:
+        return (
+            self.stage_model.review_turn(
+                context_pack=context_pack,
+                candidates=candidates,
+                review=review,
+                routing_intent=routing_intent,
+            ),
+            "",
+        )
+    except Exception as exc:  # pragma: no cover - live model/runtime dependent
+        return (
+            CaseStageModelDecision(
+                warnings=["阶段模型调用失败，本轮没有模型结构化审查输出。"],
+                reviewer_message="阶段模型调用失败，本轮不会生成模型业务审查结论。",
+            ),
+            f"{type(exc).__name__}: {exc}",
+        )
+
+
+def _clean_review_candidate_evidence(
+    self: CaseHarness,
+    candidates: list[CaseReviewEvidenceInput],
+    review: CaseReviewResponse,
+    now: str,
+) -> tuple[list[CaseAcceptedEvidence], list[CaseRejectedEvidence], list[str]]:
+    accepted: list[CaseAcceptedEvidence] = []
+    rejected: list[CaseRejectedEvidence] = []
+    warnings: list[str] = []
+    claims = list(review.evidence_claims)
+    for item in candidates:
+        source_claims = [claim for claim in claims if claim.get("source_id") == item.source_id]
+        supported_claims = [
+            claim
+            for claim in source_claims
+            if claim.get("verification_status") in {"supported", "needs_review", "conflict"} and claim.get("supports_requirement_ids")
+        ]
+        if not item.content.strip():
+            rejected.append(_rejected(item, now, ["材料内容为空，不能写入案卷。"]))
+        elif item.record_type in {"local_note", "user_statement"}:
+            rejected.append(_rejected(item, now, ["这只是用户陈述或本地备注，不能满足阻断性证据要求。"]))
+        elif _looks_like_weak_user_statement(item):
+            rejected.append(_rejected(item, now, ["这更像口头说明或主观陈述，缺少正式记录编号、金额、状态或来源字段，不能替代 ERP 记录、政策记录或附件证据。"]))
+        elif not supported_claims:
+            rejected.append(_rejected(item, now, ["未抽取到可支持必备证据清单的 claim，不能写入 accepted_evidence。"]))
+        else:
+            requirement_ids = _unique([req for claim in supported_claims for req in claim.get("supports_requirement_ids") or []])
+            claim_ids = _unique([str(claim.get("claim_id") or "") for claim in supported_claims])
+            if any(claim.get("verification_status") == "conflict" for claim in supported_claims):
+                warnings.append(f"{item.source_id} 已作为证据收录，但存在冲突，需要人工复核。")
+            accepted.append(
+                CaseAcceptedEvidence(
+                    source_id=item.source_id,
+                    title=item.title,
+                    record_type=item.record_type,
+                    content=item.content,
+                    accepted_at=now,
+                    claim_ids=claim_ids,
+                    requirement_ids=requirement_ids,
+                    metadata=dict(item.metadata or {}),
+                )
+            )
+    return accepted, rejected, warnings
+
+
+def _clean_apply_stage_model_decision(
+    self: CaseHarness,
+    *,
+    candidates: list[CaseReviewEvidenceInput],
+    accepted: list[CaseAcceptedEvidence],
+    rejected: list[CaseRejectedEvidence],
+    warnings: list[str],
+    decision: CaseStageModelDecision | None,
+    now: str,
+) -> tuple[list[CaseAcceptedEvidence], list[CaseRejectedEvidence], list[str]]:
+    if decision is None:
+        if not candidates:
+            return accepted, rejected, warnings
+        model_required_rejections = [
+            _rejected(item, now, ["模型没有返回本轮材料审查决定，不能把材料写入 accepted_evidence。"])
+            for item in candidates
+        ]
+        return [], _unique_rejected(rejected + model_required_rejections), _unique(
+            warnings + ["本轮材料写入需要 LLM evidence reviewer 显式确认 accepted_source_ids。"]
+        )
+    warnings = _unique(warnings + list(decision.warnings))
+    candidate_by_source = {item.source_id: item for item in candidates}
+    accepted_by_source = {item.source_id: item for item in accepted}
+    rejected_by_source = {item.source_id: item for item in rejected}
+    model_rejections = {
+        item.source_id: item.reasons or ["模型判断该材料不足以写入 accepted_evidence。"]
+        for item in decision.rejected_evidence
+        if item.source_id
+    }
+    if decision.turn_intent == "off_topic":
+        model_rejections = {item.source_id: ["模型判断本轮输入与当前审批案件无关，不能污染案卷。"] for item in candidates}
+    allowed_sources = set(decision.accepted_source_ids)
+    if candidates:
+        for source_id in list(accepted_by_source):
+            if source_id not in allowed_sources:
+                model_rejections.setdefault(source_id, ["模型未明确接受该材料，不能写入 accepted_evidence。"])
+        if decision.evidence_decision == "accepted" and not allowed_sources:
+            for item in candidates:
+                model_rejections.setdefault(item.source_id, ["模型说可以接受，但没有返回 accepted_source_ids，不能写入案卷。"])
+        for source_id in allowed_sources:
+            if source_id not in accepted_by_source:
+                warnings.append(f"模型尝试接受 {source_id}，但证据结构没有发现可支持必备要求的 claim，已拒绝。")
+    if decision.evidence_decision in {"rejected", "needs_clarification"} and candidates and not model_rejections:
+        model_rejections = {
+            item.source_id: [decision.reviewer_message or "模型要求补充澄清，本轮材料暂不写入 accepted_evidence。"]
+            for item in candidates
+        }
+    for source_id, reasons in model_rejections.items():
+        accepted_by_source.pop(source_id, None)
+        if source_id in candidate_by_source:
+            rejected_by_source[source_id] = _rejected(candidate_by_source[source_id], now, reasons)
+    for source_id, item in accepted_by_source.items():
+        item.metadata["stage_model_review"] = "accepted" if source_id in decision.accepted_source_ids else "not_overridden"
+    return list(accepted_by_source.values()), list(rejected_by_source.values()), _unique(warnings)
+
+
+def _clean_build_patch(
+    self: CaseHarness,
+    *,
+    state: ApprovalCaseState,
+    turn_id: str,
+    intent: CaseTurnIntent,
+    accepted: list[CaseAcceptedEvidence],
+    rejected: list[CaseRejectedEvidence],
+    review: CaseReviewResponse,
+    warnings: list[str],
+    created_new: bool,
+    model_decision: CaseStageModelDecision | None,
+    model_error: str,
+) -> CasePatch:
+    if intent == "off_topic":
+        patch_type = "no_case_change"
+        decision = "not_evidence"
+    elif accepted:
+        patch_type = "accept_evidence"
+        decision = "accepted"
+    elif rejected:
+        patch_type = "reject_evidence"
+        decision = "rejected"
+    elif intent in {"request_final_memo", "request_final_review"}:
+        unresolved_policy_failures = [failure for failure in state.policy_failures if not failure.resolved]
+        if review.evidence_sufficiency.get("passed") and review.control_matrix.get("passed") and not unresolved_policy_failures:
+            patch_type = "final_memo"
+        else:
+            patch_type = "answer_status"
+            warnings = _unique(warnings + ["最终 reviewer memo 被阻断：仍有 blocking evidence、policy failure、control matrix gap 或 unresolved contradiction。"])
+        decision = "not_evidence"
+    elif created_new:
+        patch_type = "create_case"
+        decision = "not_evidence"
+    else:
+        patch_type = "answer_status"
+        decision = "not_evidence"
+    policy_failures = policy_failures_for_rejected_evidence(rejected, review)
+    return CasePatch(
+        patch_id=f"case-patch:{state.case_id}:{turn_id}",
+        turn_id=turn_id,
+        case_id=state.case_id,
+        patch_type=patch_type,  # type: ignore[arg-type]
+        turn_intent=intent,
+        evidence_decision=decision,  # type: ignore[arg-type]
+        accepted_evidence=accepted,
+        rejected_evidence=rejected,
+        policy_failures=policy_failures,
+        requirements_satisfied=[item.get("requirement_id", "") for item in review.evidence_requirements if item.get("status") == "satisfied"],
+        requirements_missing=list(review.evidence_sufficiency.get("missing_requirement_ids") or []),
+        dossier_patch=_dossier_patch(intent, accepted, rejected, review),
+        rejection_reasons=_unique([reason for item in rejected for reason in item.reasons]),
+        next_questions=list(review.evidence_sufficiency.get("next_questions") or []),
+        warnings=warnings,
+        model_review=(
+            model_decision.to_patch_metadata(used=True, error=model_error)
+            if model_decision is not None
+            else {"used": False, "error": "", "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT}
+        ),
+    )
+
+
+def _clean_reason(reason: str) -> str:
+    text = str(reason or "").strip()
+    mojibake_markers = ("鏉", "妯", "鏈", "杩", "闃", "銆", "€", "乸", "乧")
+    if any(marker in text for marker in mojibake_markers):
+        return "材料未通过案卷写入门，需要补充可追溯来源、正式记录字段或对应制度依据。"
+    return text
+
+
+CaseHarness._candidate_evidence = _clean_candidate_evidence  # type: ignore[method-assign]
+CaseHarness._review_with_stage_model = _clean_review_with_stage_model  # type: ignore[method-assign]
+CaseHarness._review_candidate_evidence = _clean_review_candidate_evidence  # type: ignore[method-assign]
+CaseHarness._apply_stage_model_decision = _clean_apply_stage_model_decision  # type: ignore[method-assign]
+CaseHarness._build_patch = _clean_build_patch  # type: ignore[method-assign]
