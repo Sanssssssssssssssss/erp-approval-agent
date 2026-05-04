@@ -56,6 +56,9 @@ class CaseHarness:
     def get_dossier(self, case_id: str) -> str:
         return self.store.read_dossier(case_id)
 
+    def get_conversation(self, case_id: str, limit: int = 200) -> list[dict]:
+        return self.store.read_conversation_messages(case_id, limit=limit)
+
     def list_cases(self, limit: int = 50) -> list[ApprovalCaseState]:
         return self.store.list_recent(limit=limit)
 

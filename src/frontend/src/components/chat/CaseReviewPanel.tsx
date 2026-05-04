@@ -262,7 +262,8 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const status = labelForStatus(recommendation.status);
   const isMissingAsk = patchIntent === "ask_missing_requirements" || patchIntent === "ask_status";
   const isEvidenceSubmission = patchIntent === "submit_evidence" || ["accept_evidence", "reject_evidence"].includes(patchType);
-  const title = isMissingAsk ? "当前缺口" : isEvidenceSubmission ? "本轮材料审核结果" : "Agent 审查结果";
+  const readyForMemo = response.case_state.stage === "ready_for_final_review" && !["request_final_memo", "request_final_review"].includes(patchIntent);
+  const title = readyForMemo ? "案卷已可生成最终审查单" : isMissingAsk ? "当前缺口" : isEvidenceSubmission ? "本轮材料审核结果" : "Agent 审查结果";
   const leadingLine = isMissingAsk
     ? "当前缺口如下。"
     : isEvidenceSubmission
@@ -277,6 +278,7 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
       : "",
     gaps.length ? `关键缺口：${Array.from(new Set(gaps)).slice(0, 5).join("；")}。` : "暂未发现新的 blocking gap，但仍需以案卷详情为准。",
     questions.length ? `下一步建议：${questions.slice(0, 4).join("；")}。` : "",
+    readyForMemo ? "当前 blocking evidence 已满足，控制矩阵已通过。你可以点击“生成审查 memo”，让我基于本案卷生成最终 reviewer memo / submission package。" : "",
     "No ERP write action was executed."
   ].filter(Boolean);
 

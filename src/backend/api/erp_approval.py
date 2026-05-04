@@ -227,6 +227,14 @@ async def get_erp_approval_case_dossier(case_id: str) -> Response:
     return Response(content=dossier, media_type="text/markdown; charset=utf-8")
 
 
+@router.get("/erp-approval/cases/{case_id}/conversation")
+async def get_erp_approval_case_conversation(case_id: str, limit: int = Query(default=200, ge=0, le=1000)) -> list[dict]:
+    state = _case_harness().get_case(case_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="ERP approval case not found")
+    return _case_harness().get_conversation(case_id, limit=limit)
+
+
 @router.get("/erp-approval/connectors/config")
 async def get_erp_approval_connector_config() -> dict:
     config = load_erp_connector_config_from_env()

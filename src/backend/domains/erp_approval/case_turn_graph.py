@@ -1163,7 +1163,70 @@ def respond_to_user_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         operation_scope=operation_scope,
         non_action_statement=CASE_HARNESS_NON_ACTION_STATEMENT,
     )
+    _append_conversation_turn(state, response)
     return {**state, "response": response, "graph_steps": _steps(state, "respond_to_user")}
+
+
+def _append_conversation_turn(state: CaseTurnGraphState, response: CaseTurnResponse) -> None:
+    case_state = response.case_state
+    request = state["request"]
+    now = state["now"]
+    turn_id = state["turn_id"]
+    if state.get("existing_state") is None and response.operation_scope == "read_only_case_turn":
+        return
+    user_content = request.user_message.strip()
+    if user_content:
+        state["harness"].store.append_conversation_message(
+            case_state.case_id,
+            {
+                "turn_id": turn_id,
+                "role": "user",
+                "content": user_content,
+                "created_at": now,
+                "case_id": case_state.case_id,
+                "extra_evidence_count": len(request.extra_evidence),
+                "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+            },
+        )
+    state["harness"].store.append_conversation_message(
+        case_state.case_id,
+        {
+            "turn_id": turn_id,
+            "role": "agent",
+            "content": _conversation_reply_text(response),
+            "created_at": now,
+            "case_id": case_state.case_id,
+            "patch_type": response.patch.patch_type,
+            "turn_intent": response.patch.turn_intent,
+            "stage": case_state.stage,
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        },
+    )
+
+
+def _conversation_reply_text(response: CaseTurnResponse) -> str:
+    patch = response.patch
+    state = response.case_state
+    review = response.review
+    lines: list[str] = []
+    if patch.accepted_evidence:
+        lines.append("本轮材料已写入案卷：" + "、".join(item.title or item.source_id for item in patch.accepted_evidence))
+    if patch.rejected_evidence:
+        lines.append("本轮材料未通过：" + "、".join(item.title or item.source_id for item in patch.rejected_evidence))
+    if patch.rejection_reasons:
+        lines.append("退回原因：" + "；".join(patch.rejection_reasons[:5]))
+    if state.stage == "ready_for_final_review":
+        lines.append("所有当前 blocking evidence 已满足。是否生成最终 reviewer memo / submission package？")
+    elif state.missing_items:
+        lines.append("当前仍缺：" + "；".join(state.missing_items[:6]))
+    else:
+        gaps = review.evidence_sufficiency.get("blocking_gaps") or []
+        if gaps:
+            lines.append("当前仍缺：" + "；".join(str(item) for item in gaps[:6]))
+    if not lines:
+        lines.append(review.reviewer_memo[:800] if review.reviewer_memo else "本轮已处理。")
+    lines.append("No ERP write action was executed.")
+    return "\n\n".join(lines)
 
 
 def _route_version_conflict(state: CaseTurnGraphState) -> str:

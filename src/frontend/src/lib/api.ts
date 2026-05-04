@@ -1150,6 +1150,11 @@ export async function applyErpApprovalCaseTurn(payload: ErpApprovalCaseTurnReque
   }, 300000);
 }
 
+export async function getErpApprovalCaseConversation(caseId: string, limit = 200) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return request<Array<Record<string, unknown>>>(`/erp-approval/cases/${encodeURIComponent(caseId)}/conversation?${params}`);
+}
+
 export async function getErpApprovalConnectorHealth() {
   return request<ErpConnectorHealthSummary>("/erp-approval/connectors/health");
 }

@@ -88,6 +88,27 @@ class CaseMemoryStore:
                 continue
         return events[-limit:]
 
+    def append_conversation_message(self, case_id: str, message: dict) -> None:
+        path = self.case_dir(case_id) / "conversation.jsonl"
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(message, ensure_ascii=False, sort_keys=True) + "\n")
+
+    def read_conversation_messages(self, case_id: str, limit: int = 200) -> list[dict]:
+        path = self.case_dir(case_id) / "conversation.jsonl"
+        if not path.exists():
+            return []
+        messages: list[dict] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                parsed = json.loads(line)
+                if isinstance(parsed, dict):
+                    messages.append(parsed)
+            except Exception:
+                continue
+        return messages[-limit:]
+
     def write_dossier(self, case_id: str, dossier: str) -> None:
         _atomic_write_text(self.case_dir(case_id).joinpath("dossier.md"), dossier)
 
@@ -118,6 +139,7 @@ class CaseMemoryStore:
             "case_state": str(case_dir / "case_state.json"),
             "dossier": str(case_dir / "dossier.md"),
             "audit_log": str(case_dir / "audit_log.jsonl"),
+            "conversation": str(case_dir / "conversation.jsonl"),
             "evidence_dir": str(case_dir / "evidence"),
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         }
