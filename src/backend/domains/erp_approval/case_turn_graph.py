@@ -89,6 +89,7 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "append_audit_only",
     "persist_case_state_dossier_audit",
     "reject_patch_explain",
+    "llm_user_response_writer",
     "respond_to_user",
 )
 
@@ -130,6 +131,7 @@ class CaseTurnGraphState(TypedDict, total=False):
     stage_model_role_outputs: dict[str, dict[str, Any]]
     stage_model_role_errors: dict[str, str]
     p2p_llm_explanations: dict[str, Any]
+    reply_purpose: str
 
 
 @lru_cache(maxsize=1)
@@ -189,6 +191,7 @@ def compile_case_turn_graph():
         "append_audit_only": append_audit_only_node,
         "persist_case_state_dossier_audit": persist_case_state_dossier_audit_node,
         "reject_patch_explain": reject_patch_explain_node,
+        "llm_user_response_writer": llm_user_response_writer_node,
         "respond_to_user": respond_to_user_node,
     }
     for node_name in CASE_TURN_GRAPH_NODES:
@@ -287,9 +290,10 @@ def compile_case_turn_graph():
         {"valid": "persist_case_state_dossier_audit", "invalid": "reject_patch_explain"},
     )
     graph.add_edge("read_only_case_response", "append_audit_only")
-    graph.add_edge("append_audit_only", "respond_to_user")
-    graph.add_edge("persist_case_state_dossier_audit", "respond_to_user")
-    graph.add_edge("reject_patch_explain", "respond_to_user")
+    graph.add_edge("append_audit_only", "llm_user_response_writer")
+    graph.add_edge("persist_case_state_dossier_audit", "llm_user_response_writer")
+    graph.add_edge("reject_patch_explain", "llm_user_response_writer")
+    graph.add_edge("llm_user_response_writer", "respond_to_user")
     graph.add_edge("respond_to_user", END)
     return graph.compile()
 
@@ -500,17 +504,12 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     }
     model_review["case_checklist"] = _build_case_checklist_model_review(state, review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        review,
-        purpose="materials_advisor",
-    )
     return {
         **state,
         "review": review,
         "provisional_review": review,
         "patch": patch,
+        "reply_purpose": "materials_advisor",
         "graph_steps": _steps(state, "materials_guidance_node"),
     }
 
@@ -566,13 +565,14 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     }
     model_review["case_checklist"] = _build_case_checklist_model_review(state, review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        review,
-        purpose="missing_items_advisor",
-    )
-    return {**state, "review": review, "provisional_review": review, "patch": patch, "graph_steps": _steps(state, "case_status_summary_node")}
+    return {
+        **state,
+        "review": review,
+        "provisional_review": review,
+        "patch": patch,
+        "reply_purpose": "missing_items_advisor",
+        "graph_steps": _steps(state, "case_status_summary_node"),
+    }
 
 
 def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
@@ -625,17 +625,12 @@ def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState
         "rendered": str(model_output.get("rendered") or "").strip(),
     }
     patch = patch.model_copy(update={"model_review": model_review})
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        review,
-        purpose="policy_failure_explainer",
-    )
     return {
         **state,
         "review": review,
         "provisional_review": review,
         "patch": patch,
+        "reply_purpose": "policy_failure_explainer",
         "graph_steps": _steps(state, "policy_failure_explain_node"),
     }
 
@@ -701,17 +696,12 @@ def recompute_case_analysis_node(state: CaseTurnGraphState) -> CaseTurnGraphStat
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         }
     patch = patch.model_copy(update={"model_review": model_review})
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        review,
-        purpose="reviewer_return_rework",
-    )
     return {
         **state,
         "review": review,
         "provisional_review": review,
         "patch": patch,
+        "reply_purpose": "reviewer_return_rework",
         "graph_steps": _steps(state, "recompute_case_analysis"),
     }
 
@@ -1031,12 +1021,6 @@ def propose_case_patch_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         context_pack=state.get("context_pack") or {},
     )
     patch = patch.model_copy(update={"model_review": model_review})
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        final_review,
-        purpose="case_supervisor_reply",
-    )
     return {
         **state,
         "intent": intent,
@@ -1045,6 +1029,7 @@ def propose_case_patch_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         "warnings": warnings,
         "review": final_review,
         "patch": patch,
+        "reply_purpose": _infer_reply_purpose({**state, "intent": intent, "patch": patch, "review": final_review}),
         "graph_steps": _steps(state, "propose_case_patch"),
     }
 
@@ -1075,14 +1060,8 @@ def read_only_case_response_node(state: CaseTurnGraphState) -> CaseTurnGraphStat
             created_new=False,
             model_decision=None,
             model_error=state.get("model_error", ""),
-        )
-    patch = harness.validator.validate(state["case_state"], patch, state["contract"], review=review)
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        review,
-        purpose="read_only_case_advisor",
     )
+    patch = harness.validator.validate(state["case_state"], patch, state["contract"], review=review)
     dossier = harness.store.read_dossier(state["case_state"].case_id) or render_case_dossier(state["case_state"], review, patch)
     return {
         **state,
@@ -1090,6 +1069,7 @@ def read_only_case_response_node(state: CaseTurnGraphState) -> CaseTurnGraphStat
         "patch": patch,
         "dossier": dossier,
         "read_only_turn": True,
+        "reply_purpose": state.get("reply_purpose") or _infer_reply_purpose({**state, "patch": patch, "review": review, "read_only_turn": True}),
         "graph_steps": _steps(state, "read_only_case_response"),
     }
 
@@ -1220,12 +1200,6 @@ def reject_patch_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     patch = state["patch"]
     events = list(state.get("audit_events", []))
     events.append(_event(state["turn_id"], case_state.case_id, "case_patch_rejected", state["now"], {"warnings": patch.warnings, "allowed_to_apply": patch.allowed_to_apply}))
-    patch = _attach_agent_reply(
-        state,
-        patch,
-        review,
-        purpose="rejection_explainer",
-    )
     dossier = harness.store.read_dossier(case_state.case_id) or render_case_dossier(case_state, review, patch)
     for event in events:
         harness.store.append_audit_event(event)
@@ -1235,7 +1209,30 @@ def reject_patch_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         "patch": patch,
         "dossier": dossier,
         "audit_events": events,
+        "reply_purpose": "rejection_explainer",
         "graph_steps": _steps(state, "reject_patch_explain"),
+    }
+
+
+def llm_user_response_writer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    """Generate the single user-visible business reply as an explicit graph step."""
+
+    review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch=state.get("branch", "ask_status"))
+    patch = state["patch"]
+    purpose = state.get("reply_purpose") or _infer_reply_purpose(state)
+    patch = _attach_agent_reply(state, patch, review, purpose=purpose)
+    model_review = dict(patch.model_review or {})
+    reply = dict(model_review.get("agent_reply") or {})
+    reply["writer_graph_node"] = "llm_user_response_writer"
+    reply["writer_graph_step_visible"] = True
+    model_review["agent_reply"] = reply
+    patch = patch.model_copy(update={"model_review": model_review})
+    return {
+        **state,
+        "review": review,
+        "patch": patch,
+        "reply_purpose": purpose,
+        "graph_steps": _steps(state, "llm_user_response_writer"),
     }
 
 
@@ -1727,6 +1724,28 @@ def _attach_agent_reply(
     return patch.model_copy(update={"model_review": model_review})
 
 
+def _infer_reply_purpose(state: CaseTurnGraphState) -> str:
+    intent = _canonical_intent(str(state.get("intent", "") or ""))
+    patch = state.get("patch")
+    if patch is not None and not patch.allowed_to_apply:
+        return "rejection_explainer"
+    if state.get("conflict"):
+        return "rejection_explainer"
+    if intent in {"ask_how_to_prepare", "ask_required_materials", "create_case"}:
+        return "materials_advisor"
+    if intent in {"ask_missing_requirements", "ask_status"}:
+        return "missing_items_advisor"
+    if intent == "ask_policy_failure":
+        return "policy_failure_explainer"
+    if intent in {"request_final_review", "request_final_memo"}:
+        return "final_memo"
+    if intent in {"correct_previous_evidence", "withdraw_evidence"}:
+        return "reviewer_return_rework"
+    if intent == "off_topic":
+        return "read_only_case_advisor"
+    return "case_supervisor_reply"
+
+
 def _agent_reply_title(purpose: str) -> str:
     titles = {
         "materials_advisor": "材料准备建议",
@@ -1735,6 +1754,8 @@ def _agent_reply_title(purpose: str) -> str:
         "case_supervisor_reply": "审批资料专员",
         "read_only_case_advisor": "审批资料专员",
         "rejection_explainer": "材料未写入案卷",
+        "reviewer_return_rework": "案卷复核意见",
+        "final_memo": "Reviewer memo",
     }
     return titles.get(purpose, "审批资料专员")
 

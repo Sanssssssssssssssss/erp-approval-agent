@@ -58,6 +58,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             steps = response["harness_run"]["graph_steps"]
 
             self.assertIn("off_topic_reject_node", steps)
+            self.assertIn("llm_user_response_writer", steps)
             self.assertNotIn("route_evidence_type", steps)
             self.assertNotIn("purchase_requisition_review_subgraph", steps)
             self.assertEqual(response["case_state"]["accepted_evidence"], [])
@@ -77,6 +78,9 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertEqual(response["operation_scope"], "read_only_case_turn")
             self.assertIn("read_only_case_response", steps)
             self.assertIn("append_audit_only", steps)
+            self.assertIn("llm_user_response_writer", steps)
+            self.assertLess(steps.index("append_audit_only"), steps.index("llm_user_response_writer"))
+            self.assertLess(steps.index("llm_user_response_writer"), steps.index("respond_to_user"))
             self.assertNotIn("persist_case_state_dossier_audit", steps)
             self.assertEqual(response["case_state"]["dossier_version"], created["case_state"]["dossier_version"])
 
@@ -149,6 +153,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertEqual(response["operation_scope"], "read_only_case_turn")
             self.assertIn("materials_guidance_node", response["harness_run"]["graph_steps"])
+            self.assertIn("llm_user_response_writer", response["harness_run"]["graph_steps"])
             self.assertIn("policy_rag", response["patch"]["model_review"])
             self.assertTrue(response["patch"]["model_review"]["policy_rag"]["guidance"]["items"])
             self.assertFalse(Path(response["storage_paths"]["case_state"]).exists())
@@ -178,6 +183,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertEqual(response.patch.turn_intent, "ask_how_to_prepare")
             self.assertEqual(response.patch.patch_type, "answer_status")
             self.assertIn("materials_guidance_node", graph_state["graph_steps"])
+            self.assertIn("llm_user_response_writer", graph_state["graph_steps"])
             self.assertNotIn("persist_case_state_dossier_audit", graph_state["graph_steps"])
             self.assertTrue(model_review["used"])
             self.assertTrue(model_review["policy_rag"]["used"])
@@ -202,6 +208,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertEqual(response["patch"]["turn_intent"], "ask_how_to_prepare")
             self.assertEqual(response["patch"]["patch_type"], "answer_status")
             self.assertIn("materials_guidance_node", response["harness_run"]["graph_steps"])
+            self.assertIn("llm_user_response_writer", response["harness_run"]["graph_steps"])
             self.assertNotIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
             self.assertIn("policy_rag", response["patch"]["model_review"])
             rendered = response["patch"]["model_review"]["policy_rag"]["rendered_guidance"]
@@ -234,6 +241,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("build_candidate_evidence", steps)
             self.assertIn("route_evidence_type", steps)
             self.assertIn("purchase_requisition_review_subgraph", steps)
+            self.assertIn("llm_user_response_writer", steps)
             self.assertNotEqual(response["operation_scope"], "read_only_case_turn")
 
     def test_rejected_evidence_records_policy_failures_and_can_explain_them(self) -> None:
@@ -393,6 +401,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("llm_turn_classifier", graph_state["graph_steps"])
             self.assertIn("llm_reviewer_memo", graph_state["graph_steps"])
             self.assertIn("aggregate_llm_stage_outputs", graph_state["graph_steps"])
+            self.assertIn("llm_user_response_writer", graph_state["graph_steps"])
             self.assertIn(graph_state["response"].patch.patch_type, {"accept_evidence", "reject_evidence", "answer_status"})
             self.assertIn("No ERP write action was executed", graph_state["response"].non_action_statement)
 
@@ -434,6 +443,8 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("policy_interpreter", model_review["role_outputs"])
             self.assertIn("contradiction_reviewer", model_review["role_outputs"])
             self.assertIn("reviewer_memo", model_review["role_outputs"])
+            self.assertIn("llm_user_response_writer", graph_state["graph_steps"])
+            self.assertEqual(model_review["agent_reply"]["writer_graph_node"], "llm_user_response_writer")
 
 
 if __name__ == "__main__":

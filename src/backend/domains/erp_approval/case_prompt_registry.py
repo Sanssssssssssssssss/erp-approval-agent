@@ -92,7 +92,7 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
     ),
     "llm_user_response_writer": CasePromptSpec(
         prompt_id="llm_user_response_writer",
-        node_id="respond_to_user",
+        node_id="llm_user_response_writer",
         label="LLM User Response Writer",
         category="reply",
         description=(
@@ -118,7 +118,7 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
     ),
     "agent_reply": CasePromptSpec(
         prompt_id="agent_reply",
-        node_id="respond_to_user",
+        node_id="llm_user_response_writer",
         label="最终用户回复",
         category="reply",
         description="每轮最终展示给用户的主回复。它必须像审批资料专员，不是后端模板。",

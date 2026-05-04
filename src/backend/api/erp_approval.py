@@ -806,9 +806,10 @@ def _case_graph_edges() -> list[dict[str, str]]:
         ("route_patch_validity", "persist_case_state_dossier_audit", "valid"),
         ("route_patch_validity", "reject_patch_explain", "invalid"),
         ("read_only_case_response", "append_audit_only", ""),
-        ("append_audit_only", "respond_to_user", ""),
-        ("persist_case_state_dossier_audit", "respond_to_user", ""),
-        ("reject_patch_explain", "respond_to_user", ""),
+        ("append_audit_only", "llm_user_response_writer", ""),
+        ("persist_case_state_dossier_audit", "llm_user_response_writer", ""),
+        ("reject_patch_explain", "llm_user_response_writer", ""),
+        ("llm_user_response_writer", "respond_to_user", ""),
     ]
     return [{"from": source, "to": target, "label": label} for source, target, label in raw_edges]
 
