@@ -225,6 +225,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
     def test_stage_model_runs_distinct_roles_and_records_role_outputs(self) -> None:
         role_outputs = [
             '{"turn_intent":"create_case","patch_type":"create_case","warnings":[],"confidence":0.7}',
+            '{"need_rag":true,"rewritten_queries":["purchase requisition required evidence policy"],"query_hints":["purchase_requisition"],"confidence":0.7}',
             '{"rendered_guidance":"本地模型材料清单占位。","warnings":[],"confidence":0.7}',
             '{"turn_intent":"submit_evidence","patch_type":"accept_evidence","warnings":[],"confidence":0.7}',
             '{"evidence_decision":"accepted","accepted_source_ids":["local_evidence://quote/pr-roles/turn-0002-1"],"requirements_satisfied":["purchase_requisition:quote_or_price_basis"],"warnings":[],"confidence":0.8}',
@@ -251,7 +252,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(len(model.messages), 7)
+            self.assertEqual(len(model.messages), 8)
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertIn("turn_classifier", response.patch.model_review["role_outputs"])
             self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])

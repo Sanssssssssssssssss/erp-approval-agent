@@ -195,8 +195,13 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const renderedFailureAnswer = text(policyFailureAnswer.rendered, "");
   const renderedMissingAnswer = text(missingAnswer.rendered, "");
   if (renderedGuidance) {
+    const policyRagMeta = policyRag.model_used
+      ? "模型+政策RAG"
+      : policyRag.used
+        ? "政策RAG检索"
+        : "政策/RAG fallback";
     return makeMessage("agent", renderedGuidance, "材料准备清单", [
-      policyRag.used ? "模型+政策/RAG" : "政策/RAG fallback",
+      policyRagMeta,
       response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
     ]);
   }

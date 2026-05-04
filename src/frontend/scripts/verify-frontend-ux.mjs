@@ -11,55 +11,66 @@ const REQUEST_TEXT =
 const QUOTE_FILE = [
   "Quote Q-PR-UX-001",
   "Supplier: Acme Supplies",
-  "Amount: USD 24,500",
-  "Purpose: replacement laptops",
+  "Amount: USD 24500",
+  "Item: replacement laptops",
+  "Price basis: preferred supplier quote",
   "This is fictional local text evidence for UI verification only."
 ].join("\n");
+
+function fail(message) {
+  throw new Error(message);
+}
 
 async function ensureVisible(locator, label, timeout = 30000) {
   await locator.waitFor({ state: "visible", timeout });
   if (!(await locator.isVisible())) {
-    throw new Error(`${label} is not visible`);
+    fail(`${label} is not visible`);
   }
 }
 
 async function ensureAtLeast(page, selector, minimum, label) {
   const count = await page.locator(selector).count();
   if (count < minimum) {
-    throw new Error(`${label} expected at least ${minimum}, got ${count}`);
+    fail(`${label} expected at least ${minimum}, got ${count}`);
   }
 }
 
-async function hasHorizontalOverflow(page) {
+async function horizontalOverflow(page) {
   return page.evaluate(() => {
     const viewportWidth = document.documentElement.clientWidth;
     const bodyOverflow = document.body.scrollWidth - viewportWidth;
     const docOverflow = document.documentElement.scrollWidth - viewportWidth;
-    return Math.max(bodyOverflow, docOverflow) > 4;
+    return Math.max(bodyOverflow, docOverflow);
   });
+}
+
+function noWriteStatement(payload) {
+  return String(payload.non_action_statement || payload.review?.non_action_statement || "");
 }
 
 async function submitCaseTurn(page, label) {
   const responsePromise = page.waitForResponse(
     (response) => response.url().includes("/erp-approval/cases/turn") && response.status() === 200,
-    { timeout: 120000 }
+    { timeout: 300000 }
   );
-  await page.locator("button.ui-button-primary").click();
+  const submitButton = page.locator(".case-agent-composer-actions button.ui-button-primary");
+  await ensureVisible(submitButton, `${label} submit button`);
+  await submitButton.click();
   const response = await responsePromise;
   const payload = await response.json();
-  await page.locator("button.ui-button-primary").waitFor({ state: "visible", timeout: 30000 });
-  if (!payload?.review?.recommendation) {
-    throw new Error(`${label} did not return a structured recommendation`);
+  await page.locator(".case-agent-message-agent").last().waitFor({ state: "visible", timeout: 30000 });
+  if (!payload?.review?.recommendation?.status) {
+    fail(`${label} did not return a structured recommendation`);
   }
-  if (!String(payload.non_action_statement || payload.review?.non_action_statement || "").includes("No ERP write action was executed")) {
-    throw new Error(`${label} missed the no-ERP-write boundary`);
+  if (!noWriteStatement(payload).includes("No ERP write action was executed")) {
+    fail(`${label} missed the no-ERP-write boundary`);
   }
   return payload;
 }
 
 async function scrollMainPanel(page) {
   await page.evaluate(() => {
-    const candidates = Array.from(document.querySelectorAll(".case-review-output, .overflow-y-auto, main"));
+    const candidates = Array.from(document.querySelectorAll(".case-agent-chat, .case-agent-side, main"));
     const scrollable = candidates.find((node) => node.scrollHeight > node.clientHeight + 8);
     if (scrollable) {
       scrollable.scrollTop = Math.min(scrollable.scrollHeight, scrollable.scrollTop + 900);
@@ -99,45 +110,58 @@ async function main() {
 
   try {
     await page.goto(uiBaseUrl, { waitUntil: "networkidle", timeout: 90000 });
-    await ensureVisible(page.locator(".case-review-page"), "case workspace");
-    await ensureVisible(page.locator(".case-review-empty"), "empty case state");
-    await ensureAtLeast(page, ".case-input-group", 3, "left input groups");
-    await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "01-empty-grouped-workspace.png") });
+    await ensureVisible(page.locator(".case-agent-page"), "case agent workspace");
+    await ensureVisible(page.locator(".case-agent-main"), "case agent main panel");
+    await ensureVisible(page.locator(".case-agent-side-empty"), "empty side panel");
+    await ensureVisible(page.locator(".case-agent-composer"), "case composer");
+    await ensureAtLeast(page, ".case-agent-message", 1, "initial chat messages");
+    await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "01-empty-agent-workspace.png") });
 
-    await page.locator("textarea").first().fill(REQUEST_TEXT);
+    await page.locator(".case-agent-composer > textarea").fill(REQUEST_TEXT);
     await page.locator("input[type='file']").setInputFiles(evidencePath);
+    await ensureVisible(page.locator(".case-agent-evidence-queue"), "queued file evidence");
     const payload = await submitCaseTurn(page, "case workspace turn");
+    if (!payload.case_state?.case_id) {
+      fail("case workspace turn did not create a case state");
+    }
     if (payload.review.recommendation.status === "recommend_approve") {
-      throw new Error("initial grouped workspace turn recommended approval without enough evidence");
+      fail("initial workspace turn recommended approval without a full evidence set");
     }
 
-    await ensureVisible(page.locator(".case-state-machine"), "case state machine");
-    await ensureVisible(page.locator(".case-review-hero"), "case review conclusion");
-    await ensureVisible(page.locator(".case-checklist").first(), "required evidence checklist");
-    await ensureVisible(page.locator(".case-review-memo"), "reviewer memo");
-    await ensureAtLeast(page, ".case-workspace-group", 3, "right workspace groups");
+    await ensureVisible(page.locator(".case-agent-side-section").first(), "case side details");
+    await ensureVisible(page.locator(".case-agent-progress"), "evidence completeness progress");
+    await ensureAtLeast(page, ".case-agent-message", 3, "chat messages after first turn");
     await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "02-case-workspace-desktop.png") });
 
     await scrollMainPanel(page);
     await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "03-case-workspace-scrolled.png") });
 
-    await page.locator(".workspace-tab").nth(1).click();
-    await page.waitForTimeout(500);
-    await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "04-case-workspace-trace.png") });
+    for (const [index, name] of [
+      [1, "04-case-workspace-trace.png"],
+      [2, "05-case-workspace-assets.png"],
+      [3, "06-case-workspace-insights.png"]
+    ]) {
+      await page.locator(".workspace-tab").nth(index).click();
+      await page.waitForTimeout(700);
+      await page.screenshot({ fullPage: true, path: path.join(screenshotDir, name) });
+    }
 
-    await page.locator(".workspace-tab").nth(0).click();
+    await page.locator(".workspace-tab").first().click();
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(500);
-    await ensureVisible(page.locator(".case-review-page"), "mobile case workspace");
-    await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "05-case-workspace-mobile.png") });
+    await ensureVisible(page.locator(".case-agent-page"), "mobile case workspace");
+    await page.screenshot({ fullPage: true, path: path.join(screenshotDir, "07-case-workspace-mobile.png") });
 
+    const overflow = await horizontalOverflow(page);
     const verification = {
-      pass: !(await hasHorizontalOverflow(page)) && consoleErrors.length === 0 && pageErrors.length === 0 && failedRequests.length === 0,
+      pass: overflow <= 4 && consoleErrors.length === 0 && pageErrors.length === 0 && failedRequests.length === 0,
       screenshots: screenshotDir,
-      horizontalOverflow: await hasHorizontalOverflow(page),
+      horizontalOverflow: overflow,
       consoleErrors,
       pageErrors,
-      failedRequests
+      failedRequests,
+      case_id: payload.case_state.case_id,
+      status: payload.review.recommendation.status
     };
     console.log(JSON.stringify(verification, null, 2));
     if (!verification.pass) {

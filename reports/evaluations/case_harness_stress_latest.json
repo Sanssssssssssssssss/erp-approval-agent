@@ -7,7 +7,7 @@
     "critical": 0,
     "major": 0,
     "minor": 0,
-    "usability_notes": 32,
+    "usability_notes": 43,
     "failures_by_stage": {},
     "failed_categories": {},
     "recommend_approve_turns": 3,
@@ -228,12 +228,14 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
             "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
         "已到 ready_for_final_review，但 UI 仍应强调这是 reviewer memo，不是 ERP 执行。"
       ]
     },
@@ -292,13 +294,15 @@
           "next_question_count": 0,
           "failures": [],
           "usability_notes": [
-            "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。"
+            "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。",
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
           ]
         }
       ],
       "failures": [],
       "usability_notes": [
-        "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。"
+        "未通过时缺少足够清楚的 blocking gaps / next questions，用户可能不知道下一步交什么。",
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
       ]
     },
     {
@@ -455,11 +459,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-013",
@@ -536,11 +544,15 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-015",
@@ -564,7 +576,9 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         },
         {
           "turn_index": 2,
@@ -589,6 +603,7 @@
       ],
       "failures": [],
       "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。",
         "本轮 patch 产生 warnings：审批请求记录：必须有可追溯的 ERP 审批请求或等价案件记录。; 报销申请：需要报销申请记录。; 业务目的：需要明确业务目的。"
       ]
     },
@@ -777,11 +792,15 @@
           "blocking_gap_count": 10,
           "next_question_count": 9,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-fuzz-003",
@@ -833,11 +852,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-fuzz-005",
@@ -1065,11 +1088,15 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-fuzz-013",
@@ -1301,11 +1328,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-fuzz-021",
@@ -1661,11 +1692,15 @@
           "blocking_gap_count": 8,
           "next_question_count": 8,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-fuzz-033",
@@ -2009,11 +2044,15 @@
           "blocking_gap_count": 2,
           "next_question_count": 2,
           "failures": [],
-          "usability_notes": []
+          "usability_notes": [
+            "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+          ]
         }
       ],
       "failures": [],
-      "usability_notes": []
+      "usability_notes": [
+        "本轮 patch 产生 warnings：本轮 patch 文本含有类似执行动作的措辞，已按非执行审查文本保留，不会触发任何 ERP 写入。"
+      ]
     },
     {
       "scenario_id": "stress-fuzz-045",

@@ -179,6 +179,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertEqual(response["operation_scope"], "read_only_case_turn")
             self.assertEqual(response["patch"]["turn_intent"], "ask_how_to_prepare")
+            self.assertEqual(response["patch"]["patch_type"], "answer_status")
             self.assertIn("materials_guidance_node", response["harness_run"]["graph_steps"])
             self.assertNotIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
             self.assertIn("policy_rag", response["patch"]["model_review"])

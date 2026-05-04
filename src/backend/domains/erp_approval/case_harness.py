@@ -108,6 +108,7 @@ class CaseHarness:
         request_data = dict(state.request or {})
         request_data["user_message"] = state.source_request or user_message
         request_data["extra_evidence"] = [item.model_dump() for item in evidence]
+        request_data["include_mock_context"] = True
         return run_local_case_review(CaseReviewRequest.model_validate(request_data), base_dir=self.base_dir)
 
     def _review_with_stage_model(
@@ -397,6 +398,30 @@ def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool)
 
 
 def _asks_how_to_prepare(text: str) -> bool:
+    normalized = str(text or "").lower()
+    readable_terms = (
+        "需要准备",
+        "需要哪些材料",
+        "必须提交哪些材料",
+        "先告诉我必须提交",
+        "请先告诉我必须提交",
+        "准备什么材料",
+        "需要什么材料",
+        "哪些材料",
+        "什么材料",
+        "交什么材料",
+        "需要交什么证明",
+        "什么证明",
+        "材料清单",
+        "必备材料",
+        "required material",
+        "required materials",
+        "required evidence",
+        "what materials",
+        "materials are required",
+    )
+    if any(term in normalized for term in readable_terms) or ("需要" in normalized and "材料" in normalized):
+        return True
     return any(
         term in text
         for term in (
@@ -410,6 +435,8 @@ def _asks_how_to_prepare(text: str) -> bool:
             "哪些材料",
             "什么材料",
             "交什么材料",
+            "需要交什么证明",
+            "什么证明",
             "材料清单",
             "必备材料",
             "required material",

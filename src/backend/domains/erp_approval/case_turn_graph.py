@@ -36,6 +36,7 @@ from src.backend.domains.erp_approval.policy_guidance import (
     render_materials_guidance,
     render_policy_failures,
 )
+from src.backend.domains.erp_approval.policy_rag import build_policy_rag_context, render_policy_rag_evidence_block
 
 CASE_TURN_GRAPH_NAME = "erp_approval_dynamic_case_turn_graph"
 CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
@@ -228,7 +229,7 @@ def compile_case_turn_graph():
     graph.add_conditional_edges(
         "materials_guidance_node",
         _route_guidance_persistence,
-        {"mutable": "propose_case_patch", "read_only": "read_only_case_response"},
+        {"mutable": "validate_case_patch", "read_only": "read_only_case_response"},
     )
     graph.add_edge("case_status_summary_node", "read_only_case_response")
     graph.add_edge("policy_failure_explain_node", "read_only_case_response")
@@ -446,21 +447,30 @@ def route_turn_intent_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_how_to_prepare")
     guidance = build_policy_guidance(state["case_state"])
+    rag_context = build_policy_rag_context(
+        base_dir=state["harness"].base_dir,
+        state=state["case_state"],
+        user_message=state["request"].user_message,
+        purpose="materials_guidance",
+        stage_model=state["harness"].stage_model,
+    )
     model_output = _run_custom_stage_model_role(
         state,
         role_name="policy_guidance",
         system_prompt=(
             "Role: policy/RAG materials guidance specialist. Use the local requirement matrix and policy guidance payload "
-            "to decide what materials the user must prepare. Return JSON only: "
+            "plus retrieved policy evidence to decide what materials the user must prepare. Return JSON only: "
             '{"rendered_guidance":"中文材料清单，逐项包含材料、blocking、制度条款、可接受证据、不接受证据、下一步",'
             '"warnings":[],"confidence":0.0,"non_action_statement":"This is a local approval case state update. No ERP write action was executed."} '
-            "Do not create a case, do not make an approval recommendation, and do not execute ERP actions."
+            "Ground policy clauses in policy_rag.evidences when available. Do not create a case, do not make an approval recommendation, and do not execute ERP actions."
         ),
         payload={
             "turn_intent": state.get("intent", "ask_how_to_prepare"),
             "user_message": state["request"].user_message,
             "case_summary": (state.get("context_pack") or {}).get("case_summary", {}),
             "policy_guidance": guidance,
+            "policy_rag": rag_context.to_dict(),
+            "policy_rag_evidence_block": render_policy_rag_evidence_block(rag_context),
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         },
     )
@@ -478,11 +488,15 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         model_error="",
     )
     model_review = dict(patch.model_review or {})
-    model_review["used"] = bool(model_output.get("used"))
+    model_review["used"] = bool(model_output.get("used") or rag_context.plan.planner_used)
     model_review["policy_rag"] = {
-        "used": bool(model_output.get("used")),
+        "used": bool(rag_context.used),
+        "model_used": bool(model_output.get("used") or rag_context.plan.planner_used),
+        "planner_used": bool(rag_context.plan.planner_used),
         "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
+        "retrieval_status": rag_context.status,
         "guidance": guidance,
+        "retrieval": rag_context.to_dict(),
         "role_output": model_output,
         "rendered_guidance": rendered_guidance,
     }
@@ -498,6 +512,13 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_missing_requirements")
+    rag_context = build_policy_rag_context(
+        base_dir=state["harness"].base_dir,
+        state=state["case_state"],
+        user_message=state["request"].user_message,
+        purpose="missing_requirements",
+        stage_model=state["harness"].stage_model,
+    )
     model_output = _run_custom_stage_model_role(
         state,
         role_name="missing_requirements_answer",
@@ -511,6 +532,8 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
             "case_state": state["case_state"].model_dump(),
             "evidence_sufficiency": review.evidence_sufficiency,
             "control_matrix": review.control_matrix,
+            "policy_rag": rag_context.to_dict(),
+            "policy_rag_evidence_block": render_policy_rag_evidence_block(rag_context),
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         },
     )
@@ -528,10 +551,12 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     )
     fallback_rendered = _render_missing_requirements_answer(state, review)
     model_review = dict(patch.model_review or {})
-    model_review["used"] = bool(model_output.get("used"))
+    model_review["used"] = bool(model_output.get("used") or rag_context.plan.planner_used)
     model_review["missing_requirements_answer"] = {
         "used": bool(model_output.get("used")),
+        "planner_used": bool(rag_context.plan.planner_used),
         "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
+        "policy_rag": rag_context.to_dict(),
         "role_output": model_output,
         "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
     }
@@ -542,6 +567,13 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_policy_failure")
     fallback_rendered = render_policy_failures(state["case_state"].policy_failures)
+    rag_context = build_policy_rag_context(
+        base_dir=state["harness"].base_dir,
+        state=state["case_state"],
+        user_message=state["request"].user_message,
+        purpose="policy_failure_explanation",
+        stage_model=state["harness"].stage_model,
+    )
     model_output = _run_custom_stage_model_role(
         state,
         role_name="policy_failure_explainer",
@@ -554,6 +586,8 @@ def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState
         payload={
             "policy_failures": [item.model_dump() for item in state["case_state"].policy_failures],
             "rejected_evidence": [item.model_dump() for item in state["case_state"].rejected_evidence],
+            "policy_rag": rag_context.to_dict(),
+            "policy_rag_evidence_block": render_policy_rag_evidence_block(rag_context),
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         },
     )
@@ -570,11 +604,13 @@ def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState
         model_error="",
     )
     model_review = dict(patch.model_review or {})
-    model_review["used"] = bool(model_output.get("used"))
+    model_review["used"] = bool(model_output.get("used") or rag_context.plan.planner_used)
     model_review["policy_failures_answer"] = {
         "used": bool(model_output.get("used")),
+        "planner_used": bool(rag_context.plan.planner_used),
         "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
         "source": "case_state.policy_failures",
+        "policy_rag": rag_context.to_dict(),
         "role_output": model_output,
         "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
     }
@@ -1253,13 +1289,15 @@ def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent
         return True
     if deterministic_intent in {"off_topic", "request_final_review"}:
         return False
+    if deterministic_intent == "ask_how_to_prepare":
+        return candidate_intent in {"ask_how_to_prepare", "ask_missing_requirements", "ask_policy_failure", "off_topic"}
     if request.extra_evidence:
         return candidate_intent == "submit_evidence"
     if candidate_intent == "submit_evidence":
         return deterministic_intent == "submit_evidence"
     if candidate_intent == "create_case":
         return state.get("existing_state") is None
-    if candidate_intent in {"ask_missing_requirements", "ask_how_to_prepare", "ask_policy_failure", "off_topic"}:
+    if candidate_intent in {"ask_missing_requirements", "ask_how_to_prepare", "ask_required_materials", "ask_policy_failure", "off_topic"}:
         return True
     return False
 

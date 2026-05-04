@@ -1147,7 +1147,7 @@ export async function applyErpApprovalCaseTurn(payload: ErpApprovalCaseTurnReque
   return request<ErpApprovalCaseTurnResponse>("/erp-approval/cases/turn", {
     method: "POST",
     body: JSON.stringify(payload)
-  }, 60000);
+  }, 300000);
 }
 
 export async function getErpApprovalConnectorHealth() {
