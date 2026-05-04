@@ -136,9 +136,9 @@ function Workspace() {
             <CaseReviewPanel onCaseTurnChange={setCurrentCaseTurn} />
           </div>
           {workspaceView === "trace" ? (
-            <TracePanel />
+            <TracePanel turn={currentCaseTurn} />
           ) : workspaceView === "assets" ? (
-            <AssetsPanel />
+            <AssetsPanel turn={currentCaseTurn} />
           ) : workspaceView === "insights" ? (
             <AdvancedInsightsPanel turn={currentCaseTurn} />
           ) : null}

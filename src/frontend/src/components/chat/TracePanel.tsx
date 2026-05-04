@@ -8,7 +8,10 @@ import { LlmContextLibraryPanel } from "@/components/chat/LlmContextLibraryPanel
 import { RetrievalCard } from "@/components/chat/RetrievalCard";
 import { ThoughtChain } from "@/components/chat/ThoughtChain";
 import { VirtualizedStack } from "@/components/chat/VirtualizedStack";
+import type { ErpApprovalCaseTurnResponse } from "@/lib/api";
 import { useChatStore } from "@/lib/store";
+
+import { displayLabel, list, object, records, text } from "./caseInsightUtils";
 
 const TRACE_ITEM_ESTIMATE = 720;
 
@@ -134,9 +137,94 @@ const TraceTurnCard = memo(function TraceTurnCard({ turn }: { turn: TraceTurn })
   );
 });
 
-export function TracePanel() {
+function CaseTurnTraceSummary({ turn }: { turn: ErpApprovalCaseTurnResponse | null | undefined }) {
+  if (!turn) {
+    return (
+      <div className="pixel-card-soft px-6 py-8">
+        <p className="pixel-label">案件运行轨迹</p>
+        <h3 className="pixel-title mt-3 text-[1rem] text-[var(--color-ink)]">还没有案件 turn</h3>
+        <p className="pixel-note mt-4 max-w-3xl">
+          在“案件工作台”里和 Agent 完成一轮交互后，这里会展示本轮经过的 LangGraph 节点、模型角色和案卷写入事件。
+        </p>
+      </div>
+    );
+  }
+
+  const patch = object(turn.patch);
+  const modelReview = object(patch.model_review);
+  const harnessRun = object(turn.harness_run);
+  const graphSteps = list(harnessRun.graph_steps);
+  const roleOutputs = records(modelReview.stage_model_role_outputs);
+  const auditEvents = records(turn.audit_events);
+
+  return (
+    <div className="trace-scroll-area flex-1 overflow-y-auto pr-2">
+      <section className="pixel-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="pixel-label">案件本轮路径</p>
+            <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">
+              {turn.case_state.approval_id || turn.case_state.case_id}
+            </h3>
+            <p className="pixel-note mt-2">
+              {displayLabel(patch.turn_intent)} / {displayLabel(patch.patch_type)} / 案卷 v{turn.case_state.dossier_version}
+            </p>
+          </div>
+          <span className="pixel-tag">{text(turn.operation_scope, "local case turn")}</span>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="pixel-card-soft p-4">
+            <p className="pixel-label mb-3">LangGraph steps</p>
+            <div className="flex flex-wrap gap-2">
+              {(graphSteps.length ? graphSteps : ["未返回 graph_steps"]).map((step) => (
+                <span className="pixel-tag" key={step}>{step}</span>
+              ))}
+            </div>
+          </section>
+
+          <section className="pixel-card-soft p-4">
+            <p className="pixel-label mb-3">LLM 角色状态</p>
+            {roleOutputs.length ? (
+              <div className="space-y-2">
+                {roleOutputs.map((role, index) => (
+                  <div className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--color-line)] px-3 py-2 text-sm" key={`${text(role.role)}-${index}`}>
+                    <span className="text-[var(--color-ink)]">{text(role.role, "unknown_role")}</span>
+                    <span className="text-[var(--color-ink-muted)]">{text(role.status, "unknown")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--color-ink-soft)]">本轮没有返回 LLM 角色明细。</p>
+            )}
+          </section>
+        </div>
+
+        <section className="pixel-card-soft mt-4 p-4">
+          <p className="pixel-label mb-3">案卷审计事件</p>
+          {auditEvents.length ? (
+            <div className="space-y-2">
+              {auditEvents.slice(0, 24).map((event, index) => (
+                <div className="rounded-[8px] border border-[var(--color-line)] px-3 py-2 text-sm text-[var(--color-ink-soft)]" key={`${text(event.event)}-${index}`}>
+                  <span className="pixel-tag mr-2">{text(event.event, text(event.event_type, "event"))}</span>
+                  <span>{text(event.message, text(event.reason, text(event.turn_intent, "")))}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--color-ink-soft)]">本轮没有返回案卷审计事件。</p>
+          )}
+        </section>
+
+        <p className="mt-4 text-xs text-[var(--color-ink-muted)]">{turn.non_action_statement}</p>
+      </section>
+    </div>
+  );
+}
+
+export function TracePanel({ turn }: { turn?: ErpApprovalCaseTurnResponse | null }) {
   const { messages, streamingMessages, isStreaming } = useChatStore();
-  const [view, setView] = useState<"execution" | "context" | "llm">("context");
+  const [view, setView] = useState<"case" | "execution" | "context" | "llm">("case");
   const turnCacheRef = useRef(
     new Map<
       string,
@@ -206,37 +294,46 @@ export function TracePanel() {
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="pixel-label">审计轨迹</p>
-            <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">模型上下文、运行事件和提示文件</h3>
+            <h3 className="pixel-title mt-2 text-[1rem] text-[var(--color-ink)]">案件运行路径、模型角色和审计事件</h3>
             <p className="pixel-note mt-2 max-w-3xl">
-              这里用于调试 Agent 为什么这么回答：先看“模型可见上下文”，再看“事件轨迹”，最后看进入提示/RAG 的 Markdown 文件。
+              默认展示用户能理解的本轮案卷轨迹；模型上下文和 Markdown 文件保留在调试入口里，需要时再展开。
             </p>
           </div>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
-            className={`pixel-button px-4 py-2 text-sm ${view === "context" ? "is-active" : ""}`}
-            onClick={() => setView("context")}
+            className={`pixel-button px-4 py-2 text-sm ${view === "case" ? "is-active" : ""}`}
+            onClick={() => setView("case")}
             type="button"
           >
-            模型可见上下文
-          </button>
-          <button
-            className={`pixel-button px-4 py-2 text-sm ${view === "llm" ? "is-active" : ""}`}
-            onClick={() => setView("llm")}
-            type="button"
-          >
-            LLM Markdown / 当前上下文
+            案件本轮路径
           </button>
           <button
             className={`pixel-button px-4 py-2 text-sm ${view === "execution" ? "is-active" : ""}`}
             onClick={() => setView("execution")}
             type="button"
           >
-            审计事件轨迹
+            聊天运行事件
+          </button>
+          <button
+            className={`pixel-button px-4 py-2 text-sm ${view === "context" ? "is-active" : ""}`}
+            onClick={() => setView("context")}
+            type="button"
+          >
+            上下文调试
+          </button>
+          <button
+            className={`pixel-button px-4 py-2 text-sm ${view === "llm" ? "is-active" : ""}`}
+            onClick={() => setView("llm")}
+            type="button"
+          >
+            Markdown 调试
           </button>
         </div>
 
-        {view === "llm" ? (
+        {view === "case" ? (
+          <CaseTurnTraceSummary turn={turn} />
+        ) : view === "llm" ? (
           <div className="trace-scroll-area flex-1 overflow-y-auto pr-2">
             <LlmContextLibraryPanel />
           </div>

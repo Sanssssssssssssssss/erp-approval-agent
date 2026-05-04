@@ -132,6 +132,10 @@ function shortHash(input: string) {
   return hash.toString(16).padStart(8, "0");
 }
 
+function makeFrontendCaseId() {
+  return `erp-case:ui-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
 function hasPreparationIntent(message: string) {
   return /需要准备|需要哪些材料|必须提交哪些材料|材料清单|required materials|required evidence|what.*materials/i.test(message);
 }
@@ -297,9 +301,11 @@ function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
 
 function CaseSidePanel({
   turn,
+  isSubmitting,
   onReturnForRework
 }: {
   turn: ErpApprovalCaseTurnResponse | null;
+  isSubmitting: boolean;
   onReturnForRework: (note: string, reviewer: string) => Promise<void>;
 }) {
   const checklist = caseChecklistItems(turn);
@@ -312,8 +318,12 @@ function CaseSidePanel({
       <aside className="case-agent-side">
         <div className="case-empty-state">
           <ShieldCheck size={38} />
-          <h3>等待创建审批案件</h3>
-          <p>像聊天一样描述案件，或先问“需要准备什么材料”。创建后这里会显示缺失材料、已接受证据和案卷 memo。</p>
+          <h3>{isSubmitting ? "Agent 正在创建 / 更新案卷" : "等待创建审批案件"}</h3>
+          <p>
+            {isSubmitting
+              ? "本轮正在经过 HarnessRuntime 和 LangGraph。模型返回后，这里会自动显示材料清单、缺口和案卷状态。"
+              : "像聊天一样描述案件，或先问“需要准备什么材料”。创建后这里会显示缺失材料、已接受证据和案卷 memo。"}
+          </p>
         </div>
       </aside>
     );
@@ -330,6 +340,12 @@ function CaseSidePanel({
           <span className="case-chip">{turn.case_state.turn_count} 轮 / v{turn.case_state.dossier_version}</span>
         </div>
       </div>
+
+      {isSubmitting ? (
+        <div className="case-side-section">
+          <p className="case-muted">Agent 正在处理本轮输入，完成后会刷新材料清单和案卷状态。</p>
+        </div>
+      ) : null}
 
       <ProgressDots turn={turn} />
 
@@ -384,6 +400,7 @@ function CaseSidePanel({
 }
 
 export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn: ErpApprovalCaseTurnResponse | null) => void }) {
+  const [caseIdSeed, setCaseIdSeed] = useState(() => makeFrontendCaseId());
   const [caseTurn, setCaseTurn] = useState<ErpApprovalCaseTurnResponse | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     makeMessage(
@@ -397,6 +414,7 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
   const [queuedEvidence, setQueuedEvidence] = useState<ErpApprovalCaseReviewEvidenceInput[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -415,6 +433,11 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
     ]);
   }
 
+  function clearComposer() {
+    setMessage("");
+    if (composerRef.current) composerRef.current.value = "";
+  }
+
   async function submitTurn(overrideMessage?: string, includeEvidence = true, forcedIntent?: ClientIntent) {
     const outgoing = text(overrideMessage ?? message, "");
     const evidence = includeEvidence ? queuedEvidence : [];
@@ -423,12 +446,12 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
     const intent = forcedIntent ?? inferClientIntent(outgoing, Boolean(caseTurn?.case_state.case_id), evidence.length > 0);
     const displayedUserText = outgoing || `提交 ${evidence.length} 份本地材料`;
     setMessages((current) => [...current, makeMessage("user", displayedUserText)]);
-    setMessage("");
+    clearComposer();
     setIsSubmitting(true);
 
     try {
       const response = await applyErpApprovalCaseTurn({
-        case_id: caseTurn?.case_state.case_id ?? "",
+        case_id: caseTurn?.case_state.case_id ?? caseIdSeed,
         user_message: outgoing || "请审核本轮提交的本地材料。",
         extra_evidence: evidence,
         expected_turn_count: caseTurn?.case_state.turn_count ?? null,
@@ -479,7 +502,7 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
     if (!message.trim()) return;
     const evidence = buildEvidenceInput(message, selectedEvidenceType);
     setQueuedEvidence((current) => [...current, evidence]);
-    setMessage("");
+    clearComposer();
   }
 
   function loadEvidenceTemplate(type: string) {
@@ -488,10 +511,11 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
   }
 
   function startNewCase() {
+    setCaseIdSeed(makeFrontendCaseId());
     setCaseTurn(null);
     onCaseTurnChange?.(null);
     setQueuedEvidence([]);
-    setMessage("");
+    clearComposer();
     setMessages([
       makeMessage(
         "agent",
@@ -584,6 +608,7 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
 
         <div className="case-agent-composer">
           <textarea
+            ref={composerRef}
             className="pixel-textarea"
             onChange={(event) => setMessage(event.target.value)}
             onKeyDown={(event) => {
@@ -620,7 +645,7 @@ export function CaseReviewPanel({ onCaseTurnChange }: { onCaseTurnChange?: (turn
         </div>
       </div>
 
-      <CaseSidePanel onReturnForRework={reviewerReturnForRework} turn={caseTurn} />
+      <CaseSidePanel isSubmitting={isSubmitting} onReturnForRework={reviewerReturnForRework} turn={caseTurn} />
     </section>
   );
 }
