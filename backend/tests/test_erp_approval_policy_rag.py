@@ -31,7 +31,7 @@ class _FakeModel:
 
 
 class ErpApprovalPolicyRagTests(unittest.TestCase):
-    def test_policy_rag_uses_existing_knowledge_index_for_erp_policy(self) -> None:
+    def test_policy_rag_requires_model_planner_before_retrieval(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             base_dir = Path(temp_dir)
             policy_dir = base_dir / "knowledge" / "ERP Approval" / "policies"
@@ -60,11 +60,12 @@ class ErpApprovalPolicyRagTests(unittest.TestCase):
                 stage_model=None,
             )
 
-            self.assertTrue(context.used)
-            self.assertIn(context.status, {"success", "partial"})
-            self.assertTrue(context.evidences)
-            self.assertTrue(all(item.source_path.startswith("knowledge/ERP Approval") for item in context.evidences))
-            self.assertTrue(any("budget availability" in item.snippet.lower() for item in context.evidences))
+            self.assertFalse(context.used)
+            self.assertEqual(context.status, "model_required")
+            self.assertFalse(context.evidences)
+            self.assertFalse(context.plan.planner_used)
+            self.assertEqual(context.plan.planner_status, "model_required")
+            self.assertEqual(context.plan.rewritten_queries, [])
 
     def test_policy_rag_query_rewrite_can_be_model_planned_but_retrieval_stays_local(self) -> None:
         model = _FakeModel(

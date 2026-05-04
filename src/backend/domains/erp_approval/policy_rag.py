@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -19,9 +18,9 @@ class PolicyRagPlan:
     need_rag: bool = True
     rewritten_queries: list[str] = field(default_factory=list)
     query_hints: list[str] = field(default_factory=list)
-    reason: str = "deterministic policy RAG plan"
+    reason: str = "llm policy RAG plan required"
     planner_used: bool = False
-    planner_status: str = "deterministic"
+    planner_status: str = "model_required"
     planner_error: str = ""
     non_action_statement: str = CASE_HARNESS_NON_ACTION_STATEMENT
 
@@ -79,7 +78,8 @@ def build_policy_rag_context(
 
     plan = _build_policy_rag_plan(state=state, user_message=user_message, purpose=purpose, stage_model=stage_model)
     if not plan.need_rag:
-        return PolicyRagContext(used=False, status="skipped", plan=plan, reason=plan.reason)
+        status = plan.planner_status if plan.planner_status in {"model_required", "error", "missing_queries"} else "skipped"
+        return PolicyRagContext(used=False, status=status, plan=plan, reason=plan.reason)
 
     try:
         _ensure_knowledge_index(base_dir)
@@ -88,8 +88,14 @@ def build_policy_rag_context(
         steps: list[dict[str, Any]] = []
         statuses: list[str] = []
         reasons: list[str] = []
-        fallback_query = _deterministic_query(state, user_message, purpose)
-        queries = _dedupe_strings([*(plan.rewritten_queries or [])[:3], fallback_query])
+        queries = _dedupe_strings((plan.rewritten_queries or [])[:4])
+        if not queries:
+            return PolicyRagContext(
+                used=False,
+                status="missing_queries",
+                plan=plan,
+                reason="The LLM policy RAG planner requested retrieval but did not provide rewritten_queries.",
+            )
         for query in queries:
             result = strategy.retrieve(
                 RetrievalRequest(
@@ -131,21 +137,6 @@ def build_policy_rag_context(
                     )
                 )
             deduped = _dedupe_evidences(evidences)[:top_k]
-        if not deduped:
-            file_fallback = _load_policy_file_fallback(_knowledge_base_dir(Path(base_dir)), queries, top_k=top_k)
-            if file_fallback:
-                evidences.extend(file_fallback)
-                steps.append(
-                    {
-                        "kind": "knowledge",
-                        "stage": "policy_file_fallback",
-                        "title": "Scoped ERP policy file fallback",
-                        "message": "Indexed policy retrieval returned no scoped ERP evidence, so local ERP policy files were read directly.",
-                        "results": [item.to_dict() for item in file_fallback],
-                    }
-                )
-                reasons.append("Scoped ERP policy files were used after indexed retrieval returned no ERP policy evidence.")
-            deduped = _dedupe_evidences(evidences)[:top_k]
         status = "success" if deduped else "not_found"
         if not deduped:
             status = "not_found"
@@ -161,7 +152,7 @@ def build_policy_rag_context(
             steps=steps,
             reason=" | ".join(reason for reason in reasons if reason)[:800],
         )
-    except Exception as exc:  # pragma: no cover - defensive fallback, exercised through API smoke
+    except Exception as exc:  # pragma: no cover - defensive error handling, exercised through API smoke
         return PolicyRagContext(
             used=False,
             status="error",
@@ -192,13 +183,15 @@ def _build_policy_rag_plan(
     purpose: str,
     stage_model: Any | None,
 ) -> PolicyRagPlan:
-    fallback = PolicyRagPlan(
-        need_rag=True,
-        rewritten_queries=[_deterministic_query(state, user_message, purpose)],
-        query_hints=_deterministic_hints(state, purpose),
-    )
     if stage_model is None:
-        return fallback
+        return PolicyRagPlan(
+            need_rag=False,
+            rewritten_queries=[],
+            query_hints=[],
+            reason="LLM policy RAG planner is required before retrieval runs.",
+            planner_used=False,
+            planner_status="model_required",
+        )
     system_prompt = (
         "Role: ERP policy RAG query planner. Decide whether the current case turn needs local policy retrieval, "
         "then rewrite the query for the knowledge index. Use only the user's message, case summary, approval type, "
@@ -213,7 +206,6 @@ def _build_policy_rag_plan(
         "purpose": purpose,
         "user_message": user_message,
         "requirement_ids": [item.get("requirement_id", "") for item in state.evidence_requirements],
-        "fallback_query": fallback.rewritten_queries[0],
         "path_filter": POLICY_RAG_PATH_FILTER,
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
     }
@@ -224,20 +216,30 @@ def _build_policy_rag_plan(
     )
     if error:
         return PolicyRagPlan(
-            need_rag=True,
-            rewritten_queries=fallback.rewritten_queries,
-            query_hints=fallback.query_hints,
-            reason=fallback.reason,
+            need_rag=False,
+            rewritten_queries=[],
+            query_hints=[],
+            reason="LLM policy RAG planner failed; retrieval was not run.",
             planner_used=False,
             planner_status="error",
             planner_error=error,
         )
+    need_rag = bool(output.get("need_rag", True))
     queries = _strings(output.get("rewritten_queries"))[:4]
     hints = _strings(output.get("query_hints"))[:12]
+    if need_rag and not queries:
+        return PolicyRagPlan(
+            need_rag=False,
+            rewritten_queries=[],
+            query_hints=hints,
+            reason="LLM policy RAG planner requested retrieval but returned no rewritten_queries.",
+            planner_used=True,
+            planner_status="missing_queries",
+        )
     return PolicyRagPlan(
-        need_rag=bool(output.get("need_rag", True)),
-        rewritten_queries=queries or fallback.rewritten_queries,
-        query_hints=hints or fallback.query_hints,
+        need_rag=need_rag,
+        rewritten_queries=queries,
+        query_hints=hints,
         reason=str(output.get("reason") or "model policy RAG plan")[:300],
         planner_used=True,
         planner_status="executed",
@@ -275,42 +277,6 @@ def _knowledge_base_dir(base_dir: Path) -> Path:
     return candidate
 
 
-def _deterministic_query(state: ApprovalCaseState, user_message: str, purpose: str) -> str:
-    approval_type = state.approval_type or "unknown"
-    requirement_terms = " ".join(
-        str(item.get("label") or item.get("requirement_id") or "")
-        for item in (state.evidence_requirements or [])[:10]
-    )
-    return " ".join(
-        part
-        for part in [
-            approval_type,
-            purpose,
-            user_message,
-            requirement_terms,
-            "policy approval matrix required evidence blocking acceptable unacceptable clause",
-            "ERP Approval Policy Matrix Procurement PR-CTRL-001 INV-CTRL-001 SUP-CTRL-001",
-        ]
-        if str(part or "").strip()
-    )
-
-
-def _deterministic_hints(state: ApprovalCaseState, purpose: str) -> list[str]:
-    hints = [
-        state.approval_type or "unknown",
-        purpose,
-        "approval matrix",
-        "required evidence",
-        "blocking",
-        "policy clause",
-    ]
-    for requirement in (state.evidence_requirements or [])[:12]:
-        for value in (requirement.get("requirement_id"), requirement.get("label")):
-            if value:
-                hints.append(str(value))
-    return _dedupe_strings(hints)[:16]
-
-
 def _dedupe_evidences(evidences: list[Evidence]) -> list[Evidence]:
     output: dict[str, Evidence] = {}
     for evidence in evidences:
@@ -327,53 +293,6 @@ def _filter_policy_evidences(evidences: list[Evidence]) -> list[Evidence]:
         for evidence in evidences
         if str(evidence.source_path or "").replace("\\", "/").startswith(f"{POLICY_RAG_PATH_FILTER}/")
     ]
-
-
-def _load_policy_file_fallback(base_dir: Path, queries: list[str], *, top_k: int) -> list[Evidence]:
-    policy_dir = Path(base_dir) / POLICY_RAG_PATH_FILTER / "policies"
-    if not policy_dir.exists():
-        return []
-    query_text = " ".join(queries).lower()
-    candidates: list[Evidence] = []
-    for path in sorted(policy_dir.glob("*.md")):
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        snippet = _best_policy_snippet(text, query_text)
-        relative_path = path.relative_to(base_dir).as_posix()
-        candidates.append(
-            Evidence(
-                source_path=relative_path,
-                source_type="md",
-                locator=path.stem,
-                snippet=snippet,
-                channel="bm25",
-                score=_policy_file_score(text, query_text),
-                query_variant=" | ".join(queries[:2]),
-            )
-        )
-    return sorted(candidates, key=lambda item: float(item.score or 0.0), reverse=True)[:top_k]
-
-
-def _best_policy_snippet(text: str, query_text: str, *, max_chars: int = 900) -> str:
-    paragraphs = [part.strip() for part in text.split("\n\n") if part.strip()]
-    if not paragraphs:
-        return text[:max_chars]
-    terms = [term for term in re.split(r"[^a-z0-9_\-\u4e00-\u9fff]+", query_text.lower()) if len(term) >= 3]
-    scored = []
-    for paragraph in paragraphs:
-        lowered = paragraph.lower()
-        score = sum(1 for term in terms if term in lowered)
-        scored.append((score, paragraph))
-    best = max(scored, key=lambda item: item[0])[1]
-    return best[:max_chars]
-
-
-def _policy_file_score(text: str, query_text: str) -> float:
-    lowered = text.lower()
-    terms = [term for term in re.split(r"[^a-z0-9_\-\u4e00-\u9fff]+", query_text.lower()) if len(term) >= 3]
-    return float(sum(1 for term in terms if term in lowered) or 1)
 
 
 def _strings(value: Any) -> list[str]:

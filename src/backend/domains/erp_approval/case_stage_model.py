@@ -118,13 +118,13 @@ class CaseStageModelReviewer:
         context_pack: dict[str, Any],
         candidates: list[CaseReviewEvidenceInput],
         review: CaseReviewResponse,
-        deterministic_intent: str,
+        routing_intent: str,
     ) -> CaseStageModelDecision:
         payload = self.build_payload(
             context_pack=context_pack,
             candidates=candidates,
             review=review,
-            deterministic_intent=deterministic_intent,
+            routing_intent=routing_intent,
         )
         role_outputs: dict[str, dict[str, Any]] = {}
         warnings: list[str] = []
@@ -133,7 +133,7 @@ class CaseStageModelReviewer:
             role_outputs[role] = output
             if error:
                 warnings.append(f"{ROLE_LABELS.get(role, role)} 未返回可用结构化结果：{error}")
-        return self.aggregate_role_outputs(role_outputs, deterministic_intent=deterministic_intent, warnings=warnings)
+        return self.aggregate_role_outputs(role_outputs, routing_intent=routing_intent, warnings=warnings)
 
     def build_payload(
         self,
@@ -141,13 +141,13 @@ class CaseStageModelReviewer:
         context_pack: dict[str, Any],
         candidates: list[CaseReviewEvidenceInput],
         review: CaseReviewResponse,
-        deterministic_intent: str,
+        routing_intent: str,
     ) -> dict[str, Any]:
         return _base_payload(
             context_pack=context_pack,
             candidates=candidates,
             review=review,
-            deterministic_intent=deterministic_intent,
+            routing_intent=routing_intent,
         )
 
     def review_role(
@@ -165,10 +165,10 @@ class CaseStageModelReviewer:
         self,
         role_outputs: dict[str, dict[str, Any]],
         *,
-        deterministic_intent: str,
+        routing_intent: str,
         warnings: list[str] | None = None,
     ) -> CaseStageModelDecision:
-        return _aggregate_role_outputs(role_outputs, deterministic_intent=deterministic_intent, warnings=list(warnings or []))
+        return _aggregate_role_outputs(role_outputs, routing_intent=routing_intent, warnings=list(warnings or []))
 
     def review_custom_json_role(self, *, role_name: str, system_prompt: str, payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
         messages = [
@@ -226,10 +226,10 @@ def _base_payload(
     context_pack: dict[str, Any],
     candidates: list[CaseReviewEvidenceInput],
     review: CaseReviewResponse,
-    deterministic_intent: str,
+    routing_intent: str,
 ) -> dict[str, Any]:
     return {
-        "routing_guard_intent": deterministic_intent,
+        "routing_intent_contract": routing_intent,
         "case_context_pack": context_pack,
         "candidate_evidence": [
             {
@@ -254,7 +254,7 @@ def _base_payload(
 def _aggregate_role_outputs(
     role_outputs: dict[str, dict[str, Any]],
     *,
-    deterministic_intent: str,
+    routing_intent: str,
     warnings: list[str],
 ) -> CaseStageModelDecision:
     ordered = [role_outputs.get(role, {}) for role in CASE_STAGE_MODEL_ROLES]
@@ -278,7 +278,7 @@ def _aggregate_role_outputs(
     confidence_values = [value for value in confidence_values if value is not None]
     confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
 
-    turn_intent = _first_string(turn_classifier.get("turn_intent"), reviewer_memo.get("turn_intent"), deterministic_intent)
+    turn_intent = _first_string(turn_classifier.get("turn_intent"), reviewer_memo.get("turn_intent"), routing_intent)
     if turn_intent == "off_topic":
         accepted = []
         evidence_decision = "not_evidence"

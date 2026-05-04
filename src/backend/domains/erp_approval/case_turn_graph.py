@@ -44,7 +44,7 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "build_turn_contract",
     "assemble_case_context",
     "llm_turn_classifier",
-    "deterministic_classifier_guard",
+    "intent_contract_check",
     "route_turn_intent",
     "materials_guidance_node",
     "case_status_summary_node",
@@ -121,9 +121,9 @@ class CaseTurnGraphState(TypedDict, total=False):
     graph_steps: list[str]
     conflict: bool
     read_only_turn: bool
-    deterministic_intent: str
+    routing_seed_intent: str
     client_intent: str
-    classifier_guard_intent: str
+    intent_contract_intent: str
     p2p_review: P2PProcessReview
     branch_review_outputs: dict[str, Any]
     stage_model_payload: dict[str, Any]
@@ -144,7 +144,7 @@ def compile_case_turn_graph():
         "build_turn_contract": build_turn_contract_node,
         "assemble_case_context": assemble_case_context_node,
         "llm_turn_classifier": llm_turn_classifier_node,
-        "deterministic_classifier_guard": deterministic_classifier_guard_node,
+        "intent_contract_check": intent_contract_check_node,
         "route_turn_intent": route_turn_intent_node,
         "materials_guidance_node": materials_guidance_node,
         "case_status_summary_node": case_status_summary_node,
@@ -204,8 +204,8 @@ def compile_case_turn_graph():
     graph.add_edge("classify_turn_intent", "build_turn_contract")
     graph.add_edge("build_turn_contract", "assemble_case_context")
     graph.add_edge("assemble_case_context", "llm_turn_classifier")
-    graph.add_edge("llm_turn_classifier", "deterministic_classifier_guard")
-    graph.add_edge("deterministic_classifier_guard", "route_turn_intent")
+    graph.add_edge("llm_turn_classifier", "intent_contract_check")
+    graph.add_edge("intent_contract_check", "route_turn_intent")
     graph.add_conditional_edges(
         "route_turn_intent",
         _route_turn_intent,
@@ -386,17 +386,17 @@ def version_conflict_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 def classify_turn_intent_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     request = state["request"]
-    deterministic_intent = classify_case_turn(
+    routing_seed_intent = classify_case_turn(
         request.user_message,
         has_case=state.get("existing_state") is not None,
         has_evidence=bool(request.extra_evidence),
     )
-    client_intent, client_warnings = _guarded_client_intent(state, deterministic_intent)
-    intent = client_intent or deterministic_intent
+    client_intent, client_warnings = _contract_checked_client_intent(state, routing_seed_intent)
+    intent = client_intent or routing_seed_intent
     return {
         **state,
         "intent": intent,
-        "deterministic_intent": deterministic_intent,
+        "routing_seed_intent": routing_seed_intent,
         "client_intent": client_intent,
         "warnings": _unique(list(state.get("warnings", [])) + client_warnings),
         "graph_steps": _steps(state, "classify_turn_intent"),
@@ -422,7 +422,7 @@ def assemble_case_context_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
             state["now"],
             {
                 "intent": state["intent"],
-                "deterministic_intent": state.get("deterministic_intent", state["intent"]),
+                "routing_seed_intent": state.get("routing_seed_intent", state["intent"]),
                 "client_intent": state.get("client_intent", ""),
                 "context_branch": branch,
                 "context_summary": _context_pack_summary(context_pack),
@@ -844,32 +844,32 @@ def llm_turn_classifier_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     return _llm_stage_role_node(state, "turn_classifier", "llm_turn_classifier")
 
 
-def deterministic_classifier_guard_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
-    deterministic_intent = state.get("deterministic_intent", state.get("intent", "ask_status"))
-    baseline_intent = state.get("intent", deterministic_intent)
+def intent_contract_check_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    routing_seed_intent = state.get("routing_seed_intent", state.get("intent", "ask_status"))
+    baseline_intent = state.get("intent", routing_seed_intent)
     outputs = dict(state.get("stage_model_role_outputs", {}) or {})
     role_output = outputs.get("turn_classifier", {}) or {}
     warnings = list(state.get("warnings", []))
-    guarded_intent = baseline_intent
+    checked_intent = baseline_intent
     candidate_intent = _canonical_intent(str(role_output.get("turn_intent") or "").strip())
 
     if candidate_intent and not role_output.get("skipped"):
         allowed = set(getattr(state["contract"], "allowed_intents", []) or [])
         if candidate_intent in allowed and _classifier_override_allowed(state, baseline_intent, candidate_intent):
-            guarded_intent = candidate_intent
+            checked_intent = candidate_intent
         elif candidate_intent != baseline_intent:
             warnings.append(
-                f"LLM turn classifier proposed {candidate_intent}, but deterministic guard kept {baseline_intent}."
+                f"LLM turn classifier proposed {candidate_intent}, but the current case-stage intent contract kept {baseline_intent}."
             )
 
-    if guarded_intent != baseline_intent:
-        state = {**state, "intent": guarded_intent, "branch": _context_branch_for_intent(guarded_intent)}
+    if checked_intent != baseline_intent:
+        state = {**state, "intent": checked_intent, "branch": _context_branch_for_intent(checked_intent)}
     return {
         **state,
-        "deterministic_intent": deterministic_intent,
-        "classifier_guard_intent": guarded_intent,
+        "routing_seed_intent": routing_seed_intent,
+        "intent_contract_intent": checked_intent,
         "warnings": _unique(warnings),
-        "graph_steps": _steps(state, "deterministic_classifier_guard"),
+        "graph_steps": _steps(state, "intent_contract_check"),
     }
 
 
@@ -902,7 +902,7 @@ def aggregate_llm_stage_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraph
         }
     decision = harness.stage_model.aggregate_role_outputs(
         outputs,
-        deterministic_intent=state.get("intent", "submit_evidence"),
+        routing_intent=state.get("intent", "submit_evidence"),
         warnings=[f"{role} 未返回可用结构化结果：{error}" for role, error in errors.items() if error],
     )
     return {
@@ -930,7 +930,7 @@ def merge_review_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def evidence_sufficiency_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="ask_status")
     warnings = list(state.get("warnings", []))
-    if _final_guard_active(state) and not review.evidence_sufficiency.get("passed"):
+    if _final_review_boundary_active(state) and not review.evidence_sufficiency.get("passed"):
         warnings.extend(str(item) for item in review.evidence_sufficiency.get("blocking_gaps") or [])
     return {**state, "review": review, "warnings": _unique(warnings), "graph_steps": _steps(state, "evidence_sufficiency_gate")}
 
@@ -939,7 +939,7 @@ def contradiction_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="ask_status")
     warnings = list(state.get("warnings", []))
     contradictions = review.contradictions or {}
-    if _final_guard_active(state) and contradictions.get("has_conflict"):
+    if _final_review_boundary_active(state) and contradictions.get("has_conflict"):
         warnings.append("Contradiction gate found conflicting evidence; approve-style recommendation is not allowed.")
     return {**state, "review": review, "warnings": _unique(warnings), "graph_steps": _steps(state, "contradiction_gate")}
 
@@ -947,7 +947,7 @@ def contradiction_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def control_matrix_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="ask_status")
     warnings = list(state.get("warnings", []))
-    if _final_guard_active(state) and not review.control_matrix.get("passed"):
+    if _final_review_boundary_active(state) and not review.control_matrix.get("passed"):
         warnings.append("Control matrix gate found missing/failing controls; continue evidence collection or escalate.")
     return {**state, "review": review, "warnings": _unique(warnings), "graph_steps": _steps(state, "control_matrix_gate")}
 
@@ -1300,12 +1300,12 @@ def _route_patch_validity(state: CaseTurnGraphState) -> str:
     return "valid" if state["patch"].allowed_to_apply else "invalid"
 
 
-def _final_guard_active(state: CaseTurnGraphState) -> bool:
-    """Keep final guard messaging out of ordinary collection turns.
+def _final_review_boundary_active(state: CaseTurnGraphState) -> bool:
+    """Keep final-review boundary messaging out of ordinary collection turns.
 
     Daily case turns should focus on gathering and reviewing evidence. The
-    deterministic patch validator still protects writes, but final blocking
-    guard warnings are only surfaced when the user asks for a reviewer memo.
+    patch validator still protects local writes, but final blocking warnings
+    are only surfaced when the user asks for a reviewer memo.
     """
 
     return state.get("intent") in {"request_final_memo", "request_final_review"} or state.get("branch") == "final_memo"
@@ -1325,7 +1325,7 @@ def _context_branch_for_intent(intent: str) -> str:
     return "generic_case_turn"
 
 
-def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str) -> tuple[str, list[str]]:
+def _contract_checked_client_intent(state: CaseTurnGraphState, routing_seed_intent: str) -> tuple[str, list[str]]:
     request = state["request"]
     requested = _canonical_intent(str(getattr(request, "client_intent", "") or "").strip())
     if not requested:
@@ -1352,7 +1352,7 @@ def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str)
             warnings.append(f"Client intent {requested} was ignored because this turn includes evidence.")
         return "submit_evidence", warnings
     if requested == "submit_evidence":
-        if deterministic_intent == "submit_evidence":
+        if routing_seed_intent == "submit_evidence":
             return "submit_evidence", warnings
         return "", ["Client intent submit_evidence was ignored because no evidence payload was provided."]
     if requested == "request_final_review" and state.get("existing_state") is None:
@@ -1365,7 +1365,7 @@ def _guarded_client_intent(state: CaseTurnGraphState, deterministic_intent: str)
         return requested, warnings
     if requested in {"correct_previous_evidence", "withdraw_evidence"} and state.get("existing_state") is not None:
         return requested, warnings
-    if requested == "off_topic" and deterministic_intent == "off_topic":
+    if requested == "off_topic" and routing_seed_intent == "off_topic":
         return requested, warnings
     return "", [f"Client intent {requested} was not safe for this case state and was ignored."]
 
@@ -1390,22 +1390,22 @@ def _context_pack_summary(context_pack: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _classifier_override_allowed(state: CaseTurnGraphState, deterministic_intent: str, candidate_intent: str) -> bool:
-    deterministic_intent = _canonical_intent(deterministic_intent)
+def _classifier_override_allowed(state: CaseTurnGraphState, routing_seed_intent: str, candidate_intent: str) -> bool:
+    routing_seed_intent = _canonical_intent(routing_seed_intent)
     candidate_intent = _canonical_intent(candidate_intent)
     request = state["request"]
-    if candidate_intent == deterministic_intent:
+    if candidate_intent == routing_seed_intent:
         return True
-    if deterministic_intent in {"off_topic", "request_final_review"}:
+    if routing_seed_intent in {"off_topic", "request_final_review"}:
         return False
-    if deterministic_intent == "ask_required_materials":
+    if routing_seed_intent == "ask_required_materials":
         return candidate_intent in {"ask_required_materials", "ask_missing_requirements", "ask_policy_failure", "off_topic"}
-    if deterministic_intent == "ask_how_to_prepare":
+    if routing_seed_intent == "ask_how_to_prepare":
         return candidate_intent in {"ask_how_to_prepare", "ask_missing_requirements", "ask_policy_failure", "off_topic"}
     if request.extra_evidence:
         return candidate_intent == "submit_evidence"
     if candidate_intent == "submit_evidence":
-        return deterministic_intent == "submit_evidence"
+        return routing_seed_intent == "submit_evidence"
     if candidate_intent == "create_case":
         return state.get("existing_state") is None
     if candidate_intent in {"ask_missing_requirements", "ask_how_to_prepare", "ask_required_materials", "ask_policy_failure", "off_topic"}:
@@ -1457,7 +1457,7 @@ def _run_evidence_branch_review(state: CaseTurnGraphState, *, branch: str) -> Ca
             context_pack=context_pack,
             candidates=candidates,
             review=provisional_review,
-            deterministic_intent="submit_evidence",
+            routing_intent="submit_evidence",
         )
     outputs = _branch_outputs(state)
     outputs[branch] = {
@@ -1497,7 +1497,7 @@ def _llm_stage_role_node(state: CaseTurnGraphState, role: str, step: str) -> Cas
             context_pack=state.get("context_pack", {}),
             candidates=state.get("candidates", []),
             review=review,
-            deterministic_intent=state.get("intent", "submit_evidence"),
+            routing_intent=state.get("intent", "submit_evidence"),
         )
     output, error = harness.stage_model.review_role(role, payload=payload, role_outputs=outputs)
     outputs[role] = output or {"skipped": bool(error), "error": error, "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT}
@@ -1708,7 +1708,7 @@ CHECKLIST_STATUS_LABELS = {
 
 
 def _build_case_checklist_model_review(state: CaseTurnGraphState, review: Any, patch: CasePatch, *, use_model: bool = True) -> dict[str, Any]:
-    deterministic_items = _deterministic_checklist_items(state, review, patch)
+    computed_items = _computed_checklist_items(state, review, patch)
     if use_model:
         model_output = _run_custom_stage_model_role(
             state,
@@ -1724,7 +1724,7 @@ def _build_case_checklist_model_review(state: CaseTurnGraphState, review: Any, p
             payload={
                 "case_id": state["case_state"].case_id,
                 "approval_type": state["case_state"].approval_type,
-                "deterministic_checklist": deterministic_items,
+                "computed_checklist": computed_items,
                 "patch_type": patch.patch_type,
                 "accepted_evidence": [item.model_dump() for item in patch.accepted_evidence],
                 "rejected_evidence": [item.model_dump() for item in patch.rejected_evidence],
@@ -1735,14 +1735,14 @@ def _build_case_checklist_model_review(state: CaseTurnGraphState, review: Any, p
     else:
         model_output = {
             "used": False,
-            "status": "deterministic",
-            "reason": "checklist status derived from evidence gates after evidence review",
+            "status": "model_required",
+            "reason": "checklist wording requires the LLM checklist updater; backend only exposes raw computed checklist items.",
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         }
-    return _sanitize_case_checklist_update(deterministic_items, model_output)
+    return _sanitize_case_checklist_update(computed_items, model_output)
 
 
-def _deterministic_checklist_items(state: CaseTurnGraphState, review: Any, patch: CasePatch) -> list[dict[str, Any]]:
+def _computed_checklist_items(state: CaseTurnGraphState, review: Any, patch: CasePatch) -> list[dict[str, Any]]:
     requirements = list(getattr(review, "evidence_requirements", None) or [])
     policy_failures = [failure for failure in [*state["case_state"].policy_failures, *patch.policy_failures] if not getattr(failure, "resolved", False)]
     failure_requirement_ids = {str(failure.requirement_id or "") for failure in policy_failures if str(failure.requirement_id or "")}

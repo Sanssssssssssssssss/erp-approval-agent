@@ -156,6 +156,9 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
     def test_ask_how_to_prepare_uses_stage_model_policy_guidance_when_configured(self) -> None:
         model_json = """
         {
+          "need_rag": true,
+          "rewritten_queries": ["purchase requisition budget vendor onboarding quote approval matrix policy"],
+          "query_hints": ["budget", "vendor onboarding", "quote", "approval matrix"],
           "rendered_guidance": "模型材料清单：请准备预算证明、供应商准入记录、报价或合同依据、审批矩阵。每项材料都必须可追溯到 source_id。",
           "warnings": [],
           "confidence": 0.91,
@@ -202,9 +205,9 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertNotIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
             self.assertIn("policy_rag", response["patch"]["model_review"])
             rendered = response["patch"]["model_review"]["policy_rag"]["rendered_guidance"]
-            self.assertIn("必备材料清单", rendered)
-            self.assertIn("可接受", rendered)
-            self.assertIn("不接受", rendered)
+            self.assertEqual(rendered, "")
+            self.assertEqual(response["patch"]["model_review"]["policy_rag"]["retrieval_status"], "model_required")
+            self.assertTrue(response["patch"]["model_review"]["agent_reply"]["missing_model_reply"])
             self.assertFalse(Path(response["storage_paths"]["case_state"]).exists())
 
     def test_extra_evidence_overrides_read_only_client_intent(self) -> None:
@@ -272,7 +275,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("policy_failure_explain_node", explained["harness_run"]["graph_steps"])
             self.assertIn("policy_failures_answer", explained["patch"]["model_review"])
             self.assertIn("case_state.policy_failures", explained["patch"]["model_review"]["policy_failures_answer"]["source"])
-            self.assertIn("案卷中已记录", explained["patch"]["model_review"]["policy_failures_answer"]["rendered"])
+            self.assertEqual(explained["patch"]["model_review"]["policy_failures_answer"]["rendered"], "")
 
     def test_llm_turn_classifier_runs_before_first_route(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
@@ -285,7 +288,7 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             steps = graph_state["graph_steps"]
 
             self.assertLess(steps.index("llm_turn_classifier"), steps.index("route_turn_intent"))
-            self.assertLess(steps.index("deterministic_classifier_guard"), steps.index("route_turn_intent"))
+            self.assertLess(steps.index("intent_contract_check"), steps.index("route_turn_intent"))
             self.assertIn("materials_guidance_node", steps)
             self.assertNotIn("case_status_summary_node", steps)
 

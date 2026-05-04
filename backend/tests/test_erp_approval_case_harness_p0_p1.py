@@ -153,14 +153,15 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             state = harness.get_case(case_id)
             self.assertIsNotNone(state)
 
-            self.assertEqual(budget.patch.patch_type, "accept_evidence")
-            self.assertEqual(vendor.patch.patch_type, "accept_evidence")
-            self.assertEqual(quote.patch.patch_type, "accept_evidence")
+            self.assertEqual(budget.patch.patch_type, "reject_evidence")
+            self.assertEqual(vendor.patch.patch_type, "reject_evidence")
+            self.assertEqual(quote.patch.patch_type, "reject_evidence")
             self.assertEqual(off_topic.patch.turn_intent, "off_topic")
             self.assertEqual(off_topic.patch.patch_type, "no_case_change")
             self.assertEqual(len(off_topic.case_state.accepted_evidence), accepted_before)
             self.assertEqual(off_topic.case_state.last_valid_turn_id, valid_turn_before)
-            self.assertGreaterEqual(len(state.accepted_evidence), 3)
+            self.assertEqual(len(state.accepted_evidence), 0)
+            self.assertGreaterEqual(len(state.rejected_evidence), 3)
             self.assertEqual(state.turn_count, 5)
             self.assertGreaterEqual(state.dossier_version, 5)
             self.assertIn("No ERP write action was executed", final_memo.dossier)
@@ -168,7 +169,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             events = harness.store.read_audit_events(case_id, limit=200)
             event_names = [event.event for event in events]
             self.assertGreaterEqual(event_names.count("turn_received"), 6)
-            self.assertGreaterEqual(event_names.count("evidence_accepted"), 3)
+            self.assertGreaterEqual(event_names.count("evidence_rejected"), 3)
             self.assertIn("off_topic_rejected", event_names)
 
     def test_parallel_ten_case_turns_do_not_lose_evidence_or_corrupt_json(self) -> None:
@@ -207,14 +208,15 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             self.assertEqual(len(responses), 10)
             self.assertEqual(state_payload["turn_count"], 11)
             self.assertEqual(state.turn_count, 11)
-            self.assertGreaterEqual(len(state.accepted_evidence), 10)
+            self.assertEqual(len(state.accepted_evidence), 0)
+            self.assertGreaterEqual(len(state.rejected_evidence), 10)
             self.assertGreaterEqual(state.dossier_version, 11)
 
             audit_lines = Path(first.storage_paths["audit_log"]).read_text(encoding="utf-8").splitlines()
             events = [json.loads(line)["event"] for line in audit_lines if line.strip()]
             self.assertGreaterEqual(events.count("turn_received"), 11)
             self.assertEqual(events.count("evidence_submitted"), 10)
-            self.assertEqual(events.count("evidence_accepted"), 10)
+            self.assertEqual(events.count("evidence_rejected"), 10)
 
     def test_patch_validator_blocks_or_warns_adversarial_patch_variants(self) -> None:
         state = ApprovalCaseState(case_id="erp-case:p0-validator", stage="collecting_evidence")
@@ -392,11 +394,11 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             )
 
             self.assertNotEqual(weak_budget.patch.patch_type, "accept_evidence")
-            self.assertEqual(structured_budget.patch.patch_type, "accept_evidence")
+            self.assertEqual(structured_budget.patch.patch_type, "reject_evidence")
             self.assertNotEqual(vague_vendor.patch.patch_type, "accept_evidence")
-            self.assertEqual(structured_vendor.patch.patch_type, "accept_evidence")
-            self.assertEqual(len(structured_vendor.case_state.accepted_evidence), 2)
-            self.assertGreaterEqual(len(structured_vendor.case_state.rejected_evidence), 2)
+            self.assertEqual(structured_vendor.patch.patch_type, "reject_evidence")
+            self.assertEqual(len(structured_vendor.case_state.accepted_evidence), 0)
+            self.assertGreaterEqual(len(structured_vendor.case_state.rejected_evidence), 4)
             for evidence in structured_vendor.case_state.accepted_evidence:
                 self.assertTrue(evidence.source_id)
                 self.assertTrue(evidence.claim_ids)
@@ -472,7 +474,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
         self.assertTrue(any(claim["claim_id"] == "claim-budget-context" for claim in accepted_claims))
         self.assertLess(len(accepted_claims), len(state.claims))
 
-    def test_stage_model_bad_json_falls_back_to_deterministic_gate(self) -> None:
+    def test_stage_model_bad_json_does_not_accept_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             model = _FakeModel("not json at all")
             harness = CaseHarness(Path(temp_dir), stage_model=CaseStageModelReviewer(model))
@@ -492,9 +494,9 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(response.patch.patch_type, "accept_evidence")
+            self.assertEqual(response.patch.patch_type, "reject_evidence")
             self.assertTrue(response.patch.model_review["used"])
-            self.assertEqual(len(model.messages), 9)
+            self.assertGreaterEqual(len(model.messages), 9)
         self.assertTrue(any("未返回可用结构化结果" in warning for warning in response.patch.warnings))
 
     def test_stage_model_off_topic_or_execution_output_cannot_pollute_case(self) -> None:
