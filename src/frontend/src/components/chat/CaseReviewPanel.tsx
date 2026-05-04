@@ -330,12 +330,32 @@ function inferClientIntent(
     return options.hasCase ? "request_final_review" : "ask_how_to_prepare";
   }
   if (!options.hasCase) return "create_case";
+  if (looksLikeEvidenceSubmissionText(outgoing)) return "submit_evidence";
+  return "ask_missing_requirements";
   if (
     /(证明|材料|附件|发票|收据|票据|预算|报价|合同|法务|记录|供应商|准入|制裁|银行|税务|grn|invoice|quote|budget|vendor record)/i.test(textValue)
   ) {
     return "submit_evidence";
   }
   return undefined;
+}
+
+function looksLikeEvidenceSubmissionText(outgoing: string): boolean {
+  const normalized = outgoing.toLowerCase();
+  const hasEvidenceTerm = /(证明|材料|附件|发票|收据|票据|预算|报价|合同|法务|记录|供应商|准入|制裁|银行|税务|grn|invoice|quote|budget|vendor record|\bpo[-_\s]?[a-z0-9]{2,}\b|\bpo\b)/i.test(outgoing);
+  if (!hasEvidenceTerm) return false;
+  if (/(这是|提交|上传|补充|提供|附上|粘贴|给你|见附件|here is|attached|submit|upload|provide|evidence:|record:)/i.test(outgoing)) {
+    return true;
+  }
+  if (/(怎么|如何|为什么|哪些|需要|可以吗|行不行|what|how|why|\?|？)/i.test(outgoing)) {
+    return false;
+  }
+  let markers = 0;
+  if (/\b(pr|po|inv|grn|bud|vend|con|exp)[-_]?[a-z0-9]{2,}\b/i.test(normalized)) markers += 1;
+  if (/\b(usd|cny|eur|gbp)\s*\d+|\d+(?:\.\d+)?\s*(usd|cny|eur|gbp)\b/i.test(normalized)) markers += 1;
+  if (/(status|状态|active|blocked|approved|pending)/i.test(outgoing)) markers += 1;
+  if (/(source_id|sha-256|成本中心|cost center|供应商|vendor|supplier)/i.test(outgoing)) markers += 1;
+  return markers >= 2;
 }
 
 function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {

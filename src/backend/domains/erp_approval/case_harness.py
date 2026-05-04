@@ -586,34 +586,75 @@ def _dossier_patch(
 
 
 def _looks_like_evidence_submission(text: str) -> bool:
-    if any(
-        term in text
-        for term in (
-            "证明",
-            "材料",
-            "附件",
-            "发票",
-            "收据",
-            "票据",
-            "预算",
-            "报价",
-            "合同",
-            "法务",
-            "记录",
-            "供应商",
-            "准入",
-            "制裁",
-            "银行",
-            "税务",
-            "grn",
-            "invoice",
-            "quote",
-            "budget record",
-            "vendor record",
-        )
-    ):
+    evidence_terms = (
+        "证明",
+        "材料",
+        "附件",
+        "发票",
+        "收据",
+        "票据",
+        "预算",
+        "报价",
+        "合同",
+        "法务",
+        "记录",
+        "供应商",
+        "准入",
+        "制裁",
+        "银行",
+        "税务",
+        "grn",
+        "invoice",
+        "quote",
+        "budget record",
+        "vendor record",
+    )
+    if not any(term in text for term in evidence_terms) and not re.search(r"\bpo[-_\s][a-z0-9]{2,}\b|\bpo\d{2,}\b|\bpo\b", text):
+        return False
+
+    submission_terms = (
+        "这是",
+        "提交",
+        "上传",
+        "补充",
+        "提供",
+        "附上",
+        "粘贴",
+        "给你",
+        "见附件",
+        "here is",
+        "attached",
+        "submit",
+        "upload",
+        "provide",
+        "evidence:",
+        "record:",
+    )
+    question_terms = (
+        "怎么",
+        "如何",
+        "为什么",
+        "哪些",
+        "需要",
+        "可以吗",
+        "行不行",
+        "what",
+        "how",
+        "why",
+        "?",
+        "？",
+    )
+    if any(term in text for term in submission_terms):
         return True
-    return bool(re.search(r"\bpo[-_\s][a-z0-9]{2,}\b|\bpo\d{2,}\b|\bpo\b", text))
+    if any(term in text for term in question_terms):
+        return False
+
+    record_markers = 0
+    record_markers += 1 if re.search(r"\b(pr|po|inv|grn|bud|vend|con|exp)[-_]?[a-z0-9]{2,}\b", text) else 0
+    record_markers += 1 if re.search(r"\b(usd|cny|eur|gbp)\s*\d+|\d+(?:\.\d+)?\s*(usd|cny|eur|gbp)\b", text) else 0
+    record_markers += 1 if any(term in text for term in ("status", "状态", "active", "blocked", "approved", "pending")) else 0
+    record_markers += 1 if any(term in text for term in ("source_id", "sha-256", "成本中心", "cost center", "供应商", "vendor", "supplier")) else 0
+    return record_markers >= 2
 
 
 def _looks_off_topic(text: str) -> bool:
