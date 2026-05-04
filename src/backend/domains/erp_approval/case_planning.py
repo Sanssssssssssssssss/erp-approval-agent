@@ -137,12 +137,10 @@ def validate_case_supervisor_plan(
         requirement_id = str(item.get("requirement_id", "") or "").strip()
         if requirement_id and requirement_id not in known_requirements:
             warnings.append(f"LLM supervisor referenced unknown requirement_id: {requirement_id}")
-            continue
         source_ids = [str(source_id).strip() for source_id in item.get("source_ids", []) or [] if str(source_id or "").strip()]
         unknown_sources = [source_id for source_id in source_ids if source_id not in known_sources]
         if unknown_sources:
             warnings.append(f"LLM supervisor referenced source_id outside current case: {', '.join(unknown_sources)}")
-            source_ids = [source_id for source_id in source_ids if source_id in known_sources]
         sanitized_items.append(
             {
                 "requirement_id": requirement_id,
@@ -151,6 +149,8 @@ def validate_case_supervisor_plan(
                 "blocking": bool(item.get("blocking", True)),
                 "why_now": _clean_text(str(item.get("why_now") or item.get("reason") or "当前优先补齐")),
                 "source_ids": source_ids,
+                "unknown_requirement": bool(requirement_id and requirement_id not in known_requirements),
+                "unknown_source_ids": unknown_sources,
             }
         )
 
@@ -159,12 +159,12 @@ def validate_case_supervisor_plan(
     next_action = str(output.get("next_action") or "collect_priority_evidence")
     if next_action not in {"collect_priority_evidence", "fix_rejected_policy_failures", "generate_final_reviewer_memo", "ask_clarifying_question", "escalate_to_human_reviewer"}:
         warnings.append(f"LLM supervisor proposed unsupported next_action: {next_action}")
-        next_action = "collect_priority_evidence"
     ready = bool(output.get("ready_for_final_memo", False))
     if ready and not boundary_snapshot.get("ready_for_final_memo"):
-        warnings.append("LLM supervisor claimed final memo readiness, but deterministic gates are not ready.")
-        ready = False
-        next_action = "collect_priority_evidence"
+        warnings.append(
+            "LLM supervisor claimed final memo readiness while the boundary snapshot is not ready; "
+            "the model judgment is preserved for review."
+        )
 
     return {
         "role": "case_supervisor",

@@ -40,10 +40,11 @@ from src.backend.domains.erp_approval import (
     validate_simulation_request,
 )
 from src.backend.domains.erp_approval.case_harness import CaseHarness
+from src.backend.domains.erp_approval.case_prompt_registry import build_case_prompt_catalog, save_case_prompt_override
 from src.backend.domains.erp_approval.case_state_models import CASE_HARNESS_NON_ACTION_STATEMENT, CaseTurnRequest
-from src.backend.domains.erp_approval.case_stage_model import CaseStageModelReviewer
+from src.backend.domains.erp_approval.case_stage_model import ROLE_PROMPTS, CaseStageModelReviewer
 from src.backend.domains.erp_approval.case_turn_executor import CaseTurnExecutor
-from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME
+from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME, CASE_TURN_GRAPH_NODES
 from src.backend.runtime.agent_manager import agent_manager
 from src.backend.runtime.config import get_settings
 
@@ -64,6 +65,10 @@ class CreateReviewerNoteRequest(BaseModel):
     body: str = ""
     trace_id: str = ""
     proposal_record_id: str = ""
+
+
+class SaveCasePromptRequest(BaseModel):
+    content: str
 
 
 def _repository() -> ApprovalTraceRepository:
@@ -233,6 +238,46 @@ async def get_erp_approval_case_conversation(case_id: str, limit: int = Query(de
     if state is None:
         raise HTTPException(status_code=404, detail="ERP approval case not found")
     return _case_harness().get_conversation(case_id, limit=limit)
+
+
+@router.get("/erp-approval/case-graph")
+async def get_erp_approval_case_graph() -> dict:
+    prompts = build_case_prompt_catalog(base_dir=_case_review_base_dir(), role_prompts=ROLE_PROMPTS)
+    prompt_by_node: dict[str, list[str]] = {}
+    for prompt in prompts:
+        prompt_by_node.setdefault(str(prompt.get("node_id") or ""), []).append(str(prompt.get("prompt_id") or ""))
+    return {
+        "graph_name": CASE_TURN_GRAPH_NAME,
+        "nodes": [
+            {
+                "node_id": node,
+                "label": node.replace("_", " "),
+                "prompt_ids": prompt_by_node.get(node, []),
+                "editable": bool(prompt_by_node.get(node)),
+            }
+            for node in CASE_TURN_GRAPH_NODES
+        ],
+        "edges": _case_graph_edges(),
+        "prompts": prompts,
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+
+
+@router.get("/erp-approval/case-graph/prompts")
+async def list_erp_approval_case_prompts() -> dict:
+    return {
+        "graph_name": CASE_TURN_GRAPH_NAME,
+        "prompts": build_case_prompt_catalog(base_dir=_case_review_base_dir(), role_prompts=ROLE_PROMPTS),
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+
+
+@router.post("/erp-approval/case-graph/prompts/{prompt_id:path}")
+async def save_erp_approval_case_prompt(prompt_id: str, request: SaveCasePromptRequest) -> dict:
+    try:
+        return save_case_prompt_override(_case_review_base_dir(), prompt_id, request.content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/erp-approval/connectors/config")
@@ -693,6 +738,79 @@ def _trace_query(
 def _clean_optional(value: str | None) -> str | None:
     cleaned = value.strip() if isinstance(value, str) else ""
     return cleaned or None
+
+
+def _case_graph_edges() -> list[dict[str, str]]:
+    raw_edges = [
+        ("load_case_state", "version_conflict_gate", ""),
+        ("version_conflict_gate", "classify_turn_intent", "continue"),
+        ("version_conflict_gate", "reject_patch_explain", "conflict"),
+        ("classify_turn_intent", "build_turn_contract", ""),
+        ("build_turn_contract", "assemble_case_context", ""),
+        ("assemble_case_context", "llm_turn_classifier", ""),
+        ("llm_turn_classifier", "intent_contract_check", ""),
+        ("intent_contract_check", "route_turn_intent", ""),
+        ("route_turn_intent", "materials_guidance_node", "ask_how_to_prepare/create_case"),
+        ("route_turn_intent", "case_status_summary_node", "ask_missing_requirements"),
+        ("route_turn_intent", "policy_failure_explain_node", "ask_policy_failure"),
+        ("route_turn_intent", "off_topic_reject_node", "off_topic"),
+        ("route_turn_intent", "correct_evidence_node", "correct_previous_evidence"),
+        ("route_turn_intent", "withdraw_evidence_node", "withdraw_evidence"),
+        ("route_turn_intent", "final_memo_gate", "request_final_review"),
+        ("route_turn_intent", "build_candidate_evidence", "submit_evidence"),
+        ("materials_guidance_node", "read_only_case_response", "read_only"),
+        ("materials_guidance_node", "validate_case_patch", "create_case"),
+        ("case_status_summary_node", "read_only_case_response", ""),
+        ("policy_failure_explain_node", "read_only_case_response", ""),
+        ("off_topic_reject_node", "read_only_case_response", ""),
+        ("correct_evidence_node", "recompute_case_analysis", ""),
+        ("withdraw_evidence_node", "recompute_case_analysis", ""),
+        ("recompute_case_analysis", "read_only_case_response", ""),
+        ("final_memo_gate", "merge_review_outputs", ""),
+        ("build_candidate_evidence", "route_evidence_type", ""),
+        ("route_evidence_type", "p2p_process_fact_extractor", "p2p"),
+        ("route_evidence_type", "purchase_requisition_review_subgraph", "purchase_requisition"),
+        ("route_evidence_type", "expense_review_subgraph", "expense"),
+        ("route_evidence_type", "supplier_onboarding_review_subgraph", "supplier_onboarding"),
+        ("route_evidence_type", "contract_exception_review_subgraph", "contract_exception"),
+        ("route_evidence_type", "budget_exception_review_subgraph", "budget_exception"),
+        ("route_evidence_type", "generic_evidence_review_subgraph", "generic"),
+        ("p2p_process_fact_extractor", "p2p_match_type_classifier", ""),
+        ("p2p_match_type_classifier", "p2p_sequence_anomaly_reviewer", ""),
+        ("p2p_sequence_anomaly_reviewer", "p2p_amount_consistency_reviewer", ""),
+        ("p2p_amount_consistency_reviewer", "p2p_exception_reviewer", ""),
+        ("p2p_exception_reviewer", "p2p_process_fact_explanation", ""),
+        ("p2p_process_fact_explanation", "p2p_sequence_risk_explanation", ""),
+        ("p2p_sequence_risk_explanation", "p2p_amount_reconciliation_explanation", ""),
+        ("p2p_amount_reconciliation_explanation", "p2p_missing_evidence_questions", ""),
+        ("p2p_missing_evidence_questions", "p2p_patch_proposal", ""),
+        ("p2p_patch_proposal", "p2p_process_patch_validator", ""),
+        ("p2p_process_patch_validator", "llm_evidence_extractor", ""),
+        ("purchase_requisition_review_subgraph", "llm_evidence_extractor", ""),
+        ("expense_review_subgraph", "llm_evidence_extractor", ""),
+        ("supplier_onboarding_review_subgraph", "llm_evidence_extractor", ""),
+        ("contract_exception_review_subgraph", "llm_evidence_extractor", ""),
+        ("budget_exception_review_subgraph", "llm_evidence_extractor", ""),
+        ("generic_evidence_review_subgraph", "llm_evidence_extractor", ""),
+        ("llm_evidence_extractor", "llm_policy_interpreter", ""),
+        ("llm_policy_interpreter", "llm_contradiction_reviewer", ""),
+        ("llm_contradiction_reviewer", "llm_reviewer_memo", ""),
+        ("llm_reviewer_memo", "aggregate_llm_stage_outputs", ""),
+        ("aggregate_llm_stage_outputs", "merge_review_outputs", ""),
+        ("merge_review_outputs", "evidence_sufficiency_gate", ""),
+        ("evidence_sufficiency_gate", "contradiction_gate", ""),
+        ("contradiction_gate", "control_matrix_gate", ""),
+        ("control_matrix_gate", "propose_case_patch", ""),
+        ("propose_case_patch", "validate_case_patch", ""),
+        ("validate_case_patch", "route_patch_validity", ""),
+        ("route_patch_validity", "persist_case_state_dossier_audit", "valid"),
+        ("route_patch_validity", "reject_patch_explain", "invalid"),
+        ("read_only_case_response", "append_audit_only", ""),
+        ("append_audit_only", "respond_to_user", ""),
+        ("persist_case_state_dossier_audit", "respond_to_user", ""),
+        ("reject_patch_explain", "respond_to_user", ""),
+    ]
+    return [{"from": source, "to": target, "label": label} for source, target, label in raw_edges]
 
 
 def _proposal_query(

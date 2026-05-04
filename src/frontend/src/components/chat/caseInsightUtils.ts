@@ -20,7 +20,32 @@ export function boolLabel(value: unknown) {
 }
 
 export function displayLabel(value: unknown, fallback = "未提供") {
-  return text(value, fallback).replace(/_/g, " ");
+  const labels: Record<string, string> = {
+    ask_how_to_prepare: "询问材料准备",
+    ask_missing_requirements: "询问当前缺口",
+    ask_policy_failure: "询问退回原因",
+    submit_evidence: "提交材料",
+    request_final_review: "请求生成 memo",
+    correct_previous_evidence: "打回后重审",
+    withdraw_evidence: "撤回材料",
+    off_topic: "与案件无关",
+    create_case: "创建案卷",
+    accept_evidence: "接受材料",
+    reject_evidence: "退回材料",
+    answer_status: "状态回复",
+    final_memo: "最终 memo",
+    no_case_change: "不改案卷",
+    read_only_case_turn: "只读回复",
+    persistent_case_turn: "写入本地案卷",
+    collecting_evidence: "收集材料中",
+    ready_for_final_review: "可生成 memo",
+    final_memo_ready: "memo 已就绪",
+    escalation_review: "需要人工升级复核",
+    blocked: "已阻断",
+    draft: "草稿"
+  };
+  const key = text(value, fallback);
+  return labels[key] ?? key.replace(/_/g, " ");
 }
 
 export function policyRagTraceFromModelReview(modelReview: Record<string, unknown>) {
@@ -33,12 +58,9 @@ export function policyRagTraceFromModelReview(modelReview: Record<string, unknow
 }
 
 export function policyRagPlan(trace: Record<string, unknown>) {
-  const retrieval = object(trace.retrieval);
-  return object(trace.plan || retrieval.plan);
+  return object(trace.query_plan);
 }
 
 export function policyRagEvidences(trace: Record<string, unknown>) {
-  const retrieval = object(trace.retrieval);
-  const direct = records(trace.evidences);
-  return direct.length ? direct : records(retrieval.evidences);
+  return records(trace.evidences);
 }

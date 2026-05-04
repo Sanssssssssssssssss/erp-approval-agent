@@ -28,7 +28,7 @@ const AssetsPanel = dynamic(
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
-        正在加载证据视图...
+        正在加载证据库...
       </section>
     ),
     ssr: false
@@ -79,41 +79,20 @@ function WorkspaceBottomBar({
   return (
     <div className="panel workspace-bottombar">
       <div className="workspace-tabs">
-        <button
-          className={workspaceView === "case" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
-          onClick={() => onViewChange("case")}
-          type="button"
-        >
+        <button className={workspaceView === "case" ? "workspace-tab workspace-tab-active" : "workspace-tab"} onClick={() => onViewChange("case")} type="button">
           案件工作台
         </button>
-        <button
-          className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
-          onClick={() => onViewChange("trace")}
-          type="button"
-        >
+        <button className={workspaceView === "trace" ? "workspace-tab workspace-tab-active" : "workspace-tab"} onClick={() => onViewChange("trace")} type="button">
           审计轨迹
         </button>
-        <button
-          className={workspaceView === "assets" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
-          onClick={() => onViewChange("assets")}
-          type="button"
-        >
+        <button className={workspaceView === "assets" ? "workspace-tab workspace-tab-active" : "workspace-tab"} onClick={() => onViewChange("assets")} type="button">
           证据库
         </button>
-        <button
-          className={workspaceView === "insights" ? "workspace-tab workspace-tab-active" : "workspace-tab"}
-          onClick={() => onViewChange("insights")}
-          type="button"
-        >
+        <button className={workspaceView === "insights" ? "workspace-tab workspace-tab-active" : "workspace-tab"} onClick={() => onViewChange("insights")} type="button">
           高级洞察
         </button>
         {workspaceView === "trace" && resumableCheckpoint ? (
-          <button
-            className="workspace-tab"
-            disabled={isStreaming}
-            onClick={() => void resumeCheckpoint(resumableCheckpoint.checkpoint_id)}
-            type="button"
-          >
+          <button className="workspace-tab" disabled={isStreaming} onClick={() => void resumeCheckpoint(resumableCheckpoint.checkpoint_id)} type="button">
             <span className="inline-flex items-center gap-2">
               <RotateCcw size={14} />
               恢复 checkpoint

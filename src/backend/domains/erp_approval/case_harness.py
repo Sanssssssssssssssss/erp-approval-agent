@@ -358,9 +358,24 @@ class CaseHarness:
             accepted = _merge_accepted(accepted, patch.accepted_evidence)
             rejected = _merge_rejected(rejected, patch.rejected_evidence)
             policy_failures = resolve_policy_failures(policy_failures, patch.policy_failures, patch.requirements_satisfied)
+        human_review = dict(state.human_review or {})
+        human_review_action = dict((patch.model_review or {}).get("human_review_action") or {})
+        next_stage = _stage_from_review(review)
+        if mutate_case and human_review_action:
+            human_review = {
+                "status": human_review_action.get("decision", "changes_requested"),
+                "reviewer": human_review_action.get("reviewer", ""),
+                "note": human_review_action.get("note", ""),
+                "decided_at": now,
+                "target_dossier_version": human_review_action.get("target_dossier_version", state.dossier_version),
+                "requires_re_review": bool(human_review_action.get("requires_re_review", True)),
+                "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+            }
+            if human_review.get("status") == "changes_requested":
+                next_stage = "collecting_evidence"
         return state.model_copy(
             update={
-                "stage": _stage_from_review(review),
+                "stage": next_stage,
                 "updated_at": now,
                 "turn_count": state.turn_count + 1,
                 "accepted_evidence": accepted,
@@ -373,6 +388,7 @@ class CaseHarness:
                 "control_matrix": review.control_matrix,
                 "recommendation": review.recommendation,
                 "reviewer_memo": review.reviewer_memo,
+                "human_review": human_review,
                 "missing_items": list(review.evidence_sufficiency.get("blocking_gaps") or []),
                 "next_questions": list(review.evidence_sufficiency.get("next_questions") or []),
                 "case_plan": dict((patch.model_review or {}).get("case_supervisor_plan") or build_case_supervisor_plan(state, review, patch)),

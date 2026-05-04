@@ -429,6 +429,7 @@ export type ErpApprovalCaseTurnRequest = {
   user_message: string;
   extra_evidence?: ErpApprovalCaseReviewEvidenceInput[];
   requested_by?: string;
+  expected_turn_count?: number | null;
   client_intent?:
     | "create_case"
     | "ask_how_to_prepare"
@@ -480,6 +481,40 @@ export type ErpApprovalCaseTurnResponse = {
   operation_scope?: string;
   persistence?: string;
   harness_run?: Record<string, unknown>;
+  non_action_statement: string;
+};
+
+export type ErpApprovalCaseGraphNode = {
+  node_id: string;
+  label: string;
+  prompt_ids: string[];
+  editable: boolean;
+};
+
+export type ErpApprovalCaseGraphEdge = {
+  from: string;
+  to: string;
+  label: string;
+};
+
+export type ErpApprovalCasePrompt = {
+  prompt_id: string;
+  node_id: string;
+  label: string;
+  category: string;
+  description: string;
+  default_prompt: string;
+  prompt: string;
+  overridden: boolean;
+  editable: boolean;
+  non_action_statement: string;
+};
+
+export type ErpApprovalCaseGraphResponse = {
+  graph_name: string;
+  nodes: ErpApprovalCaseGraphNode[];
+  edges: ErpApprovalCaseGraphEdge[];
+  prompts: ErpApprovalCasePrompt[];
   non_action_statement: string;
 };
 
@@ -1159,6 +1194,17 @@ export async function applyErpApprovalCaseTurn(payload: ErpApprovalCaseTurnReque
     method: "POST",
     body: JSON.stringify(payload)
   }, 300000);
+}
+
+export async function getErpApprovalCaseGraph() {
+  return request<ErpApprovalCaseGraphResponse>("/erp-approval/case-graph");
+}
+
+export async function saveErpApprovalCasePrompt(promptId: string, content: string) {
+  return request<Record<string, unknown>>(`/erp-approval/case-graph/prompts/${encodeURIComponent(promptId)}`, {
+    method: "POST",
+    body: JSON.stringify({ content })
+  });
 }
 
 export async function getErpApprovalCaseConversation(caseId: string, limit = 200) {

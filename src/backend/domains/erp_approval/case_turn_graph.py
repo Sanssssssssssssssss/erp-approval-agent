@@ -234,7 +234,7 @@ def compile_case_turn_graph():
     graph.add_edge("off_topic_reject_node", "read_only_case_response")
     graph.add_edge("correct_evidence_node", "recompute_case_analysis")
     graph.add_edge("withdraw_evidence_node", "recompute_case_analysis")
-    graph.add_edge("recompute_case_analysis", "read_only_case_response")
+    graph.add_edge("recompute_case_analysis", "validate_case_patch")
     graph.add_edge("final_memo_gate", "merge_review_outputs")
     graph.add_edge("build_candidate_evidence", "route_evidence_type")
     graph.add_conditional_edges(
@@ -675,8 +675,45 @@ def withdraw_evidence_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 
 
 def recompute_case_analysis_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    harness = state["harness"]
     review = _review_without_new_evidence(state, branch="ask_status")
-    return {**state, "review": review, "provisional_review": review, "graph_steps": _steps(state, "recompute_case_analysis")}
+    intent = state.get("intent", "correct_previous_evidence")
+    patch = harness._build_patch(
+        state=state["case_state"],
+        turn_id=state["turn_id"],
+        intent=intent,
+        accepted=[],
+        rejected=[],
+        review=review,
+        warnings=list(state.get("warnings", [])),
+        created_new=False,
+        model_decision=None,
+        model_error="",
+    )
+    model_review = dict(patch.model_review or {})
+    if intent in {"correct_previous_evidence", "withdraw_evidence"}:
+        model_review["human_review_action"] = {
+            "decision": "changes_requested",
+            "note": state["request"].user_message.strip(),
+            "reviewer": state["request"].requested_by,
+            "target_dossier_version": state["case_state"].dossier_version,
+            "requires_re_review": True,
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+    patch = patch.model_copy(update={"model_review": model_review})
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        review,
+        purpose="reviewer_return_rework",
+    )
+    return {
+        **state,
+        "review": review,
+        "provisional_review": review,
+        "patch": patch,
+        "graph_steps": _steps(state, "recompute_case_analysis"),
+    }
 
 
 def final_memo_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
@@ -1137,6 +1174,22 @@ def persist_case_state_dossier_audit_node(state: CaseTurnGraphState) -> CaseTurn
                 },
             )
         )
+    human_review_action = dict((patch.model_review or {}).get("human_review_action") or {})
+    if human_review_action:
+        events.append(
+            _event(
+                turn_id,
+                case_state.case_id,
+                "case_human_review_recorded",
+                now,
+                {
+                    "decision": human_review_action.get("decision", ""),
+                    "reviewer": human_review_action.get("reviewer", ""),
+                    "requires_re_review": bool(human_review_action.get("requires_re_review", True)),
+                    "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+                },
+            )
+        )
 
     case_state = harness._apply_patch(case_state, patch, review, now, turn_id, mutate_case=state.get("intent") != "off_topic")
     for evidence in patch.accepted_evidence:
@@ -1246,8 +1299,9 @@ def _append_conversation_turn(state: CaseTurnGraphState, response: CaseTurnRespo
 def _conversation_reply_text(response: CaseTurnResponse) -> str:
     patch = response.patch
     agent_reply = dict((patch.model_review or {}).get("agent_reply") or {})
-    if str(agent_reply.get("body") or "").strip():
-        return str(agent_reply.get("body") or "").strip()
+    markdown = str(agent_reply.get("markdown") or agent_reply.get("body") or "").strip()
+    if markdown:
+        return markdown
     return (
         "本轮模型没有返回结构化 agent_reply，因此系统不生成业务结论。"
         "请重试，或检查本地模型服务是否可用。"
@@ -1608,33 +1662,29 @@ def _attach_agent_reply(
 
     model_review = dict(patch.model_review or {})
     existing_reply = dict(model_review.get("agent_reply") or {})
-    if str(existing_reply.get("body") or "").strip():
+    if str(existing_reply.get("markdown") or existing_reply.get("body") or "").strip():
         return patch
 
     model_output = _run_custom_stage_model_role(
         state,
-        role_name=purpose,
+        role_name="llm_user_response_writer",
         system_prompt=(
-            "Role: LLM ERP approval case agent. You are the user-facing approval materials specialist. "
-            "Write the main reply for this turn in natural Chinese. Do not sound like a backend status template. "
-            "Use the current case state, policy/RAG evidence, patch proposal, review gates, and model role outputs. "
-            "Only persisted case_state.accepted_evidence can prove a requirement is satisfied. "
-            "For materials guidance or other read-only turns, do not say any requirement is 已通过/完成 unless it is backed by accepted_evidence in case_state. "
-            "Do not treat mock policy/RAG snippets as submitted business evidence. "
-            "If evidence is missing, explain what is missing and what the user should submit next. "
-            "If evidence was accepted, explain what you accepted, which requirement it supports, and what remains. "
-            "If evidence was rejected, explain why and how to fix it. "
-            "If final memo was requested but not ready, backtrack to the missing materials. "
-            "If final memo is ready, write a reviewer-facing memo/submission package summary. "
+            "Role: LLM user response writer for an evidence-first ERP approval case agent. "
+            "You are the only role allowed to write user-visible business replies. "
+            "Write natural Chinese Markdown in agent_reply.markdown. "
+            "Do not let frontend or backend templates supply the business conclusion. "
+            "Use the current case state, user turn, policy/RAG evidence, stage role outputs, patch proposal, and review context. "
+            "You may express your judgment fully. If boundary snapshots disagree with you, mention the disagreement as a review risk. "
             "Never imply ERP approval, rejection, payment, comment, route, supplier activation, budget update, or contract signing. "
             "Return JSON only: "
-            '{"title":"short Chinese title","body":"Chinese user-facing answer","meta":["short tags"],'
-            '"next_suggested_user_message":"optional next message the user can send",'
+            '{"title":"short Chinese title","markdown":"Chinese Markdown user-facing answer","body":"same answer",'
+            '"meta":["short tags"],"next_suggested_user_message":"optional next message",'
             '"warnings":[],"confidence":0.0,'
             '"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
         ),
         payload={
             "purpose": purpose,
+            "writer_role": "llm_user_response_writer",
             "user_message": state["request"].user_message,
             "case_state": state["case_state"].model_dump(),
             "operation_scope": "read_only_case_turn" if state.get("read_only_turn") else "persistent_case_turn",
@@ -1655,18 +1705,21 @@ def _attach_agent_reply(
         },
     )
     title = str(model_output.get("title") or "").strip() or _agent_reply_title(purpose)
-    body = str(model_output.get("body") or "").strip()
+    markdown = str(model_output.get("markdown") or model_output.get("body") or "").strip()
+    body = str(model_output.get("body") or markdown).strip()
     meta = [str(item).strip() for item in (model_output.get("meta") or []) if str(item or "").strip()]
     reply = {
         "used": bool(model_output.get("used")),
         "status": model_output.get("status", "executed" if model_output.get("used") else "model_required"),
         "purpose": purpose,
+        "writer_role": "llm_user_response_writer",
         "title": title[:120],
+        "markdown": _ensure_non_action_statement(markdown) if markdown else "",
         "body": _ensure_non_action_statement(body) if body else "",
         "meta": meta[:8],
         "next_suggested_user_message": str(model_output.get("next_suggested_user_message") or "").strip()[:500],
         "role_output": model_output,
-        "missing_model_reply": not bool(body),
+        "missing_model_reply": not bool(markdown or body),
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
     }
     model_review["agent_reply"] = reply

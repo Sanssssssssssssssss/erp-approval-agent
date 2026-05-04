@@ -1,9 +1,15 @@
 "use client";
 
-import { BrainCircuit, ClipboardList, Database, GitBranch, ShieldCheck, Wrench } from "lucide-react";
-import type { ReactNode } from "react";
+import { BrainCircuit, ClipboardList, Database, GitBranch, Network, Save, ShieldCheck, Wrench } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import type { ErpApprovalCaseTurnResponse } from "@/lib/api";
+import {
+  getErpApprovalCaseGraph,
+  saveErpApprovalCasePrompt,
+  type ErpApprovalCaseGraphResponse,
+  type ErpApprovalCasePrompt,
+  type ErpApprovalCaseTurnResponse
+} from "@/lib/api";
 
 import { LlmContextLibraryPanel } from "./LlmContextLibraryPanel";
 import {
@@ -56,7 +62,7 @@ function EmptyInsights() {
           <p className="pixel-label">高级洞察</p>
           <h2 className="mt-2 text-xl font-semibold text-[var(--color-ink)]">还没有可解释的案件轮次</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">
-            先在“案件工作台”里描述审批案件或提交材料。Agent 完成一轮审查后，这里会展示本轮解释、制度依据、案卷变化、图路径和模型状态。
+            先在案件工作台里描述审批案件、询问材料清单或提交证据。Agent 完成一轮审查后，这里会展示本轮解释、制度依据、案卷变化、图路径和 system prompt。
           </p>
           <p className="mt-4 text-xs text-[var(--color-ink-muted)]">No ERP write action was executed.</p>
         </div>
@@ -73,217 +79,200 @@ function getPatch(turn: ErpApprovalCaseTurnResponse) {
   return object(turn.patch);
 }
 
-function getHarnessRun(turn: ErpApprovalCaseTurnResponse) {
-  return object(turn.harness_run);
-}
-
-function getNextSuggestions(turn: ErpApprovalCaseTurnResponse) {
+export function AgentInsightSummary({ turn }: PanelProps) {
+  if (!turn) return null;
   const patch = getPatch(turn);
   const modelReview = getModelReview(turn);
-  const casePlan = object(modelReview.case_supervisor_plan || turn.case_state.case_plan);
-  return [
-    ...list(patch.next_questions),
-    ...list(turn.case_state.next_questions),
-    ...list(casePlan.next_actions),
-    ...list(casePlan.next_questions)
-  ].slice(0, 5);
-}
-
-export function AgentInsightSummary({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
-  const patch = getPatch(turn);
-  const modelReview = getModelReview(turn);
-  const intent = text(patch.turn_intent || modelReview.turn_intent, "未识别");
-  const patchType = text(patch.patch_type, "no_case_change");
-  const writeApplied = Boolean(patch.applied || patch.case_written || patch.persisted || patchType === "accept_evidence");
-  const status = text(turn.review.recommendation?.status || turn.case_state.recommendation?.status || patch.status, "继续收集材料");
-  const suggestions = getNextSuggestions(turn);
+  const agentReply = object(modelReview.agent_reply);
+  const caseState = turn.case_state;
+  const accepted = records(patch.accepted_evidence);
+  const rejected = records(patch.rejected_evidence);
+  const policyFailures = records(patch.policy_failures);
+  const wroteCase =
+    accepted.length > 0 ||
+    rejected.length > 0 ||
+    policyFailures.length > 0 ||
+    text(patch.patch_type, "") !== "no_case_change";
 
   return (
-    <Section icon={<ClipboardList size={14} />} kicker="1. 本轮解释" title="Agent 本轮做了什么">
+    <Section icon={<ClipboardList size={15} />} kicker="本轮解释" title="Agent 这一轮做了什么">
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">用户意图</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{displayLabel(intent)}</p>
+        <div className="insight-tile">
+          <p className="pixel-label">识别意图</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">{displayLabel(patch.turn_intent)}</p>
         </div>
-        <div className="pixel-card-soft p-3">
+        <div className="insight-tile">
           <p className="pixel-label">处理方式</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{displayLabel(patchType)}</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">{displayLabel(patch.patch_type)}</p>
         </div>
-        <div className="pixel-card-soft p-3">
+        <div className="insight-tile">
           <p className="pixel-label">是否写入案卷</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{boolLabel(writeApplied)}</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">{boolLabel(wroteCase)}</p>
         </div>
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">当前结果</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{displayLabel(status)}</p>
+        <div className="insight-tile">
+          <p className="pixel-label">当前阶段</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">{displayLabel(caseState.stage)}</p>
         </div>
       </div>
-      <div className="mt-4">
-        <p className="pixel-label">下一步建议</p>
-        {suggestions.length ? (
-          <ul className="case-agent-list mt-2">
-            {suggestions.map((item, index) => (
-              <li key={`${item}-${index}`}>{item}</li>
+      <div className="mt-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm leading-6 text-[var(--color-ink-soft)]">
+        {text(agentReply.markdown, text(agentReply.body, "模型没有返回 agent_reply.markdown；请查看图路径和模型角色状态。"))}
+      </div>
+      {caseState.next_questions?.length ? (
+        <div className="mt-3">
+          <p className="pixel-label mb-2">下一步建议</p>
+          <ul className="space-y-1 text-sm text-[var(--color-ink-soft)]">
+            {caseState.next_questions.slice(0, 5).map((item) => (
+              <li key={item}>- {item}</li>
             ))}
           </ul>
-        ) : (
-          <p className="mt-2 text-sm text-[var(--color-ink-soft)]">本轮没有新的补证建议。可以查看右侧案卷清单或请求生成 reviewer memo。</p>
-        )}
-      </div>
+        </div>
+      ) : null}
     </Section>
   );
 }
 
-function requirementLabelsForPolicy(turn: ErpApprovalCaseTurnResponse, evidence: Record<string, unknown>) {
-  const source = text(evidence.source_path || evidence.source_id, "");
-  const requirements = records(turn.case_state.evidence_requirements);
-  const matched = requirements
-    .filter((requirement) => {
-      const refs = list(requirement.policy_refs);
-      return source && refs.some((ref) => source.includes(ref) || ref.includes(source));
-    })
-    .map((requirement) => text(requirement.label || requirement.requirement_id));
-  return matched.length ? matched : ["用于核对本轮材料要求与制度条款"];
-}
-
-export function PolicyEvidencePanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
+export function PolicyEvidencePanel({ turn }: PanelProps) {
+  if (!turn) return null;
   const modelReview = getModelReview(turn);
-  const policyTrace = policyRagTraceFromModelReview(modelReview);
-  const policyPlan = policyRagPlan(policyTrace);
-  const policyEvidences = policyRagEvidences(policyTrace);
-  const rewrittenQueries = list(policyPlan.rewritten_queries || policyTrace.query_rewrite || policyTrace.rewritten_queries);
-  const queryHints = list(policyPlan.query_hints || policyTrace.query_hints);
-  const plannerStatus = text(policyTrace.planner_status || policyPlan.planner_status || policyTrace.model_status, "未触发");
-  const retrievalStatus = text(policyTrace.retrieval_status || policyTrace.status, "未检索");
+  const trace = policyRagTraceFromModelReview(modelReview);
+  const plan = policyRagPlan(trace);
+  const evidences = policyRagEvidences(trace);
+  const rewrittenQueries = list(plan.rewritten_queries);
+  const queryHints = list(plan.query_hints);
 
   return (
-    <Section icon={<Database size={14} />} kicker="2. 制度依据" title="Policy RAG 与制度命中">
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">RAG 状态</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{retrievalStatus}</p>
-        </div>
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">Query rewrite</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{plannerStatus}</p>
-        </div>
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">命中条款</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{policyEvidences.length} 条</p>
-        </div>
-      </div>
-
-      {rewrittenQueries.length ? (
-        <div className="mt-4">
-          <p className="pixel-label">模型改写后的查询</p>
-          <ul className="case-agent-list mt-2">
-            {rewrittenQueries.slice(0, 5).map((query) => (
-              <li key={query}>{query}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {queryHints.length ? (
-        <div className="mt-4">
-          <p className="pixel-label">查询提示词</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {queryHints.slice(0, 10).map((hint) => (
-              <span className="pixel-tag" key={hint}>
-                {hint}
-              </span>
-            ))}
+    <Section icon={<Database size={15} />} kicker="制度依据" title="Policy RAG 与制度命中">
+      {Object.keys(trace).length === 0 ? (
+        <p className="text-sm text-[var(--color-ink-soft)]">本轮没有可展示的制度命中。若你在问材料清单或退回原因，请重新提问一次，Agent 会优先走政策检索。</p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="space-y-3">
+            <div className="insight-tile">
+              <p className="pixel-label">RAG 状态</p>
+              <p className="mt-1 text-sm text-[var(--color-ink)]">{text(trace.status, "已执行")}</p>
+            </div>
+            <div className="insight-tile">
+              <p className="pixel-label">Query rewrite</p>
+              <ul className="mt-2 space-y-1 text-sm text-[var(--color-ink-soft)]">
+                {(rewrittenQueries.length ? rewrittenQueries : ["本轮没有 rewrite 结果"]).slice(0, 5).map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="insight-tile">
+              <p className="pixel-label">Query hints</p>
+              <ul className="mt-2 space-y-1 text-sm text-[var(--color-ink-soft)]">
+                {(queryHints.length ? queryHints : ["暂无 hint"]).slice(0, 5).map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {evidences.length ? (
+              evidences.slice(0, 8).map((item, index) => (
+                <article className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3" key={`${text(item.source_path)}-${index}`}>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-ink-muted)]">
+                    <span>{text(item.source_path, "policy source")}</span>
+                    <span>{text(item.locator, "locator 未提供")}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--color-ink-soft)]">{text(item.snippet, "没有 snippet")}</p>
+                </article>
+              ))
+            ) : (
+              <p className="text-sm text-[var(--color-ink-soft)]">本轮没有可展示的 policy snippet。</p>
+            )}
           </div>
         </div>
-      ) : null}
-
-      <div className="mt-4">
-        <p className="pixel-label">制度片段</p>
-        {policyEvidences.length ? (
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            {policyEvidences.slice(0, 6).map((evidence, index) => (
-              <article className="pixel-card-soft p-3" key={`${text(evidence.source_path)}-${text(evidence.locator)}-${index}`}>
-                <p className="text-sm font-semibold text-[var(--color-ink)]">{text(evidence.title || evidence.source_path, "制度片段")}</p>
-                <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
-                  {text(evidence.source_path, "unknown")} · {text(evidence.locator, "unknown")}
-                </p>
-                <p className="mt-3 text-sm leading-6 text-[var(--color-ink-soft)]">{text(evidence.snippet, "没有 snippet")}</p>
-                <p className="mt-3 text-xs text-[var(--color-ink-muted)]">
-                  支持材料要求：{requirementLabelsForPolicy(turn, evidence).join(" / ")}
-                </p>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
-            本轮没有可展示的制度命中。这里不会展示 raw 错误；请查看图路径与模型状态，或补充更明确的材料/制度线索。
-          </p>
-        )}
-      </div>
+      )}
     </Section>
   );
 }
 
-export function CaseChangePanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
+export function CaseChangePanel({ turn }: PanelProps) {
+  if (!turn) return null;
   const patch = getPatch(turn);
-  const accepted = records(patch.accepted_evidence).length ? records(patch.accepted_evidence) : records(turn.case_state.accepted_evidence).slice(-6);
-  const rejected = records(patch.rejected_evidence).length ? records(patch.rejected_evidence) : records(turn.case_state.rejected_evidence).slice(-6);
-  const policyFailures = records(patch.policy_failures).length ? records(patch.policy_failures) : records(turn.case_state.policy_failures).slice(-6);
+  const state = turn.case_state;
+  const accepted = records(patch.accepted_evidence);
+  const rejected = records(patch.rejected_evidence);
+  const failures = records(patch.policy_failures);
 
   return (
-    <Section icon={<ShieldCheck size={14} />} kicker="3. 案卷变化" title="本轮写入、退回与状态变化">
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="pixel-card-soft p-3">
+    <Section icon={<Network size={15} />} kicker="案卷变化" title="本轮写入、退回和案卷版本">
+      <div className="mb-4 grid gap-3 md:grid-cols-3">
+        <div className="insight-tile">
           <p className="pixel-label">案卷阶段</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{displayLabel(turn.case_state.stage)}</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">{displayLabel(state.stage)}</p>
         </div>
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">Dossier version</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">v{turn.case_state.dossier_version}</p>
+        <div className="insight-tile">
+          <p className="pixel-label">Dossier 版本</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">v{state.dossier_version}</p>
         </div>
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">Case turn</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{turn.case_state.turn_count} 轮</p>
+        <div className="insight-tile">
+          <p className="pixel-label">轮次</p>
+          <p className="mt-1 text-sm text-[var(--color-ink)]">{state.turn_count}</p>
         </div>
       </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <ChangeList title="接受材料" items={accepted} empty="本轮没有接受新材料" />
+        <ChangeList title="退回材料" items={rejected} empty="本轮没有退回材料" />
+        <ChangeList title="制度失败" items={failures} empty="本轮没有新的制度失败" />
+      </div>
+    </Section>
+  );
+}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+function ChangeList({ title, items, empty }: { title: string; items: Array<Record<string, unknown>>; empty: string }) {
+  return (
+    <div className="insight-tile">
+      <p className="pixel-label mb-2">{title}</p>
+      {items.length ? (
+        <ul className="space-y-2 text-sm text-[var(--color-ink-soft)]">
+          {items.slice(0, 8).map((item, index) => (
+            <li key={`${title}-${index}`}>
+              <span className="font-medium text-[var(--color-ink)]">{text(item.title, text(item.source_id, `第 ${index + 1} 项`))}</span>
+              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{text(item.reason, text(item.why_failed, ""))}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-[var(--color-ink-muted)]">{empty}</p>
+      )}
+    </div>
+  );
+}
+
+export function GraphTracePanel({ turn }: PanelProps) {
+  if (!turn) return null;
+  const harnessRun = object(turn.harness_run);
+  const modelReview = getModelReview(turn);
+  const roleOutputs = records(modelReview.stage_model_role_outputs);
+  const steps = list(harnessRun.graph_steps);
+
+  return (
+    <Section icon={<GitBranch size={15} />} kicker="图路径与模型" title="本轮经过的节点和 LLM 角色">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div>
-          <p className="pixel-label">本轮接受的材料</p>
-          {accepted.length ? (
-            <ul className="case-agent-list mt-2">
-              {accepted.map((item, index) => (
-                <li key={`${text(item.source_id || item.title)}-${index}`}>{text(item.title || item.source_id || item.evidence_id, "已接受材料")}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-[var(--color-ink-soft)]">本轮没有新增接受材料。</p>
-          )}
+          <p className="pixel-label mb-2">Graph steps</p>
+          <div className="flex flex-wrap gap-2">
+            {(steps.length ? steps : ["未返回 graph_steps"]).map((step) => (
+              <span className="pixel-tag" key={step}>{step}</span>
+            ))}
+          </div>
         </div>
         <div>
-          <p className="pixel-label">本轮退回的材料</p>
-          {rejected.length ? (
-            <ul className="case-agent-list mt-2">
-              {rejected.map((item, index) => (
-                <li key={`${text(item.source_id || item.title)}-${index}`}>{text(item.title || item.source_id || item.reason, "被退回材料")}</li>
+          <p className="pixel-label mb-2">模型角色状态</p>
+          {roleOutputs.length ? (
+            <div className="space-y-2">
+              {roleOutputs.map((role, index) => (
+                <div className="flex items-center justify-between rounded-md border border-[var(--color-border)] px-3 py-2 text-sm" key={`${text(role.role)}-${index}`}>
+                  <span>{text(role.role, "unknown_role")}</span>
+                  <span className="text-[var(--color-ink-muted)]">{text(role.status, "unknown")}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
-            <p className="mt-2 text-sm text-[var(--color-ink-soft)]">本轮没有退回材料。</p>
-          )}
-        </div>
-        <div>
-          <p className="pixel-label">制度不符合项</p>
-          {policyFailures.length ? (
-            <ul className="case-agent-list mt-2">
-              {policyFailures.map((item, index) => (
-                <li key={`${text(item.requirement_id)}-${index}`}>
-                  {text(item.requirement_id, "制度要求")}：{text(item.why_failed || item.how_to_fix, "需要补充制度可追溯材料")}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-[var(--color-ink-soft)]">暂无未解决的制度失败项。</p>
+            <p className="text-sm text-[var(--color-ink-soft)]">本轮没有返回 LLM role 明细；请检查模型配置或 graph 输出。</p>
           )}
         </div>
       </div>
@@ -291,85 +280,139 @@ export function CaseChangePanel({ turn }: { turn: ErpApprovalCaseTurnResponse })
   );
 }
 
-function roleOutputs(modelReview: Record<string, unknown>) {
-  const candidates = [
-    records(modelReview.stage_model_role_outputs),
-    records(modelReview.llm_role_outputs),
-    records(modelReview.role_outputs),
-    records(modelReview.stage_outputs)
-  ];
-  return candidates.find((items) => items.length > 0) ?? [];
-}
+export function PromptGraphPanel({ turn }: PanelProps) {
+  const activeSteps = useMemo(() => new Set(list(object(turn?.harness_run).graph_steps)), [turn]);
+  const [graph, setGraph] = useState<ErpApprovalCaseGraphResponse | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<ErpApprovalCasePrompt | null>(null);
+  const [draft, setDraft] = useState("");
+  const [status, setStatus] = useState("");
 
-export function GraphTracePanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
-  const patch = getPatch(turn);
-  const modelReview = getModelReview(turn);
-  const harnessRun = getHarnessRun(turn);
-  const graphName = text(harnessRun.graph_name || harnessRun.graph || "erp_approval_dynamic_case_turn_graph");
-  const graphSteps = list(harnessRun.graph_steps || modelReview.graph_steps || patch.graph_steps);
-  const roles = roleOutputs(modelReview);
-  const modelStatus = text(modelReview.stage_model_status || modelReview.model_status || modelReview.status, "未报告");
+  useEffect(() => {
+    let mounted = true;
+    void getErpApprovalCaseGraph()
+      .then((response) => {
+        if (!mounted) return;
+        setGraph(response);
+        const first = response.prompts.find((prompt) => prompt.editable) ?? response.prompts[0] ?? null;
+        setSelectedPrompt(first);
+        setDraft(first?.prompt ?? "");
+      })
+      .catch((error: unknown) => {
+        if (mounted) setStatus(error instanceof Error ? error.message : "加载图谱失败");
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const promptByNode = useMemo(() => {
+    const map = new Map<string, ErpApprovalCasePrompt[]>();
+    for (const prompt of graph?.prompts ?? []) {
+      const current = map.get(prompt.node_id) ?? [];
+      current.push(prompt);
+      map.set(prompt.node_id, current);
+    }
+    return map;
+  }, [graph]);
+
+  async function savePrompt() {
+    if (!selectedPrompt) return;
+    setStatus("正在保存...");
+    try {
+      await saveErpApprovalCasePrompt(selectedPrompt.prompt_id, draft);
+      setStatus("已保存到本地 prompt override。");
+      setGraph((current) =>
+        current
+          ? {
+              ...current,
+              prompts: current.prompts.map((prompt) =>
+                prompt.prompt_id === selectedPrompt.prompt_id ? { ...prompt, prompt: draft, overridden: true } : prompt
+              )
+            }
+          : current
+      );
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "保存失败");
+    }
+  }
 
   return (
-    <Section icon={<GitBranch size={14} />} kicker="4. 图路径与模型" title="LangGraph 路径和 LLM 角色状态">
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">Graph</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{graphName}</p>
-        </div>
-        <div className="pixel-card-soft p-3">
-          <p className="pixel-label">模型状态</p>
-          <p className="mt-2 text-sm text-[var(--color-ink)]">{modelStatus}</p>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <p className="pixel-label">本轮图路径</p>
-        {graphSteps.length ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {graphSteps.map((step, index) => (
-              <span className="pixel-tag" key={`${step}-${index}`}>
-                {step}
-              </span>
-            ))}
+    <Section icon={<BrainCircuit size={15} />} kicker="Agent 图谱" title="节点 system prompt 可视化与本地编辑">
+      {!graph ? (
+        <p className="text-sm text-[var(--color-ink-soft)]">{status || "正在加载图谱..."}</p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-[var(--color-ink-muted)]">
+              <span className="pixel-tag">{graph.graph_name}</span>
+              <span>高亮节点表示本轮 graph_steps 经过。</span>
+            </div>
+            <div className="case-graph-node-grid">
+              {graph.nodes.map((node) => {
+                const prompts = promptByNode.get(node.node_id) ?? [];
+                return (
+                  <button
+                    className={[
+                      "case-graph-node",
+                      node.editable ? "is-editable" : "",
+                      activeSteps.has(node.node_id) ? "is-active" : ""
+                    ].filter(Boolean).join(" ")}
+                    key={node.node_id}
+                    onClick={() => {
+                      const prompt = prompts[0] ?? null;
+                      setSelectedPrompt(prompt);
+                      setDraft(prompt?.prompt ?? "");
+                      setStatus("");
+                    }}
+                    type="button"
+                  >
+                    <span>{node.label || node.node_id}</span>
+                    <small>{node.node_id}</small>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <p className="mt-2 text-sm text-[var(--color-ink-soft)]">本轮没有返回 graph_steps。</p>
-        )}
-      </div>
-
-      <div className="mt-4">
-        <p className="pixel-label">LLM 角色</p>
-        {roles.length ? (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {roles.map((role, index) => (
-              <div className="pixel-card-soft p-3" key={`${text(role.role || role.name, "role")}-${index}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[var(--color-ink)]">{text(role.role || role.name, "LLM role")}</p>
-                  <span className="pixel-tag">{text(role.status || role.model_status || role.result_status, "unknown")}</span>
+          <div className="case-prompt-editor">
+            {selectedPrompt ? (
+              <>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="pixel-label">{selectedPrompt.category}</p>
+                    <h4 className="mt-1 font-semibold text-[var(--color-ink)]">{selectedPrompt.label}</h4>
+                    <p className="mt-1 text-xs leading-5 text-[var(--color-ink-muted)]">{selectedPrompt.description}</p>
+                  </div>
+                  {selectedPrompt.overridden ? <span className="pixel-tag">已覆盖</span> : null}
                 </div>
-                <p className="mt-2 text-xs leading-5 text-[var(--color-ink-soft)]">
-                  {text(role.summary || role.reason || role.error || role.output_summary, "没有返回摘要")}
-                </p>
-              </div>
-            ))}
+                <textarea
+                  className="pixel-textarea min-h-[320px] font-mono text-xs leading-5"
+                  onChange={(event) => setDraft(event.target.value)}
+                  value={draft}
+                />
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-[var(--color-ink-muted)]">{status || "保存只会写入本地 prompt override，不会执行任何 ERP 动作。"}</p>
+                  <button className="pixel-button pixel-button-primary" onClick={() => void savePrompt()} type="button">
+                    <Save size={15} />
+                    保存 prompt
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-[var(--color-ink-soft)]">请选择一个带 prompt 的节点。</p>
+            )}
           </div>
-        ) : (
-          <p className="mt-2 text-sm text-[var(--color-ink-soft)]">
-            本轮没有可展示的 LLM role 明细。若模型被跳过或超时，本轮不会展示由模板拼出的业务审查结论。
-          </p>
-        )}
-      </div>
+        </div>
+      )}
     </Section>
   );
 }
 
 export function DeveloperDebugPanel() {
   return (
-    <Section icon={<Wrench size={14} />} kicker="5. 开发者调试" title="原始上下文和 Markdown 文件">
-      <details className="case-agent-details">
-        <summary>展开开发者调试视图</summary>
-        <div className="mt-3">
+    <Section icon={<Wrench size={15} />} kicker="开发者调试" title="Raw context / Markdown 文件">
+      <details>
+        <summary className="cursor-pointer text-sm font-medium text-[var(--color-ink)]">展开 LLM Markdown 与当前上下文</summary>
+        <div className="mt-4">
           <LlmContextLibraryPanel compact />
         </div>
       </details>
@@ -378,32 +421,26 @@ export function DeveloperDebugPanel() {
 }
 
 export function AdvancedInsightsPanel({ turn }: PanelProps) {
-  if (!turn) {
-    return <EmptyInsights />;
-  }
+  if (!turn) return <EmptyInsights />;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="panel flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        <header className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="pixel-label">高级洞察</p>
-            <h2 className="mt-2 text-xl font-semibold text-[var(--color-ink)]">案件解释面板</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-ink-soft)]">
-              这里按业务语言解释 Agent 本轮如何理解请求、使用了哪些制度依据、案卷发生了什么变化，以及模型和图路径是否正常。
-            </p>
-          </div>
-          <div className="pixel-tag inline-flex items-center gap-2">
-            <BrainCircuit size={14} />
-            {turn.case_state.case_id || "当前案件"}
-          </div>
-        </header>
-
-        <AgentInsightSummary turn={turn} />
-        <PolicyEvidencePanel turn={turn} />
-        <CaseChangePanel turn={turn} />
-        <GraphTracePanel turn={turn} />
-        <DeveloperDebugPanel />
+      <div className="panel min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="mb-4">
+          <p className="pixel-label">高级洞察</p>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--color-ink)]">案件解释、制度依据和 Agent 图谱</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-ink-soft)]">
+            这里优先展示用户能理解的案件解释。Raw context 和 Markdown 文件被放在开发者调试里，默认折叠。
+          </p>
+        </div>
+        <div className="grid gap-4">
+          <AgentInsightSummary turn={turn} />
+          <PolicyEvidencePanel turn={turn} />
+          <CaseChangePanel turn={turn} />
+          <GraphTracePanel turn={turn} />
+          <PromptGraphPanel turn={turn} />
+          <DeveloperDebugPanel />
+        </div>
       </div>
     </section>
   );

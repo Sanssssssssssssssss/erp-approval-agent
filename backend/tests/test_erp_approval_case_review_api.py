@@ -14,15 +14,118 @@ if str(BACKEND_DIR) not in sys.path:
 
 from src.backend.api import erp_approval as erp_approval_api
 from src.backend.domains.erp_approval.case_review_service import CaseReviewRequest, run_local_case_review
+from src.backend.domains.erp_approval.case_stage_model import CaseStageModelDecision
 from src.backend.domains.erp_approval.case_turn_graph import CASE_TURN_GRAPH_NAME
 
 
+class FakeAcceptingCaseStageModelReviewer:
+    def build_payload(self, *, context_pack, candidates, review, routing_intent):
+        return {
+            "routing_intent_contract": routing_intent,
+            "candidate_evidence": [
+                {"source_id": item.source_id, "title": item.title, "record_type": item.record_type}
+                for item in candidates
+            ],
+        }
+
+    def review_role(self, role, *, payload, role_outputs=None):
+        source_ids = [item["source_id"] for item in payload.get("candidate_evidence", [])]
+        if role == "turn_classifier":
+            return {"turn_intent": payload.get("routing_intent_contract", "submit_evidence"), "confidence": 0.9}, ""
+        if role == "evidence_extractor":
+            return {
+                "evidence_decision": "accepted" if source_ids else "not_evidence",
+                "accepted_source_ids": source_ids,
+                "requirements_satisfied": ["purchase_requisition:quote_or_price_basis"] if source_ids else [],
+                "confidence": 0.9,
+            }, ""
+        if role == "reviewer_memo":
+            return {
+                "patch_type": "accept_evidence" if source_ids else "no_case_change",
+                "evidence_decision": "accepted" if source_ids else "not_evidence",
+                "accepted_source_ids": source_ids,
+                "dossier_patch": "Accepted quoted price evidence from the fake model reviewer.",
+                "reviewer_message": "Fake model reviewer accepted this evidence for API persistence testing.",
+                "confidence": 0.9,
+            }, ""
+        return {"confidence": 0.9, "warnings": []}, ""
+
+    def aggregate_role_outputs(self, role_outputs, *, routing_intent, warnings=None):
+        accepted = []
+        for output in role_outputs.values():
+            accepted.extend(output.get("accepted_source_ids", []) or [])
+        return CaseStageModelDecision(
+            turn_intent=routing_intent,
+            patch_type="accept_evidence" if accepted else "no_case_change",
+            evidence_decision="accepted" if accepted else "not_evidence",
+            accepted_source_ids=accepted,
+            requirements_satisfied=["purchase_requisition:quote_or_price_basis"] if accepted else [],
+            next_questions=["Continue collecting remaining blocking evidence."],
+            dossier_patch="Accepted quoted price evidence from the fake model reviewer.",
+            reviewer_message="Fake model reviewer accepted this evidence for API persistence testing.",
+            warnings=list(warnings or []),
+            confidence=0.9,
+            role_outputs=role_outputs,
+        )
+
+    def review_turn(self, *, context_pack, candidates, review, routing_intent):
+        return CaseStageModelDecision(
+            turn_intent=routing_intent,
+            patch_type="accept_evidence" if candidates else "no_case_change",
+            evidence_decision="accepted" if candidates else "not_evidence",
+            accepted_source_ids=[item.source_id for item in candidates],
+            requirements_satisfied=["purchase_requisition:quote_or_price_basis"] if candidates else [],
+            next_questions=["Continue collecting remaining blocking evidence."],
+            dossier_patch="Accepted quoted price evidence from the fake model reviewer.",
+            reviewer_message="Fake model reviewer accepted this evidence for API persistence testing.",
+            confidence=0.9,
+        )
+
+    def review_custom_json_role(self, *, role_name, system_prompt, payload):
+        if role_name == "policy_rag_query_rewrite":
+            return {
+                "need_rag": False,
+                "rewritten_queries": [],
+                "query_hints": [],
+                "reason": "fake model reviewer skipped RAG",
+                "non_action_statement": "No ERP write action was executed.",
+            }, ""
+        if role_name == "case_supervisor":
+            return {
+                "ready_for_final_memo": False,
+                "next_action": "collect_priority_evidence",
+                "priority_requirements": [],
+                "strategy": "Continue collecting evidence.",
+                "suggested_user_prompt": "Please submit the next evidence item.",
+                "warnings": [],
+                "confidence": 0.9,
+                "non_action_statement": "No ERP write action was executed.",
+            }, ""
+        if role_name in {"agent_reply", "llm_user_response_writer"}:
+            return {
+                "title": "Fake model reply",
+                "markdown": "Fake model reviewer accepted the submitted evidence for this API test. No ERP write action was executed.",
+                "body": "Fake model reviewer accepted the submitted evidence for this API test. No ERP write action was executed.",
+                "meta": ["fake-model"],
+                "warnings": [],
+                "confidence": 0.9,
+                "non_action_statement": "No ERP write action was executed.",
+            }, ""
+        return {
+            "items": [],
+            "summary": "Fake model role output.",
+            "warnings": [],
+            "confidence": 0.9,
+            "non_action_statement": "No ERP write action was executed.",
+        }, ""
+
+
 class ErpApprovalCaseReviewApiTests(unittest.TestCase):
-    def _client(self) -> TestClient:
+    def _client(self, *, stage_model=None) -> TestClient:
         app = FastAPI()
         app.include_router(erp_approval_api.router, prefix="/api")
         base_dir_patcher = patch.object(erp_approval_api, "_case_review_base_dir", return_value=BACKEND_DIR)
-        stage_model_patcher = patch.object(erp_approval_api, "_case_stage_model_reviewer", return_value=None)
+        stage_model_patcher = patch.object(erp_approval_api, "_case_stage_model_reviewer", return_value=stage_model)
         self.addCleanup(base_dir_patcher.stop)
         self.addCleanup(stage_model_patcher.stop)
         base_dir_patcher.start()
@@ -114,7 +217,7 @@ class ErpApprovalCaseReviewApiTests(unittest.TestCase):
                 self.assertNotEqual(path, "/api/erp-approval/case-review")
 
     def test_case_turn_api_persists_stateful_case_patch(self) -> None:
-        client = self._client()
+        client = self._client(stage_model=FakeAcceptingCaseStageModelReviewer())
 
         create_response = client.post(
             "/api/erp-approval/cases/turn",

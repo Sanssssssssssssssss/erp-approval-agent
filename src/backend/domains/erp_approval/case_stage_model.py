@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
 
+from src.backend.domains.erp_approval.case_prompt_registry import case_prompt_text
 from src.backend.domains.erp_approval.case_review_service import CaseReviewEvidenceInput, CaseReviewResponse
 from src.backend.domains.erp_approval.case_state_models import CASE_HARNESS_NON_ACTION_STATEMENT
 from src.backend.domains.erp_approval.service import extract_json_object
@@ -240,6 +241,7 @@ class CaseStageModelReviewer:
         return _aggregate_role_outputs(role_outputs, routing_intent=routing_intent, warnings=list(warnings or []))
 
     def review_custom_json_role(self, *, role_name: str, system_prompt: str, payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+        system_prompt = case_prompt_text(role_name, system_prompt)
         messages = [
             {"role": "system", "content": f"{BASE_STAGE_MODEL_PROMPT}\n\n{system_prompt}"},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
@@ -265,8 +267,9 @@ class CaseStageModelReviewer:
             return {}, str(exc)
 
     def _invoke_role(self, role: str, payload: dict[str, Any]) -> tuple[dict[str, Any], str]:
+        role_prompt = case_prompt_text(f"role:{role}", ROLE_PROMPTS[role])
         messages = [
-            {"role": "system", "content": f"{BASE_STAGE_MODEL_PROMPT}\n\n{ROLE_PROMPTS[role]}"},
+            {"role": "system", "content": f"{BASE_STAGE_MODEL_PROMPT}\n\n{role_prompt}"},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
         ]
         executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"erp-case-stage-{role}")

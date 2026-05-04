@@ -137,6 +137,7 @@ class ApprovalCaseState(BaseModel):
     control_matrix: dict[str, Any] = Field(default_factory=dict)
     recommendation: dict[str, Any] = Field(default_factory=dict)
     reviewer_memo: str = ""
+    human_review: dict[str, Any] = Field(default_factory=dict)
     missing_items: list[str] = Field(default_factory=list)
     next_questions: list[str] = Field(default_factory=list)
     case_plan: dict[str, Any] = Field(default_factory=dict)

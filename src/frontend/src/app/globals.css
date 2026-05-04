@@ -2024,3 +2024,70 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.case-graph-node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.55rem;
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.case-graph-node {
+  min-height: 76px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(10, 13, 17, 0.28);
+  padding: 0.65rem;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.case-graph-node:disabled {
+  cursor: default;
+  opacity: 0.56;
+}
+
+.case-graph-node.is-editable:not(:disabled):hover {
+  border-color: rgba(103, 232, 249, 0.42);
+  background: rgba(47, 129, 247, 0.08);
+  transform: translateY(-1px);
+}
+
+.case-graph-node.is-active {
+  border-color: rgba(84, 211, 138, 0.5);
+  background: rgba(84, 211, 138, 0.08);
+}
+
+.case-graph-node span,
+.case-graph-node small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.case-graph-node span {
+  color: var(--color-ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.case-graph-node small {
+  margin-top: 0.4rem;
+  color: var(--color-ink-muted);
+  font-size: 0.75rem;
+}
+
+.case-prompt-editor {
+  min-height: 390px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(7, 10, 15, 0.42);
+  color: var(--color-ink);
+  padding: 0.75rem;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
