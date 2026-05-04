@@ -614,9 +614,11 @@ export function CaseReviewPanel() {
         extra_evidence: includeEvidence ? queuedEvidence : [],
         client_intent: clientIntent ?? inferredIntent
       });
-      if (response.operation_scope !== "read_only_case_turn" || caseTurn) {
-        setCaseTurn(response);
-      }
+      // Keep the conversation anchored to the latest case snapshot even when
+      // the turn was read-only guidance. Persistence still happens only in the
+      // backend graph; the UI needs this draft state so the user can keep
+      // asking follow-up questions and submit evidence without restarting.
+      setCaseTurn(response);
       setMessages((items) => [...items, buildAgentReply(response)]);
       if (includeEvidence) setQueuedEvidence([]);
       if (!override) setMessage("");
