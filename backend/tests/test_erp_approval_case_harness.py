@@ -64,8 +64,8 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             response = harness.handle_turn(
                 CaseTurnRequest(
                     user_message=(
-                        "Review purchase requisition PR-1001 for replacement laptops. "
-                        "Amount 24500 USD, vendor Acme Supplies, cost center OPS-CC-10. What materials are required?"
+                        "确认创建案卷：purchase requisition PR-1001 for replacement laptops. "
+                        "Amount 24500 USD, vendor Acme Supplies, cost center OPS-CC-10."
                     )
                 )
             )

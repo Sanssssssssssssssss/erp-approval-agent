@@ -185,6 +185,8 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const recommendation = review.recommendation ?? {};
   const sufficiency = review.evidence_sufficiency ?? {};
   const patch = response.patch ?? {};
+  const patchIntent = text(patch.turn_intent, "");
+  const patchType = text(patch.patch_type, "");
   const modelReview = object(patch.model_review);
   const policyRag = object(modelReview.policy_rag);
   const policyFailureAnswer = object(modelReview.policy_failures_answer);
@@ -197,7 +199,7 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
     ]);
   }
   if (renderedFailureAnswer) {
-    return makeMessage("agent", renderedFailureAnswer, "材料退回原因", ["来自案卷状态", "只读答复"]);
+    return makeMessage("agent", renderedFailureAnswer, "材料不符合制度的原因", ["来自案卷状态", "只读答复"]);
   }
   const accepted = records(patch.accepted_evidence);
   const rejected = records(patch.rejected_evidence);
@@ -205,8 +207,16 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const gaps = list(sufficiency.blocking_gaps).concat(response.case_state.missing_items ?? []);
   const questions = Array.from(new Set(list(sufficiency.next_questions).concat(response.case_state.next_questions ?? [])));
   const status = labelForStatus(recommendation.status);
+  const isMissingAsk = patchIntent === "ask_missing_requirements" || patchIntent === "ask_status";
+  const isEvidenceSubmission = patchIntent === "submit_evidence" || ["accept_evidence", "reject_evidence"].includes(patchType);
+  const title = isMissingAsk ? "当前缺口" : isEvidenceSubmission ? "本轮材料审核结果" : "Agent 审查结果";
+  const leadingLine = isMissingAsk
+    ? "当前缺口如下。"
+    : isEvidenceSubmission
+      ? `本轮材料审核结果：${status}。`
+      : `当前结论：${status}。`;
   const lines = [
-    `当前结论：${status}。`,
+    leadingLine,
     accepted.length ? `本轮接受 ${accepted.length} 份材料：${accepted.map((item) => text(item.title || item.source_id)).join("、")}。` : "",
     rejected.length ? `本轮退回 ${rejected.length} 份材料：${rejected.map((item) => text(item.title || item.source_id)).join("、")}。` : "",
     policyFailures.length
@@ -217,8 +227,8 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
     "No ERP write action was executed."
   ].filter(Boolean);
 
-  return makeMessage("agent", lines.join("\n\n"), "Agent 审查结果", [
-    PATCH_LABELS[text(patch.patch_type, "")] ?? text(patch.patch_type),
+  return makeMessage("agent", lines.join("\n\n"), title, [
+    PATCH_LABELS[patchType] ?? patchType,
     STAGE_LABELS[response.case_state.stage] ?? response.case_state.stage,
     response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
   ]);
@@ -251,14 +261,14 @@ function inferClientIntent(
 ): ErpApprovalCaseTurnRequest["client_intent"] {
   if (options.hasQueuedEvidence) return "submit_evidence";
   const textValue = outgoing.toLowerCase();
-  if (!options.hasCase && /(建案审查|创建案卷|创建审批案件|open approval case|create approval case)/i.test(outgoing)) {
-    return "create_case";
-  }
   if (/(为什么|不符合|退回原因|失败原因|why failed|why rejected|policy failure)/i.test(outgoing)) {
     return options.hasCase ? "ask_policy_failure" : "ask_how_to_prepare";
   }
-  if (/(需要准备|需要哪些材料|准备什么材料|材料清单|必备材料|required materials|required evidence|what materials)/i.test(outgoing)) {
+  if (/(需要准备|需要哪些材料|必须提交哪些材料|先告诉我必须提交|请先告诉我必须提交|准备什么材料|需要什么材料|材料清单|必备材料|required materials|required evidence|what materials)/i.test(outgoing)) {
     return "ask_how_to_prepare";
+  }
+  if (!options.hasCase && /(创建案卷|开始建案|确认创建|创建审批案件|open approval case|create approval case|confirm case creation)/i.test(outgoing)) {
+    return "create_case";
   }
   if (/(还缺|缺口|还差|当前状态|进度|下一步|补证|status|still missing)/i.test(outgoing)) {
     return options.hasCase ? "ask_missing_requirements" : "ask_how_to_prepare";

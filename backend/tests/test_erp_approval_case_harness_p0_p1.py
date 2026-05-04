@@ -63,8 +63,7 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             response = harness.handle_turn(
                 CaseTurnRequest(
                     user_message=(
-                        "Review purchase requisition PR-P0-FASTPATH for replacement laptops. "
-                        "What materials are required?"
+                        "确认创建案卷：purchase requisition PR-P0-FASTPATH for replacement laptops."
                     )
                 )
             )
@@ -80,9 +79,8 @@ class ErpApprovalCaseHarnessP0P1Tests(unittest.TestCase):
             first = harness.handle_turn(
                 CaseTurnRequest(
                     user_message=(
-                        "Review purchase requisition PR-P0-LIFE for replacement laptops. "
+                        "确认创建案卷：purchase requisition PR-P0-LIFE for replacement laptops. "
                         "Amount 24500 USD, vendor Acme Supplies, cost center OPS-CC-10. "
-                        "What materials are required?"
                     )
                 )
             )

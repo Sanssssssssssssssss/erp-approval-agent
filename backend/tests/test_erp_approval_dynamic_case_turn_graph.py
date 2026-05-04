@@ -137,6 +137,31 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertTrue(response["patch"]["model_review"]["policy_rag"]["guidance"]["items"])
             self.assertFalse(Path(response["storage_paths"]["case_state"]).exists())
 
+    def test_prepare_template_with_case_review_words_stays_read_only_guidance(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
+            client = self._client(Path(temp_dir))
+            response = client.post(
+                "/api/erp-approval/cases/turn",
+                json={
+                    "user_message": (
+                        "我有一个采购申请需要建案审查：PR-1001，部门 Operations，金额 24500 USD，"
+                        "供应商 Acme Supplies，成本中心 OPS-CC-10，用途是 replacement laptops。"
+                        "请先告诉我必须提交哪些材料。"
+                    ),
+                },
+            ).json()
+
+            self.assertEqual(response["operation_scope"], "read_only_case_turn")
+            self.assertEqual(response["patch"]["turn_intent"], "ask_how_to_prepare")
+            self.assertIn("materials_guidance_node", response["harness_run"]["graph_steps"])
+            self.assertNotIn("persist_case_state_dossier_audit", response["harness_run"]["graph_steps"])
+            self.assertIn("policy_rag", response["patch"]["model_review"])
+            rendered = response["patch"]["model_review"]["policy_rag"]["rendered_guidance"]
+            self.assertIn("必备材料清单", rendered)
+            self.assertIn("可接受", rendered)
+            self.assertIn("不接受", rendered)
+            self.assertFalse(Path(response["storage_paths"]["case_state"]).exists())
+
     def test_extra_evidence_overrides_read_only_client_intent(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
             client = self._client(Path(temp_dir))
