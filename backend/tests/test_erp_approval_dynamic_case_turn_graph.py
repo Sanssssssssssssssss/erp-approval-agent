@@ -322,6 +322,17 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertIn("route_evidence_type", steps)
             self.assertIn("purchase_requisition_review_subgraph", steps)
+            self.assertIn("evidence_classifier", steps)
+            self.assertIn("evidence_reader", steps)
+            self.assertIn("claim_extractor", steps)
+            self.assertIn("requirement_mapper", steps)
+            self.assertIn("policy_reviewer", steps)
+            self.assertIn("conflict_reviewer", steps)
+            self.assertIn("decision_synthesizer", steps)
+            self.assertIn("dossier_patch_writer", steps)
+            self.assertGreaterEqual(steps.count("llm_case_supervisor"), 2)
+            self.assertLess(steps.index("llm_case_supervisor"), steps.index("route_turn_intent"))
+            self.assertLess(steps.index("decision_synthesizer"), steps.index("dossier_patch_writer"))
             self.assertIn("merge_review_outputs", steps)
 
     def test_p2p_evidence_routes_through_visible_p2p_specialist_nodes(self) -> None:
@@ -353,6 +364,15 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("p2p_amount_reconciliation_explanation", steps)
             self.assertIn("p2p_missing_evidence_questions", steps)
             self.assertIn("p2p_process_patch_validator", steps)
+            self.assertIn("evidence_classifier", steps)
+            self.assertIn("evidence_reader", steps)
+            self.assertIn("claim_extractor", steps)
+            self.assertIn("requirement_mapper", steps)
+            self.assertIn("policy_reviewer", steps)
+            self.assertIn("conflict_reviewer", steps)
+            self.assertIn("decision_synthesizer", steps)
+            self.assertIn("dossier_patch_writer", steps)
+            self.assertGreaterEqual(steps.count("llm_case_supervisor"), 2)
             self.assertIn("llm_turn_classifier", steps)
             self.assertIn("llm_evidence_extractor", steps)
             self.assertIn("llm_policy_interpreter", steps)
@@ -371,6 +391,10 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             ).json()
 
             self.assertIn("final_memo_gate", response["harness_run"]["graph_steps"])
+            self.assertIn("final_readiness_reviewer", response["harness_run"]["graph_steps"])
+            self.assertIn("final_backtrack_planner", response["harness_run"]["graph_steps"])
+            self.assertIn("final_missing_items_advisor", response["harness_run"]["graph_steps"])
+            self.assertGreaterEqual(response["harness_run"]["graph_steps"].count("llm_case_supervisor"), 2)
             self.assertIn("merge_review_outputs", response["harness_run"]["graph_steps"])
             self.assertIn("evidence_sufficiency_gate", response["harness_run"]["graph_steps"])
             self.assertIn("contradiction_gate", response["harness_run"]["graph_steps"])
@@ -399,6 +423,8 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
 
             self.assertIn("purchase_requisition_review_subgraph", graph_state["graph_steps"])
             self.assertIn("llm_turn_classifier", graph_state["graph_steps"])
+            self.assertIn("evidence_classifier", graph_state["graph_steps"])
+            self.assertIn("decision_synthesizer", graph_state["graph_steps"])
             self.assertIn("llm_reviewer_memo", graph_state["graph_steps"])
             self.assertIn("aggregate_llm_stage_outputs", graph_state["graph_steps"])
             self.assertIn("llm_user_response_writer", graph_state["graph_steps"])
@@ -445,6 +471,8 @@ class DynamicCaseTurnGraphTests(unittest.TestCase):
             self.assertIn("reviewer_memo", model_review["role_outputs"])
             self.assertIn("llm_user_response_writer", graph_state["graph_steps"])
             self.assertEqual(model_review["agent_reply"]["writer_graph_node"], "llm_user_response_writer")
+            self.assertIn("supervisor_loop", model_review["branch_review_outputs"])
+            self.assertIn("specialist_observations", model_review["branch_review_outputs"])
 
 
 if __name__ == "__main__":

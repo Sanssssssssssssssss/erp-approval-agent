@@ -36,16 +36,16 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
     ),
     "case_supervisor": CasePromptSpec(
         prompt_id="case_supervisor",
-        node_id="propose_case_patch",
+        node_id="llm_case_supervisor",
         label="Case Supervisor",
         category="supervisor",
         description="让模型站在审批资料专员视角，规划下一轮最该做什么；后端只校验 id 和边界。",
         default_prompt=(
-            "Role: LLM Case Supervisor for an evidence-first ERP approval case.\n"
-            "You are the lead approval materials specialist. Decide the next best case-planning step from case_state, evidence requirements, policy failures, and review output.\n"
+            "Role: LLM Case Supervisor for a bounded supervisor-loop approval dossier graph.\n"
+            "You are the lead approval materials specialist. Read structured observations from specialist subgraphs and decide the next graph action.\n"
             "You do not approve, reject, pay, route, comment, update suppliers, update budgets, sign contracts, or execute ERP actions.\n"
-            "Only propose a local case plan. Use requirement_id and source_id only when they exist in current context.\n"
-            "Return JSON only: ready_for_final_memo, next_action, priority_requirements, strategy, suggested_user_prompt, warnings, confidence, non_action_statement."
+            "Use requirement_id and source_id only when they exist in current context.\n"
+            "Return JSON only: next_graph_action, turn_intent, reason, backtrack_needed, specialist_to_call, warnings, confidence, non_action_statement."
         ),
     ),
     "policy_guidance": CasePromptSpec(
@@ -128,6 +128,175 @@ CUSTOM_CASE_PROMPTS: dict[str, CasePromptSpec] = {
             "Do not approve, reject, pay, route, comment, or execute ERP actions.\n"
             f"Return JSON only: {{\"items\":[{{\"requirement_id\":\"...\",\"display_label\":\"short Chinese label\",\"short_reason\":\"why this status\",\"next_step\":\"what the user should submit next\"}}],\"summary\":\"one short Chinese sentence\",\"warnings\":[],\"confidence\":0.0,\"non_action_statement\":\"{CASE_HARNESS_NON_ACTION_STATEMENT}\"}}"
         ),
+    ),
+    "evidence_classifier": CasePromptSpec(
+        prompt_id="evidence_classifier",
+        node_id="evidence_classifier",
+        label="证据类型识别",
+        category="evidence",
+        description="判断当前提交材料的类型与是否足够清晰。",
+        default_prompt=(
+            "Role: evidence classifier. Classify the current evidence type and clarity. "
+            "Return JSON only with evidence_type, decision, confidence, warnings, and non_action_statement."
+        ),
+    ),
+    "evidence_reader": CasePromptSpec(
+        prompt_id="evidence_reader",
+        node_id="evidence_reader",
+        label="证据阅读器",
+        category="evidence",
+        description="阅读材料并抽取业务事实 observation。",
+        default_prompt=(
+            "Role: evidence reader. Read the current evidence and summarize business facts, missing fields, source_ids, and readability issues. Return JSON only."
+        ),
+    ),
+    "claim_extractor": CasePromptSpec(
+        prompt_id="claim_extractor",
+        node_id="claim_extractor",
+        label="Claim 抽取",
+        category="evidence",
+        description="从材料中抽取 claim，不把口头陈述当强证据。",
+        default_prompt=(
+            "Role: claim extractor. Extract claims with source_id, locator, extracted_value, confidence, and requirement candidates. User statements alone are weak evidence. Return JSON only."
+        ),
+    ),
+    "requirement_mapper": CasePromptSpec(
+        prompt_id="requirement_mapper",
+        node_id="requirement_mapper",
+        label="Requirement 映射",
+        category="evidence",
+        description="把 claim 映射到当前 requirement_id。",
+        default_prompt=(
+            "Role: requirement mapper. Map claims to existing requirement_id values only. Explain partial support and missing fields. Return JSON only."
+        ),
+    ),
+    "policy_reviewer": CasePromptSpec(
+        prompt_id="policy_reviewer",
+        node_id="policy_reviewer",
+        label="制度审查",
+        category="policy",
+        description="判断证据是否满足制度条款，必要时要求回到 policy RAG。",
+        default_prompt=(
+            "Role: policy reviewer. Compare evidence and claim mappings with policy/RAG context. If policy context is insufficient, set decision need_policy. Return JSON only."
+        ),
+    ),
+    "conflict_reviewer": CasePromptSpec(
+        prompt_id="conflict_reviewer",
+        node_id="conflict_reviewer",
+        label="冲突审查",
+        category="evidence",
+        description="发现金额、供应商、状态、日期、流程时序等冲突。",
+        default_prompt=(
+            "Role: conflict reviewer. Find conflicts between current evidence and case facts. Return JSON only with conflicts, source_ids, severity, and non_action_statement."
+        ),
+    ),
+    "decision_synthesizer": CasePromptSpec(
+        prompt_id="decision_synthesizer",
+        node_id="decision_synthesizer",
+        label="审查决策综合",
+        category="evidence",
+        description="综合证据专家 observation，决定继续、澄清、补政策、补字段或处理冲突。",
+        default_prompt=(
+            "Role: evidence decision synthesizer. Decide continue|clarify|need_policy|claim_gap|conflict from prior observations. Return JSON only."
+        ),
+    ),
+    "dossier_patch_writer": CasePromptSpec(
+        prompt_id="dossier_patch_writer",
+        node_id="dossier_patch_writer",
+        label="案卷 Patch 起草",
+        category="dossier",
+        description="起草本地案卷 patch observation，不直接写 case_state。",
+        default_prompt=(
+            "Role: dossier patch writer. Draft a local dossier patch observation from accepted, rejected, partial, and conflict evidence. Do not write state. Return JSON only."
+        ),
+    ),
+    "evidence_clarification_question": CasePromptSpec(
+        prompt_id="evidence_clarification_question",
+        node_id="evidence_clarification_question",
+        label="证据澄清问题",
+        category="evidence",
+        description="材料类型或内容不清时生成澄清 observation。",
+        default_prompt="Role: evidence clarification question writer. Return JSON only with clarification_questions, why_needed, and non_action_statement.",
+    ),
+    "policy_rag_backtrack": CasePromptSpec(
+        prompt_id="policy_rag_backtrack",
+        node_id="policy_rag_backtrack",
+        label="Policy RAG 回退",
+        category="rag",
+        description="制度上下文不足时使用 RAG 结果生成 observation。",
+        default_prompt="Role: policy RAG backtrack reviewer. Use policy_rag payload and return JSON only with policy_findings, remaining_policy_gaps, and non_action_statement.",
+    ),
+    "claim_gap_question": CasePromptSpec(
+        prompt_id="claim_gap_question",
+        node_id="claim_gap_question",
+        label="Claim 缺字段问题",
+        category="evidence",
+        description="claim 不足时生成具体补字段问题。",
+        default_prompt="Role: claim gap question writer. Return JSON only with missing_fields, questions, acceptable_evidence_forms, and non_action_statement.",
+    ),
+    "conflict_resolution_request": CasePromptSpec(
+        prompt_id="conflict_resolution_request",
+        node_id="conflict_resolution_request",
+        label="冲突解决请求",
+        category="evidence",
+        description="证据冲突时生成修正或替换材料请求。",
+        default_prompt="Role: conflict resolution request writer. Return JSON only with conflicts, source_ids, requested_corrections, and non_action_statement.",
+    ),
+    "final_readiness_reviewer": CasePromptSpec(
+        prompt_id="final_readiness_reviewer",
+        node_id="final_readiness_reviewer",
+        label="最终 Memo 就绪审查",
+        category="final_review",
+        description="判断是否可以进入最终 reviewer memo 子图。",
+        default_prompt="Role: final readiness reviewer. Return JSON only with ready_for_final_memo, blockers, risks, and non_action_statement.",
+    ),
+    "final_backtrack_planner": CasePromptSpec(
+        prompt_id="final_backtrack_planner",
+        node_id="final_backtrack_planner",
+        label="最终审查回退计划",
+        category="final_review",
+        description="最终 memo 未就绪时规划回退补证。",
+        default_prompt="Role: final backtrack planner. Return JSON only with backtrack_plan, missing_items, priority, and non_action_statement.",
+    ),
+    "final_missing_items_advisor": CasePromptSpec(
+        prompt_id="final_missing_items_advisor",
+        node_id="final_missing_items_advisor",
+        label="最终缺口 Observation",
+        category="final_review",
+        description="为最终回复写入缺口 observation。",
+        default_prompt="Role: final missing items advisor. Return JSON only with missing_items_observation, next_questions, and non_action_statement.",
+    ),
+    "final_memo_planner": CasePromptSpec(
+        prompt_id="final_memo_planner",
+        node_id="final_memo_planner",
+        label="Memo 计划",
+        category="final_review",
+        description="规划最终 reviewer memo 结构。",
+        default_prompt="Role: final memo planner. Return JSON only with memo_sections, source_ids, risks, and non_action_statement.",
+    ),
+    "final_memo_writer": CasePromptSpec(
+        prompt_id="final_memo_writer",
+        node_id="final_memo_writer",
+        label="Memo 写作",
+        category="final_review",
+        description="起草最终 reviewer memo observation。",
+        default_prompt="Role: final memo writer. Draft a reviewer memo observation. Do not execute ERP. Return JSON only.",
+    ),
+    "memo_critic": CasePromptSpec(
+        prompt_id="memo_critic",
+        node_id="memo_critic",
+        label="Memo 批判审查",
+        category="final_review",
+        description="批判 memo 中的 unsupported claim、缺 citation 或执行语义。",
+        default_prompt="Role: memo critic. Return JSON only with passed, issues, required_corrections, and non_action_statement.",
+    ),
+    "persist_memo": CasePromptSpec(
+        prompt_id="persist_memo",
+        node_id="persist_memo",
+        label="Memo 本地持久化 Observation",
+        category="final_review",
+        description="准备本地 memo 持久化 observation，不直接写文件。",
+        default_prompt="Role: persist memo observer. Return JSON only with persist_intent, memo_status, warnings, and non_action_statement.",
     ),
     "p2p_process_fact_explanation": CasePromptSpec(
         prompt_id="p2p_process_fact_explanation",

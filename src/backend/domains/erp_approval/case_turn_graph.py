@@ -45,6 +45,8 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "assemble_case_context",
     "llm_turn_classifier",
     "intent_contract_check",
+    "llm_case_supervisor",
+    "supervisor_route",
     "route_turn_intent",
     "materials_guidance_node",
     "case_status_summary_node",
@@ -73,11 +75,30 @@ CASE_TURN_GRAPH_NODES: tuple[str, ...] = (
     "contract_exception_review_subgraph",
     "budget_exception_review_subgraph",
     "generic_evidence_review_subgraph",
+    "evidence_classifier",
+    "evidence_reader",
+    "claim_extractor",
+    "requirement_mapper",
+    "policy_reviewer",
+    "conflict_reviewer",
+    "decision_synthesizer",
+    "dossier_patch_writer",
+    "evidence_clarification_question",
+    "policy_rag_backtrack",
+    "claim_gap_question",
+    "conflict_resolution_request",
     "llm_evidence_extractor",
     "llm_policy_interpreter",
     "llm_contradiction_reviewer",
     "llm_reviewer_memo",
     "aggregate_llm_stage_outputs",
+    "final_readiness_reviewer",
+    "final_backtrack_planner",
+    "final_missing_items_advisor",
+    "final_memo_planner",
+    "final_memo_writer",
+    "memo_critic",
+    "persist_memo",
     "merge_review_outputs",
     "evidence_sufficiency_gate",
     "contradiction_gate",
@@ -131,6 +152,12 @@ class CaseTurnGraphState(TypedDict, total=False):
     stage_model_role_outputs: dict[str, dict[str, Any]]
     stage_model_role_errors: dict[str, str]
     p2p_llm_explanations: dict[str, Any]
+    supervisor_phase: str
+    supervisor_decision: dict[str, Any]
+    supervisor_observations: list[dict[str, Any]]
+    specialist_observations: dict[str, Any]
+    evidence_review_route: str
+    final_review_route: str
     reply_purpose: str
 
 
@@ -147,6 +174,8 @@ def compile_case_turn_graph():
         "assemble_case_context": assemble_case_context_node,
         "llm_turn_classifier": llm_turn_classifier_node,
         "intent_contract_check": intent_contract_check_node,
+        "llm_case_supervisor": llm_case_supervisor_node,
+        "supervisor_route": supervisor_route_node,
         "route_turn_intent": route_turn_intent_node,
         "materials_guidance_node": materials_guidance_node,
         "case_status_summary_node": case_status_summary_node,
@@ -175,11 +204,30 @@ def compile_case_turn_graph():
         "contract_exception_review_subgraph": contract_exception_review_subgraph_node,
         "budget_exception_review_subgraph": budget_exception_review_subgraph_node,
         "generic_evidence_review_subgraph": generic_evidence_review_subgraph_node,
+        "evidence_classifier": evidence_classifier_node,
+        "evidence_reader": evidence_reader_node,
+        "claim_extractor": claim_extractor_node,
+        "requirement_mapper": requirement_mapper_node,
+        "policy_reviewer": policy_reviewer_node,
+        "conflict_reviewer": conflict_reviewer_node,
+        "decision_synthesizer": decision_synthesizer_node,
+        "dossier_patch_writer": dossier_patch_writer_node,
+        "evidence_clarification_question": evidence_clarification_question_node,
+        "policy_rag_backtrack": policy_rag_backtrack_node,
+        "claim_gap_question": claim_gap_question_node,
+        "conflict_resolution_request": conflict_resolution_request_node,
         "llm_evidence_extractor": llm_evidence_extractor_node,
         "llm_policy_interpreter": llm_policy_interpreter_node,
         "llm_contradiction_reviewer": llm_contradiction_reviewer_node,
         "llm_reviewer_memo": llm_reviewer_memo_node,
         "aggregate_llm_stage_outputs": aggregate_llm_stage_outputs_node,
+        "final_readiness_reviewer": final_readiness_reviewer_node,
+        "final_backtrack_planner": final_backtrack_planner_node,
+        "final_missing_items_advisor": final_missing_items_advisor_node,
+        "final_memo_planner": final_memo_planner_node,
+        "final_memo_writer": final_memo_writer_node,
+        "memo_critic": memo_critic_node,
+        "persist_memo": persist_memo_node,
         "merge_review_outputs": merge_review_outputs_node,
         "evidence_sufficiency_gate": evidence_sufficiency_gate_node,
         "contradiction_gate": contradiction_gate_node,
@@ -208,7 +256,18 @@ def compile_case_turn_graph():
     graph.add_edge("build_turn_contract", "assemble_case_context")
     graph.add_edge("assemble_case_context", "llm_turn_classifier")
     graph.add_edge("llm_turn_classifier", "intent_contract_check")
-    graph.add_edge("intent_contract_check", "route_turn_intent")
+    graph.add_edge("intent_contract_check", "llm_case_supervisor")
+    graph.add_edge("llm_case_supervisor", "supervisor_route")
+    graph.add_conditional_edges(
+        "supervisor_route",
+        _route_supervisor,
+        {
+            "route_turn_intent": "route_turn_intent",
+            "merge_review_outputs": "merge_review_outputs",
+            "read_only_case_response": "read_only_case_response",
+            "reject_patch_explain": "reject_patch_explain",
+        },
+    )
     graph.add_conditional_edges(
         "route_turn_intent",
         _route_turn_intent,
@@ -238,7 +297,18 @@ def compile_case_turn_graph():
     graph.add_edge("correct_evidence_node", "recompute_case_analysis")
     graph.add_edge("withdraw_evidence_node", "recompute_case_analysis")
     graph.add_edge("recompute_case_analysis", "validate_case_patch")
-    graph.add_edge("final_memo_gate", "merge_review_outputs")
+    graph.add_edge("final_memo_gate", "final_readiness_reviewer")
+    graph.add_conditional_edges(
+        "final_readiness_reviewer",
+        _route_final_review,
+        {"not_ready": "final_backtrack_planner", "ready": "final_memo_planner"},
+    )
+    graph.add_edge("final_backtrack_planner", "final_missing_items_advisor")
+    graph.add_edge("final_missing_items_advisor", "llm_case_supervisor")
+    graph.add_edge("final_memo_planner", "final_memo_writer")
+    graph.add_edge("final_memo_writer", "memo_critic")
+    graph.add_edge("memo_critic", "persist_memo")
+    graph.add_edge("persist_memo", "llm_case_supervisor")
     graph.add_edge("build_candidate_evidence", "route_evidence_type")
     graph.add_conditional_edges(
         "route_evidence_type",
@@ -263,7 +333,7 @@ def compile_case_turn_graph():
     graph.add_edge("p2p_amount_reconciliation_explanation", "p2p_missing_evidence_questions")
     graph.add_edge("p2p_missing_evidence_questions", "p2p_patch_proposal")
     graph.add_edge("p2p_patch_proposal", "p2p_process_patch_validator")
-    graph.add_edge("p2p_process_patch_validator", "llm_evidence_extractor")
+    graph.add_edge("p2p_process_patch_validator", "evidence_classifier")
     for branch_node in (
         "purchase_requisition_review_subgraph",
         "expense_review_subgraph",
@@ -272,12 +342,34 @@ def compile_case_turn_graph():
         "budget_exception_review_subgraph",
         "generic_evidence_review_subgraph",
     ):
-        graph.add_edge(branch_node, "llm_evidence_extractor")
+        graph.add_edge(branch_node, "evidence_classifier")
+    graph.add_edge("evidence_classifier", "evidence_reader")
+    graph.add_edge("evidence_reader", "claim_extractor")
+    graph.add_edge("claim_extractor", "requirement_mapper")
+    graph.add_edge("requirement_mapper", "policy_reviewer")
+    graph.add_edge("policy_reviewer", "conflict_reviewer")
+    graph.add_edge("conflict_reviewer", "decision_synthesizer")
+    graph.add_conditional_edges(
+        "decision_synthesizer",
+        _route_evidence_review_decision,
+        {
+            "continue": "dossier_patch_writer",
+            "clarify": "evidence_clarification_question",
+            "need_policy": "policy_rag_backtrack",
+            "claim_gap": "claim_gap_question",
+            "conflict": "conflict_resolution_request",
+        },
+    )
+    graph.add_edge("evidence_clarification_question", "dossier_patch_writer")
+    graph.add_edge("policy_rag_backtrack", "dossier_patch_writer")
+    graph.add_edge("claim_gap_question", "dossier_patch_writer")
+    graph.add_edge("conflict_resolution_request", "dossier_patch_writer")
+    graph.add_edge("dossier_patch_writer", "llm_evidence_extractor")
     graph.add_edge("llm_evidence_extractor", "llm_policy_interpreter")
     graph.add_edge("llm_policy_interpreter", "llm_contradiction_reviewer")
     graph.add_edge("llm_contradiction_reviewer", "llm_reviewer_memo")
     graph.add_edge("llm_reviewer_memo", "aggregate_llm_stage_outputs")
-    graph.add_edge("aggregate_llm_stage_outputs", "merge_review_outputs")
+    graph.add_edge("aggregate_llm_stage_outputs", "llm_case_supervisor")
     graph.add_edge("merge_review_outputs", "evidence_sufficiency_gate")
     graph.add_edge("evidence_sufficiency_gate", "contradiction_gate")
     graph.add_edge("contradiction_gate", "control_matrix_gate")
@@ -313,6 +405,9 @@ def run_case_turn_graph_state_sync(harness: Any, request: CaseTurnRequest, *, me
                 "stage_model_role_outputs": {},
                 "stage_model_role_errors": {},
                 "p2p_llm_explanations": {},
+                "supervisor_phase": "initial",
+                "supervisor_observations": [],
+                "specialist_observations": {},
             }
         )
 
@@ -871,6 +966,128 @@ def generic_evidence_review_subgraph_node(state: CaseTurnGraphState) -> CaseTurn
     return {**_run_evidence_branch_review(state, branch="generic_evidence_review"), "graph_steps": _steps(state, "generic_evidence_review_subgraph")}
 
 
+def evidence_classifier_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _evidence_observation_node(
+        state,
+        "evidence_classifier",
+        "Classify the submitted evidence type and whether it is clear enough for review. Return JSON with evidence_type, confidence, decision, warnings, and non_action_statement.",
+    )
+
+
+def evidence_reader_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _evidence_observation_node(
+        state,
+        "evidence_reader",
+        "Read the current evidence like an approval materials specialist. Summarize business facts, source ids, missing fields, and readability issues. Return JSON only.",
+    )
+
+
+def claim_extractor_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _evidence_observation_node(
+        state,
+        "claim_extractor",
+        "Extract evidence claims with source_id, locator, extracted_value, confidence, and supported requirement candidates. User statements alone must stay weak. Return JSON only.",
+    )
+
+
+def requirement_mapper_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _evidence_observation_node(
+        state,
+        "requirement_mapper",
+        "Map extracted claims to current requirement_id values. Explain partial support and missing fields. Return JSON with mappings, unmapped_claims, missing_fields, and non_action_statement.",
+    )
+
+
+def policy_reviewer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _evidence_observation_node(
+        state,
+        "policy_reviewer",
+        "Review whether evidence and claim mappings satisfy policy clauses from policy/RAG context. If policy context is insufficient, request policy_rag_backtrack. Return JSON only.",
+    )
+
+
+def conflict_reviewer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _evidence_observation_node(
+        state,
+        "conflict_reviewer",
+        "Find conflicts between this evidence and current case facts: amount, vendor, status, date, PO/GRN/invoice sequence, policy clause, and source_id mismatches. Return JSON only.",
+    )
+
+
+def decision_synthesizer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _evidence_observation_node(
+        state,
+        "decision_synthesizer",
+        "Synthesize classifier, reader, claim, requirement, policy, and conflict observations. Decide continue|clarify|need_policy|claim_gap|conflict. Return JSON only.",
+    )
+    observation = dict((next_state.get("specialist_observations") or {}).get("decision_synthesizer") or {})
+    raw_decision = str(observation.get("decision") or observation.get("next_action") or "").strip().lower()
+    route = "continue"
+    if raw_decision in {"clarify", "needs_clarification", "unclear_evidence"}:
+        route = "clarify"
+    elif raw_decision in {"need_policy", "policy_gap", "need_policy_rag"}:
+        route = "need_policy"
+    elif raw_decision in {"claim_gap", "missing_fields", "partial"}:
+        route = "claim_gap"
+    elif raw_decision in {"conflict", "conflict_found"}:
+        route = "conflict"
+    return {**next_state, "evidence_review_route": route}
+
+
+def dossier_patch_writer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _evidence_observation_node(
+        state,
+        "dossier_patch_writer",
+        "Draft a structured local dossier patch observation from accepted, rejected, partial, and conflict evidence. Do not write case_state directly. Return JSON only.",
+    )
+    return {**next_state, "supervisor_phase": "after_evidence_review"}
+
+
+def evidence_clarification_question_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _evidence_observation_node(
+        state,
+        "evidence_clarification_question",
+        "The evidence type or content is unclear. Draft structured clarification questions for the supervisor and final response writer. Return JSON only.",
+    )
+    return {**next_state, "supervisor_phase": "after_evidence_review"}
+
+
+def policy_rag_backtrack_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    rag_context = build_policy_rag_context(
+        base_dir=state["harness"].base_dir,
+        state=state["case_state"],
+        user_message=state["request"].user_message,
+        purpose="evidence_policy_backtrack",
+        stage_model=state["harness"].stage_model,
+    )
+    next_state = _evidence_observation_node(
+        {**state, "policy_backtrack_rag": rag_context.to_dict()},
+        "policy_rag_backtrack",
+        "Policy context was insufficient. Use the policy_rag payload to explain which policy facts are still missing or found. Return JSON only.",
+    )
+    outputs = _branch_outputs(next_state)
+    outputs["policy_rag_backtrack_retrieval"] = rag_context.to_dict()
+    return {**next_state, "branch_review_outputs": outputs, "supervisor_phase": "after_evidence_review"}
+
+
+def claim_gap_question_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _evidence_observation_node(
+        state,
+        "claim_gap_question",
+        "Claims are partial or missing important fields. Draft precise missing-field questions and the evidence form needed. Return JSON only.",
+    )
+    return {**next_state, "supervisor_phase": "after_evidence_review"}
+
+
+def conflict_resolution_request_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _evidence_observation_node(
+        state,
+        "conflict_resolution_request",
+        "A conflict was found. Draft a structured conflict resolution request: conflicting fields, source_ids, why it matters, and replacement/correction evidence needed. Return JSON only.",
+    )
+    return {**next_state, "supervisor_phase": "after_evidence_review"}
+
+
 def llm_turn_classifier_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     return _llm_stage_role_node(state, "turn_classifier", "llm_turn_classifier")
 
@@ -904,6 +1121,101 @@ def intent_contract_check_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     }
 
 
+def llm_case_supervisor_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    """Central supervisor loop node.
+
+    The supervisor does not persist state. It reads the current observations
+    and decides which graph segment should run next. Specialist subgraphs
+    return here before patching or responding so the trace shows the
+    supervisor loop instead of a one-shot branch.
+    """
+
+    phase = state.get("supervisor_phase") or "initial"
+    review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch=state.get("branch", "generic_case_turn"))
+    payload = {
+        "supervisor_phase": phase,
+        "current_intent": state.get("intent", "ask_missing_requirements"),
+        "user_message": state["request"].user_message,
+        "case_state": state["case_state"].model_dump(),
+        "context_pack": state.get("context_pack") or {},
+        "candidate_evidence": [
+            {
+                "source_id": getattr(item, "source_id", ""),
+                "title": getattr(item, "title", ""),
+                "record_type": getattr(item, "record_type", ""),
+                "content_preview": getattr(item, "content", "")[:1600],
+            }
+            for item in state.get("candidates", [])
+        ],
+        "review_summary": _review_summary_for_agent_reply(review),
+        "branch_review_outputs": state.get("branch_review_outputs") or {},
+        "specialist_observations": state.get("specialist_observations") or {},
+        "stage_model_role_outputs": state.get("stage_model_role_outputs") or {},
+        "patch": state["patch"].model_dump() if state.get("patch") is not None else {},
+        "allowed_next_graph_actions": ["route_turn_intent", "merge_review_outputs", "read_only_case_response", "reject_patch_explain"],
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    output = _run_custom_stage_model_role(
+        state,
+        role_name="case_supervisor",
+        system_prompt=(
+            "Role: LLM Case Supervisor for a bounded supervisor-loop approval dossier graph. "
+            "Read structured observations from prior nodes and decide the next graph action. "
+            "Return JSON only: "
+            '{"next_graph_action":"route_turn_intent|merge_review_outputs|read_only_case_response|reject_patch_explain",'
+            '"turn_intent":"optional canonical intent","reason":"Chinese reason","backtrack_needed":false,'
+            '"specialist_to_call":"optional next specialist","warnings":[],"confidence":0.0,'
+            '"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
+        ),
+        payload=payload,
+    )
+    decision = _normalize_supervisor_decision(state, output, phase=phase)
+    observations = list(state.get("supervisor_observations", []) or [])
+    observations.append(
+        {
+            "phase": phase,
+            "decision": decision,
+            "role_output": output,
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+    )
+    outputs = _branch_outputs(state)
+    outputs["llm_case_supervisor"] = {
+        "latest_decision": decision,
+        "observation_count": len(observations),
+        "role_output": output,
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    next_intent = _canonical_intent(str(decision.get("turn_intent") or "").strip())
+    state_updates: dict[str, Any] = {}
+    if phase == "initial" and next_intent in {
+        "create_case",
+        "ask_how_to_prepare",
+        "ask_missing_requirements",
+        "ask_policy_failure",
+        "submit_evidence",
+        "correct_previous_evidence",
+        "withdraw_evidence",
+        "request_final_review",
+        "off_topic",
+    }:
+        state_updates["intent"] = next_intent
+        state_updates["branch"] = _context_branch_for_intent(next_intent)
+    return {
+        **state,
+        **state_updates,
+        "review": review,
+        "supervisor_decision": decision,
+        "supervisor_observations": observations,
+        "branch_review_outputs": outputs,
+        "graph_steps": _steps(state, "llm_case_supervisor"),
+    }
+
+
+def supervisor_route_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return {**state, "graph_steps": _steps(state, "supervisor_route")}
+
+
 def llm_evidence_extractor_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     return _llm_stage_role_node(state, "evidence_extractor", "llm_evidence_extractor")
 
@@ -929,6 +1241,7 @@ def aggregate_llm_stage_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraph
             **state,
             "model_decision": None,
             "model_error": "",
+            "supervisor_phase": "after_evidence_review",
             "graph_steps": _steps(state, "aggregate_llm_stage_outputs"),
         }
     decision = harness.stage_model.aggregate_role_outputs(
@@ -940,8 +1253,76 @@ def aggregate_llm_stage_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraph
         **state,
         "model_decision": decision,
         "model_error": "; ".join(f"{role}: {error}" for role, error in errors.items() if error),
+        "supervisor_phase": "after_evidence_review",
         "graph_steps": _steps(state, "aggregate_llm_stage_outputs"),
     }
+
+
+def final_readiness_reviewer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _final_review_observation_node(
+        state,
+        "final_readiness_reviewer",
+        "Review final memo readiness. Decide ready or not_ready from evidence, policy failures, contradictions, and control matrix. Return JSON only.",
+    )
+    review = next_state.get("review") or next_state.get("provisional_review") or _review_without_new_evidence(next_state, branch="final_memo")
+    observation = dict((next_state.get("specialist_observations") or {}).get("final_readiness_reviewer") or {})
+    raw_ready = observation.get("ready_for_final_memo")
+    if raw_ready is None:
+        raw_ready = observation.get("ready")
+    if raw_ready is None:
+        raw_ready = bool(review.evidence_sufficiency.get("passed")) and bool(review.control_matrix.get("passed")) and not bool((review.contradictions or {}).get("has_conflict"))
+    route = "ready" if bool(raw_ready) else "not_ready"
+    return {**next_state, "final_review_route": route}
+
+
+def final_backtrack_planner_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _final_review_observation_node(
+        state,
+        "final_backtrack_planner",
+        "The case is not ready for final memo. Plan the backtrack: which missing evidence, conflicts, or policy failures must be resolved first. Return JSON only.",
+    )
+
+
+def final_missing_items_advisor_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _final_review_observation_node(
+        state,
+        "final_missing_items_advisor",
+        "Write structured missing-items observations for the supervisor and response writer. Do not write the final user response. Return JSON only.",
+    )
+    return {**next_state, "supervisor_phase": "after_final_review", "reply_purpose": "missing_items_advisor"}
+
+
+def final_memo_planner_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _final_review_observation_node(
+        state,
+        "final_memo_planner",
+        "Plan the final reviewer memo sections from accepted evidence, controls, risks, and non-action boundary. Return JSON only.",
+    )
+
+
+def final_memo_writer_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _final_review_observation_node(
+        state,
+        "final_memo_writer",
+        "Draft the final reviewer memo as structured observation. It is a local submission package draft, not ERP approval. Return JSON only.",
+    )
+
+
+def memo_critic_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    return _final_review_observation_node(
+        state,
+        "memo_critic",
+        "Critique the draft memo for unsupported claims, missing citations, execution wording, unresolved conflicts, and missing human review caveats. Return JSON only.",
+    )
+
+
+def persist_memo_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
+    next_state = _final_review_observation_node(
+        state,
+        "persist_memo",
+        "Prepare a structured persist-memo observation for local dossier update. Do not execute ERP and do not write files directly. Return JSON only.",
+    )
+    return {**next_state, "supervisor_phase": "after_final_review", "reply_purpose": "final_memo"}
 
 
 def merge_review_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
@@ -955,6 +1336,14 @@ def merge_review_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
             "role_errors": state.get("stage_model_role_errors", {}),
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         }
+    if state.get("supervisor_observations"):
+        outputs["supervisor_loop"] = {
+            "observations": state.get("supervisor_observations", []),
+            "latest_decision": state.get("supervisor_decision", {}),
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        }
+    if state.get("specialist_observations"):
+        outputs["specialist_observations"] = state.get("specialist_observations", {})
     return {**state, "branch_review_outputs": outputs, "graph_steps": _steps(state, "merge_review_outputs")}
 
 
@@ -1332,6 +1721,17 @@ def _route_turn_intent(state: CaseTurnGraphState) -> str:
     } else "ask_missing_requirements"
 
 
+def _route_supervisor(state: CaseTurnGraphState) -> str:
+    decision = dict(state.get("supervisor_decision") or {})
+    route = str(decision.get("next_graph_action") or "").strip()
+    if route in {"route_turn_intent", "merge_review_outputs", "read_only_case_response", "reject_patch_explain"}:
+        return route
+    phase = state.get("supervisor_phase") or "initial"
+    if phase in {"after_evidence_review", "after_final_review"}:
+        return "merge_review_outputs"
+    return "route_turn_intent"
+
+
 def _route_guidance_persistence(state: CaseTurnGraphState) -> str:
     if state.get("intent") == "create_case" or _should_persist_guidance_case(state):
         return "mutable"
@@ -1353,6 +1753,16 @@ def _route_evidence_type(state: CaseTurnGraphState) -> str:
 
 def _route_patch_validity(state: CaseTurnGraphState) -> str:
     return "valid" if state["patch"].allowed_to_apply else "invalid"
+
+
+def _route_evidence_review_decision(state: CaseTurnGraphState) -> str:
+    route = str(state.get("evidence_review_route") or "continue").strip()
+    return route if route in {"continue", "clarify", "need_policy", "claim_gap", "conflict"} else "continue"
+
+
+def _route_final_review(state: CaseTurnGraphState) -> str:
+    route = str(state.get("final_review_route") or "").strip()
+    return route if route in {"ready", "not_ready"} else "not_ready"
 
 
 def _final_review_boundary_active(state: CaseTurnGraphState) -> bool:
@@ -1609,6 +2019,95 @@ def _p2p_explanation_node(state: CaseTurnGraphState, step: str, prompt: str) -> 
         "p2p_llm_explanations": explanations,
         "branch_review_outputs": outputs,
         "graph_steps": _steps(state, step),
+    }
+
+
+def _evidence_observation_node(state: CaseTurnGraphState, step: str, prompt: str) -> CaseTurnGraphState:
+    review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch=state.get("branch", "submit_evidence"))
+    payload = {
+        "node": step,
+        "user_message": state["request"].user_message,
+        "case_state": state["case_state"].model_dump(),
+        "context_pack": state.get("context_pack") or {},
+        "candidate_evidence": [
+            {
+                "source_id": getattr(item, "source_id", ""),
+                "title": getattr(item, "title", ""),
+                "record_type": getattr(item, "record_type", ""),
+                "content_preview": getattr(item, "content", "")[:2400],
+                "metadata": dict(getattr(item, "metadata", {}) or {}),
+            }
+            for item in state.get("candidates", [])
+        ],
+        "review_summary": _review_summary_for_agent_reply(review),
+        "previous_specialist_observations": state.get("specialist_observations") or {},
+        "p2p_review": state["p2p_review"].model_dump() if state.get("p2p_review") is not None else {},
+        "policy_backtrack_rag": state.get("policy_backtrack_rag") or {},
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    output = _run_custom_stage_model_role(state, role_name=step, system_prompt=prompt, payload=payload)
+    return _append_specialist_observation(state, step, output)
+
+
+def _final_review_observation_node(state: CaseTurnGraphState, step: str, prompt: str) -> CaseTurnGraphState:
+    review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="final_memo")
+    payload = {
+        "node": step,
+        "user_message": state["request"].user_message,
+        "case_state": state["case_state"].model_dump(),
+        "context_pack": state.get("context_pack") or {},
+        "review_summary": _review_summary_for_agent_reply(review),
+        "specialist_observations": state.get("specialist_observations") or {},
+        "supervisor_observations": state.get("supervisor_observations") or [],
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    output = _run_custom_stage_model_role(state, role_name=step, system_prompt=prompt, payload=payload)
+    return _append_specialist_observation({**state, "review": review, "provisional_review": review}, step, output)
+
+
+def _append_specialist_observation(state: CaseTurnGraphState, step: str, output: dict[str, Any]) -> CaseTurnGraphState:
+    observations = dict(state.get("specialist_observations", {}) or {})
+    observations[step] = output
+    outputs = _branch_outputs(state)
+    outputs[step] = {
+        "role_output": output,
+        "status": output.get("status", "executed" if output.get("used") else "skipped"),
+        "used": bool(output.get("used")),
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    warnings = list(state.get("warnings", []))
+    for warning in output.get("warnings") or []:
+        if str(warning or "").strip():
+            warnings.append(str(warning))
+    return {
+        **state,
+        "specialist_observations": observations,
+        "branch_review_outputs": outputs,
+        "warnings": _unique(warnings),
+        "graph_steps": _steps(state, step),
+    }
+
+
+def _normalize_supervisor_decision(state: CaseTurnGraphState, output: dict[str, Any], *, phase: str) -> dict[str, Any]:
+    if phase in {"after_evidence_review", "after_final_review"}:
+        default_route = "merge_review_outputs"
+    else:
+        default_route = "route_turn_intent"
+    route = str(output.get("next_graph_action") or "").strip()
+    if route not in {"route_turn_intent", "merge_review_outputs", "read_only_case_response", "reject_patch_explain"}:
+        route = default_route
+    turn_intent = _canonical_intent(str(output.get("turn_intent") or output.get("intent") or state.get("intent", "")).strip())
+    return {
+        "next_graph_action": route,
+        "turn_intent": turn_intent,
+        "reason": str(output.get("reason") or output.get("strategy") or "").strip(),
+        "backtrack_needed": bool(output.get("backtrack_needed", False)),
+        "specialist_to_call": str(output.get("specialist_to_call") or "").strip(),
+        "status": output.get("status", "executed" if output.get("used") else "skipped"),
+        "used": bool(output.get("used")),
+        "confidence": output.get("confidence", 0.0),
+        "warnings": [str(item) for item in output.get("warnings", []) or [] if str(item or "").strip()],
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
     }
 
 
