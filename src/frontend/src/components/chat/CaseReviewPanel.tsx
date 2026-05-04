@@ -225,6 +225,17 @@ function humanReviewStorageKey(caseId: string) {
   return `erp-human-review:${caseId}`;
 }
 
+function loadLocalHumanReview(caseId: string): LocalHumanReviewRecord | null {
+  if (typeof window === "undefined" || !caseId) return null;
+  const raw = window.localStorage.getItem(humanReviewStorageKey(caseId));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as LocalHumanReviewRecord;
+  } catch {
+    return null;
+  }
+}
+
 function humanReviewGate(turn: ErpApprovalCaseTurnResponse) {
   const checklist = caseChecklistItems(turn);
   const unresolvedChecklist = checklist
@@ -284,7 +295,7 @@ function makeMessage(role: ChatMessage["role"], body: string, title?: string, me
   };
 }
 
-function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
+function buildAgentReply(response: ErpApprovalCaseTurnResponse, humanReview: LocalHumanReviewRecord | null = null): ChatMessage {
   const review = response.review;
   const recommendation = review.recommendation ?? {};
   const sufficiency = review.evidence_sufficiency ?? {};
@@ -299,6 +310,58 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const renderedGuidance = text(policyRag.rendered_guidance, "");
   const renderedFailureAnswer = text(policyFailureAnswer.rendered, "");
   const renderedMissingAnswer = text(missingAnswer.rendered, "");
+  const finalReviewRequested = ["request_final_memo", "request_final_review"].includes(patchIntent);
+  const controlMatrix = object(review.control_matrix);
+  const unresolvedPolicyFailures = records(response.case_state.policy_failures).filter((item) => !item.resolved);
+  const finalMemoAllowed =
+    patchType === "final_memo" ||
+    (finalReviewRequested &&
+      Boolean(sufficiency.passed) &&
+      Boolean(controlMatrix.passed) &&
+      unresolvedPolicyFailures.length === 0);
+
+  if (finalReviewRequested && finalMemoAllowed) {
+    const humanReviewLine =
+      humanReview?.decision === "accepted"
+        ? `本地人工复核：${humanReview.reviewer || "reviewer"} 已接受 v${humanReview.dossier_version ?? "?"} memo。`
+        : humanReview?.decision === "changes_requested"
+          ? `本地人工复核：${humanReview.reviewer || "reviewer"} 已退回继续补充。`
+          : "本地人工复核：尚未记录接受；右侧可以接受当前 memo 或退回继续补充。";
+    const memo = text(review.reviewer_memo || response.case_state.reviewer_memo || response.dossier, "当前案卷已满足证据门，但没有返回 memo 正文。");
+    return makeMessage(
+      "agent",
+      [
+        "已生成当前案卷的 reviewer memo / submission package。",
+        humanReviewLine,
+        memo,
+        "No ERP write action was executed."
+      ].filter(Boolean).join("\n\n"),
+      "最终审查 memo",
+      [
+        humanReview?.decision === "accepted" ? "已人工复核" : "待人工复核",
+        "本地非执行 memo",
+        STAGE_LABELS[response.case_state.stage] ?? response.case_state.stage
+      ]
+    );
+  }
+
+  if (finalReviewRequested && !finalMemoAllowed) {
+    const gaps = list(sufficiency.blocking_gaps).concat(list(response.case_state.missing_items));
+    const failures = unresolvedPolicyFailures.map((item) => labelForPolicyFailure(item));
+    return makeMessage(
+      "agent",
+      [
+        "现在还不能生成最终 reviewer memo。",
+        gaps.length ? `Blocking 缺口：${Array.from(new Set(gaps)).slice(0, 6).join("；")}。` : "",
+        failures.length ? `未解决制度失败：${failures.slice(0, 6).join("；")}。` : "",
+        !gaps.length && !failures.length ? "证据门看起来已清空，但控制矩阵或后端 gate 仍未放行。请查看右侧控制矩阵和案卷详情。" : "",
+        "No ERP write action was executed."
+      ].filter(Boolean).join("\n\n"),
+      "最终 memo 被阻断",
+      ["证据门未放行", "本地判断"]
+    );
+  }
+
   if (renderedGuidance) {
     const policyRagMeta = policyRag.model_used
       ? "模型+政策RAG"
@@ -330,7 +393,7 @@ function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
   const status = labelForStatus(recommendation.status);
   const isMissingAsk = patchIntent === "ask_missing_requirements" || patchIntent === "ask_status";
   const isEvidenceSubmission = patchIntent === "submit_evidence" || ["accept_evidence", "reject_evidence"].includes(patchType);
-  const readyForMemo = response.case_state.stage === "ready_for_final_review" && !["request_final_memo", "request_final_review"].includes(patchIntent);
+  const readyForMemo = response.case_state.stage === "ready_for_final_review" && !finalReviewRequested;
   const planStrategy = text(casePlan.strategy, "");
   const suggestedPrompt = text(casePlan.suggested_user_prompt, "");
   const title = readyForMemo ? "案卷已可生成最终审查单" : isMissingAsk ? "当前缺口" : isEvidenceSubmission ? "本轮材料审核结果" : "Agent 审查结果";
@@ -399,17 +462,7 @@ function HumanReviewPanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
   const [record, setRecord] = useState<LocalHumanReviewRecord | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !state.case_id) return;
-    const raw = window.localStorage.getItem(humanReviewStorageKey(state.case_id));
-    if (!raw) {
-      setRecord(null);
-      return;
-    }
-    try {
-      setRecord(JSON.parse(raw) as LocalHumanReviewRecord);
-    } catch {
-      setRecord(null);
-    }
+    setRecord(loadLocalHumanReview(state.case_id));
   }, [state.case_id, state.dossier_version, state.turn_count]);
 
   const saveDecision = (decision: LocalHumanReviewDecision) => {
@@ -929,7 +982,7 @@ export function CaseReviewPanel() {
       // backend graph; the UI needs this draft state so the user can keep
       // asking follow-up questions and submit evidence without restarting.
       setCaseTurn(response);
-      setMessages((items) => [...items, buildAgentReply(response)]);
+      setMessages((items) => [...items, buildAgentReply(response, loadLocalHumanReview(response.case_state.case_id))]);
       if (includeEvidence) {
         setQueuedEvidence([]);
         setFileStatus("");
