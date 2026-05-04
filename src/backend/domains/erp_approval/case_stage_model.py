@@ -182,7 +182,7 @@ class CaseStageModelReviewer:
         except TimeoutError:
             future.cancel()
             executor.shutdown(wait=False, cancel_futures=True)
-            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，已退回本地确定性门禁。"
+            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，本角色没有返回结构化结果。"
         except Exception as exc:
             executor.shutdown(wait=False, cancel_futures=True)
             return {}, f"{type(exc).__name__}: {exc}"
@@ -207,7 +207,7 @@ class CaseStageModelReviewer:
         except TimeoutError:
             future.cancel()
             executor.shutdown(wait=False, cancel_futures=True)
-            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，已退回本地证据校验。"
+            return {}, f"模型调用超过 {self.role_timeout_seconds:g}s，本角色没有返回结构化结果。"
         except Exception as exc:
             executor.shutdown(wait=False, cancel_futures=True)
             return {}, f"{type(exc).__name__}: {exc}"
@@ -229,7 +229,7 @@ def _base_payload(
     deterministic_intent: str,
 ) -> dict[str, Any]:
     return {
-        "deterministic_intent": deterministic_intent,
+        "routing_guard_intent": deterministic_intent,
         "case_context_pack": context_pack,
         "candidate_evidence": [
             {

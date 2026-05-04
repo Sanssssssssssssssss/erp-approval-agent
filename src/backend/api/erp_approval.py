@@ -115,7 +115,7 @@ def _case_stage_model_reviewer():
         return None
     try:
         timeout = float(os.getenv("ERP_CASE_STAGE_MODEL_ROLE_TIMEOUT_SECONDS", "30.0"))
-        timeout = max(0.2, min(timeout, 60.0))
+        timeout = max(0.2, min(timeout, 180.0))
         return CaseStageModelReviewer(agent_manager._build_chat_model(), role_timeout_seconds=timeout)
     except Exception:
         return None

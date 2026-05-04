@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import { CaseReviewPanel } from "@/components/chat/CaseReviewPanel";
 import { Navbar } from "@/components/layout/Navbar";
+import type { ErpApprovalCaseTurnResponse } from "@/lib/api";
 import { AppProvider, useChatStore } from "@/lib/store";
 
 type WorkspaceView = "case" | "trace" | "assets" | "insights";
@@ -34,8 +35,8 @@ const AssetsPanel = dynamic(
   }
 );
 
-const InsightsPanel = dynamic(
-  () => import("@/components/chat/InsightsPanel").then((module) => module.InsightsPanel),
+const AdvancedInsightsPanel = dynamic(
+  () => import("@/components/chat/AdvancedInsightsPanel").then((module) => module.AdvancedInsightsPanel),
   {
     loading: () => (
       <section className="panel flex min-h-[60vh] flex-1 items-center justify-center p-8 text-sm text-[var(--color-ink-soft)]">
@@ -144,6 +145,7 @@ function Workspace() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("case");
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [currentCaseTurn, setCurrentCaseTurn] = useState<ErpApprovalCaseTurnResponse | null>(null);
 
   return (
     <main className="h-screen overflow-hidden px-3 py-3">
@@ -152,14 +154,14 @@ function Workspace() {
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <div className={workspaceView === "case" ? "flex min-h-0 flex-1 overflow-hidden" : "hidden"}>
-            <CaseReviewPanel />
+            <CaseReviewPanel onCaseTurnChange={setCurrentCaseTurn} />
           </div>
           {workspaceView === "trace" ? (
             <TracePanel />
           ) : workspaceView === "assets" ? (
             <AssetsPanel />
           ) : workspaceView === "insights" ? (
-            <InsightsPanel />
+            <AdvancedInsightsPanel turn={currentCaseTurn} />
           ) : null}
         </div>
 

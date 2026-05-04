@@ -58,7 +58,7 @@ def build_case_supervisor_plan(state: ApprovalCaseState, review: CaseReviewRespo
 
     return {
         "role": "case_supervisor",
-        "planner": "deterministic_fallback",
+        "planner": "case_boundary_snapshot",
         "ready_for_final_memo": ready,
         "next_action": next_action,
         "priority_requirements": [_plan_item(item) for item in next_items],
@@ -77,9 +77,9 @@ def build_case_supervisor_plan_with_model(
     patch: CasePatch | None = None,
     context_pack: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    fallback = build_case_supervisor_plan(state, review, patch)
+    boundary_snapshot = build_case_supervisor_plan(state, review, patch)
     if stage_model is None:
-        return fallback
+        return _model_required_plan(boundary_snapshot, reason="stage_model_not_configured")
     payload = {
         "case_state": {
             "case_id": state.case_id,
@@ -101,7 +101,7 @@ def build_case_supervisor_plan_with_model(
             "recommendation": review.recommendation,
         },
         "case_context_pack": context_pack or {},
-        "fallback_plan": fallback,
+        "case_boundary_snapshot": boundary_snapshot,
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
     }
     output, error = stage_model.review_custom_json_role(
@@ -110,8 +110,8 @@ def build_case_supervisor_plan_with_model(
         payload=payload,
     )
     if error or not output:
-        return {**fallback, "planner": "deterministic_fallback", "model_error": error or "empty supervisor plan"}
-    return validate_case_supervisor_plan(output, state=state, review=review, patch=patch, fallback=fallback, model_error=error)
+        return _model_required_plan(boundary_snapshot, reason=error or "empty supervisor plan")
+    return validate_case_supervisor_plan(output, state=state, review=review, patch=patch, boundary_snapshot=boundary_snapshot, model_error=error)
 
 
 def validate_case_supervisor_plan(
@@ -120,7 +120,7 @@ def validate_case_supervisor_plan(
     state: ApprovalCaseState,
     review: CaseReviewResponse,
     patch: CasePatch | None,
-    fallback: dict[str, Any],
+    boundary_snapshot: dict[str, Any],
     model_error: str = "",
 ) -> dict[str, Any]:
     known_requirements = {str(item.get("requirement_id", "") or "") for item in review.evidence_requirements}
@@ -154,29 +154,46 @@ def validate_case_supervisor_plan(
             }
         )
 
-    strategy = _clean_text(str(output.get("strategy") or fallback.get("strategy") or ""))
-    suggested_prompt = _clean_text(str(output.get("suggested_user_prompt") or fallback.get("suggested_user_prompt") or ""))
-    next_action = str(output.get("next_action") or fallback.get("next_action") or "collect_priority_evidence")
+    strategy = _clean_text(str(output.get("strategy") or ""))
+    suggested_prompt = _clean_text(str(output.get("suggested_user_prompt") or ""))
+    next_action = str(output.get("next_action") or "collect_priority_evidence")
     if next_action not in {"collect_priority_evidence", "fix_rejected_policy_failures", "generate_final_reviewer_memo", "ask_clarifying_question", "escalate_to_human_reviewer"}:
         warnings.append(f"LLM supervisor proposed unsupported next_action: {next_action}")
-        next_action = str(fallback.get("next_action") or "collect_priority_evidence")
-    ready = bool(output.get("ready_for_final_memo", fallback.get("ready_for_final_memo", False)))
-    if ready and not fallback.get("ready_for_final_memo"):
+        next_action = "collect_priority_evidence"
+    ready = bool(output.get("ready_for_final_memo", False))
+    if ready and not boundary_snapshot.get("ready_for_final_memo"):
         warnings.append("LLM supervisor claimed final memo readiness, but deterministic gates are not ready.")
         ready = False
-        next_action = str(fallback.get("next_action") or "collect_priority_evidence")
+        next_action = "collect_priority_evidence"
 
     return {
-        **fallback,
+        "role": "case_supervisor",
         "planner": "llm_case_supervisor",
         "ready_for_final_memo": ready,
         "next_action": next_action,
-        "priority_requirements": sanitized_items or list(fallback.get("priority_requirements") or []),
-        "strategy": strategy or str(fallback.get("strategy") or ""),
-        "suggested_user_prompt": suggested_prompt or str(fallback.get("suggested_user_prompt") or ""),
+        "priority_requirements": sanitized_items,
+        "strategy": strategy,
+        "suggested_user_prompt": suggested_prompt,
+        "case_boundary_snapshot": boundary_snapshot,
         "model_confidence": _float_or_default(output.get("confidence"), 0.0),
         "model_warnings": warnings + [str(item) for item in output.get("warnings", []) or [] if str(item or "").strip()],
         "model_error": model_error,
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+
+
+def _model_required_plan(boundary_snapshot: dict[str, Any], *, reason: str) -> dict[str, Any]:
+    return {
+        "role": "case_supervisor",
+        "planner": "model_required",
+        "ready_for_final_memo": False,
+        "next_action": "await_llm_case_supervisor",
+        "priority_requirements": [],
+        "strategy": "",
+        "suggested_user_prompt": "",
+        "case_boundary_snapshot": boundary_snapshot,
+        "model_error": reason,
+        "model_required": True,
         "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
     }
 
@@ -254,7 +271,7 @@ Return JSON only:
 Rules:
 - Reference only requirement_id values present in the input.
 - Reference only source_id values present in current case evidence or current patch.
-- If deterministic fallback says not ready, do not claim ready_for_final_memo=true.
+- If case_boundary_snapshot says not ready, do not claim ready_for_final_memo=true.
 - If policy_failures are unresolved, prioritize fixing rejected policy failures.
 - If blocking evidence is missing, prioritize the top 1-4 missing blocking requirements.
 - Never include ERP execution wording.
@@ -289,7 +306,7 @@ def _clean_text(value: str) -> str:
     text = str(value or "").strip()
     lowered = text.lower()
     if any(term in lowered for term in FORBIDDEN_PLAN_TERMS):
-        return "该建议包含执行语义，已由本地门禁替换为仅补证/人工复核计划。"
+        return "该建议包含 ERP 执行语义，不能作为审批资料专员的案卷推进回复。"
     return text
 
 

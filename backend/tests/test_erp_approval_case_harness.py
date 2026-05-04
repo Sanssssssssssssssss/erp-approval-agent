@@ -78,7 +78,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertIn("No ERP write action was executed", response.dossier)
             self.assertTrue(response.case_state.evidence_requirements)
 
-    def test_submit_evidence_creates_validated_patch_and_updates_case_state(self) -> None:
+    def test_submit_evidence_requires_model_acceptance_before_case_state_write(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             harness = CaseHarness(Path(temp_dir))
             first = harness.handle_turn(
@@ -98,10 +98,11 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(second.patch.patch_type, "accept_evidence")
+            self.assertEqual(second.patch.patch_type, "reject_evidence")
             self.assertTrue(second.patch.allowed_to_apply)
-            self.assertEqual(len(second.case_state.accepted_evidence), 1)
-            self.assertTrue(second.patch.requirements_satisfied)
+            self.assertEqual(len(second.case_state.accepted_evidence), 0)
+            self.assertEqual(len(second.case_state.rejected_evidence), 1)
+            self.assertTrue(any("模型没有返回本轮材料审查决定" in reason for reason in second.patch.rejection_reasons))
             self.assertIn("No ERP write action was executed", second.non_action_statement)
 
     def test_off_topic_turn_does_not_pollute_case_evidence(self) -> None:
@@ -220,7 +221,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
             self.assertTrue(response.patch.model_review["used"])
             self.assertNotEqual(response.patch.patch_type, "accept_evidence")
             self.assertEqual(len(response.case_state.accepted_evidence), 0)
-            self.assertTrue(any("本地证据门" in warning for warning in response.patch.warnings))
+            self.assertTrue(any("证据结构" in warning for warning in response.patch.warnings))
 
     def test_stage_model_runs_distinct_roles_and_records_role_outputs(self) -> None:
         role_outputs = [
@@ -252,12 +253,13 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
                 )
             )
 
-            self.assertEqual(len(model.messages), 9)
+            self.assertGreaterEqual(len(model.messages), 10)
             self.assertEqual(response.patch.patch_type, "accept_evidence")
             self.assertIn("turn_classifier", response.patch.model_review["role_outputs"])
             self.assertIn("policy_interpreter", response.patch.model_review["role_outputs"])
             self.assertIn("purchase_requisition:budget_availability", response.patch.model_review["requirements_missing"])
             self.assertIn("报价不能替代预算证明。", response.patch.warnings)
+            self.assertIn("agent_reply", response.patch.model_review)
 
     def test_stage_model_timeout_does_not_block_case_turn(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -339,7 +341,7 @@ class ErpApprovalCaseHarnessTests(unittest.TestCase):
 
             self.assertIsNotNone(state)
             self.assertEqual(state.turn_count, 3)
-            self.assertGreaterEqual(len(state.accepted_evidence), 2)
+            self.assertGreaterEqual(len(state.rejected_evidence), 2)
 
     def test_validator_rejects_claim_source_mismatch(self) -> None:
         state = ApprovalCaseState(case_id="erp-case:validator", stage="collecting_evidence")

@@ -29,13 +29,10 @@ from src.backend.domains.erp_approval.p2p_process_review import (
     p2p_match_type_classifier,
     p2p_process_fact_extractor,
     p2p_sequence_anomaly_reviewer,
-    render_p2p_review_notes,
     review_p2p_process_evidence,
 )
 from src.backend.domains.erp_approval.policy_guidance import (
     build_policy_guidance,
-    render_materials_guidance,
-    render_policy_failures,
 )
 from src.backend.domains.erp_approval.policy_rag import build_policy_rag_context, render_policy_rag_evidence_block
 
@@ -475,7 +472,7 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
             "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
         },
     )
-    rendered_guidance = str(model_output.get("rendered_guidance") or "").strip() or render_materials_guidance(guidance)
+    rendered_guidance = str(model_output.get("rendered_guidance") or "").strip()
     patch = state["harness"]._build_patch(
         state=state["case_state"],
         turn_id=state["turn_id"],
@@ -503,6 +500,12 @@ def materials_guidance_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     }
     model_review["case_checklist"] = _build_case_checklist_model_review(state, review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        review,
+        purpose="materials_advisor",
+    )
     return {
         **state,
         "review": review,
@@ -551,7 +554,6 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         model_decision=None,
         model_error="",
     )
-    fallback_rendered = _render_missing_requirements_answer(state, review)
     model_review = dict(patch.model_review or {})
     model_review["used"] = bool(model_output.get("used") or rag_context.plan.planner_used)
     model_review["missing_requirements_answer"] = {
@@ -560,16 +562,21 @@ def case_status_summary_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         "model_status": model_output.get("status", "executed" if model_output.get("used") else "skipped"),
         "policy_rag": rag_context.to_dict(),
         "role_output": model_output,
-        "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
+        "rendered": str(model_output.get("rendered") or "").strip(),
     }
     model_review["case_checklist"] = _build_case_checklist_model_review(state, review, patch)
     patch = patch.model_copy(update={"model_review": model_review})
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        review,
+        purpose="missing_items_advisor",
+    )
     return {**state, "review": review, "provisional_review": review, "patch": patch, "graph_steps": _steps(state, "case_status_summary_node")}
 
 
 def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = _review_without_new_evidence(state, branch="ask_policy_failure")
-    fallback_rendered = render_policy_failures(state["case_state"].policy_failures)
     rag_context = build_policy_rag_context(
         base_dir=state["harness"].base_dir,
         state=state["case_state"],
@@ -615,9 +622,15 @@ def policy_failure_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState
         "source": "case_state.policy_failures",
         "policy_rag": rag_context.to_dict(),
         "role_output": model_output,
-        "rendered": str(model_output.get("rendered") or "").strip() or fallback_rendered,
+        "rendered": str(model_output.get("rendered") or "").strip(),
     }
     patch = patch.model_copy(update={"model_review": model_review})
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        review,
+        purpose="policy_failure_explainer",
+    )
     return {
         **state,
         "review": review,
@@ -773,7 +786,6 @@ def p2p_patch_proposal_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     outputs["p2p_patch_proposal"] = {
         "p2p_review": p2p_review.model_dump(),
         "llm_explanations": llm_explanations,
-        "reviewer_notes": render_p2p_review_notes(p2p_review),
     }
     return {
         **review_state,
@@ -982,6 +994,12 @@ def propose_case_patch_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
         context_pack=state.get("context_pack") or {},
     )
     patch = patch.model_copy(update={"model_review": model_review})
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        final_review,
+        purpose="case_supervisor_reply",
+    )
     return {
         **state,
         "intent": intent,
@@ -1022,6 +1040,12 @@ def read_only_case_response_node(state: CaseTurnGraphState) -> CaseTurnGraphStat
             model_error=state.get("model_error", ""),
         )
     patch = harness.validator.validate(state["case_state"], patch, state["contract"], review=review)
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        review,
+        purpose="read_only_case_advisor",
+    )
     dossier = harness.store.read_dossier(state["case_state"].case_id) or render_case_dossier(state["case_state"], review, patch)
     return {
         **state,
@@ -1143,12 +1167,19 @@ def reject_patch_explain_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     patch = state["patch"]
     events = list(state.get("audit_events", []))
     events.append(_event(state["turn_id"], case_state.case_id, "case_patch_rejected", state["now"], {"warnings": patch.warnings, "allowed_to_apply": patch.allowed_to_apply}))
+    patch = _attach_agent_reply(
+        state,
+        patch,
+        review,
+        purpose="rejection_explainer",
+    )
     dossier = harness.store.read_dossier(case_state.case_id) or render_case_dossier(case_state, review, patch)
     for event in events:
         harness.store.append_audit_event(event)
     return {
         **state,
         "review": review,
+        "patch": patch,
         "dossier": dossier,
         "audit_events": events,
         "graph_steps": _steps(state, "reject_patch_explain"),
@@ -1214,34 +1245,14 @@ def _append_conversation_turn(state: CaseTurnGraphState, response: CaseTurnRespo
 
 def _conversation_reply_text(response: CaseTurnResponse) -> str:
     patch = response.patch
-    state = response.case_state
-    review = response.review
-    lines: list[str] = []
-    if patch.accepted_evidence:
-        lines.append("本轮材料已写入案卷：" + "、".join(item.title or item.source_id for item in patch.accepted_evidence))
-    if patch.rejected_evidence:
-        lines.append("本轮材料未通过：" + "、".join(item.title or item.source_id for item in patch.rejected_evidence))
-    if patch.rejection_reasons:
-        lines.append("退回原因：" + "；".join(patch.rejection_reasons[:5]))
-    if state.stage == "ready_for_final_review":
-        lines.append("所有当前 blocking evidence 已满足。是否生成最终 reviewer memo / submission package？")
-    elif state.case_plan:
-        strategy = str(state.case_plan.get("strategy") or "").strip()
-        suggested = str(state.case_plan.get("suggested_user_prompt") or "").strip()
-        if strategy:
-            lines.append("案卷推进计划：" + strategy)
-        if suggested:
-            lines.append("建议下一轮：" + suggested)
-    elif state.missing_items:
-        lines.append("当前仍缺：" + "；".join(state.missing_items[:6]))
-    else:
-        gaps = review.evidence_sufficiency.get("blocking_gaps") or []
-        if gaps:
-            lines.append("当前仍缺：" + "；".join(str(item) for item in gaps[:6]))
-    if not lines:
-        lines.append(review.reviewer_memo[:800] if review.reviewer_memo else "本轮已处理。")
-    lines.append("No ERP write action was executed.")
-    return "\n\n".join(lines)
+    agent_reply = dict((patch.model_review or {}).get("agent_reply") or {})
+    if str(agent_reply.get("body") or "").strip():
+        return str(agent_reply.get("body") or "").strip()
+    return (
+        "本轮模型没有返回结构化 agent_reply，因此系统不生成业务结论。"
+        "请重试，或检查本地模型服务是否可用。"
+        "\n\nNo ERP write action was executed."
+    )
 
 
 def _route_version_conflict(state: CaseTurnGraphState) -> str:
@@ -1510,7 +1521,7 @@ def _p2p_explanation_node(state: CaseTurnGraphState, step: str, prompt: str) -> 
         explanation = {
             "skipped": True,
             "reason": "stage_model_not_configured",
-            "deterministic_fallback": render_p2p_review_notes(p2p_review),
+            "model_required": True,
             "non_action_statement": p2p_review.non_action_statement,
         }
     else:
@@ -1532,7 +1543,7 @@ def _p2p_explanation_node(state: CaseTurnGraphState, step: str, prompt: str) -> 
         if error:
             explanation = {
                 "error": error,
-                "deterministic_fallback": render_p2p_review_notes(p2p_review),
+                "model_required": True,
                 "non_action_statement": p2p_review.non_action_statement,
             }
     explanations[step] = explanation
@@ -1579,6 +1590,111 @@ def _run_custom_stage_model_role(
         "status": "executed",
         "non_action_statement": output.get("non_action_statement", CASE_HARNESS_NON_ACTION_STATEMENT) if isinstance(output, dict) else CASE_HARNESS_NON_ACTION_STATEMENT,
     }
+
+
+def _attach_agent_reply(
+    state: CaseTurnGraphState,
+    patch: CasePatch,
+    review: Any,
+    *,
+    purpose: str,
+) -> CasePatch:
+    """Attach the user-facing LLM agent reply to patch.model_review.
+
+    The graph still owns persistence and validation. The LLM owns the final
+    wording. If the model does not return a valid body, no business reply is
+    generated by backend templates.
+    """
+
+    model_review = dict(patch.model_review or {})
+    existing_reply = dict(model_review.get("agent_reply") or {})
+    if str(existing_reply.get("body") or "").strip():
+        return patch
+
+    model_output = _run_custom_stage_model_role(
+        state,
+        role_name=purpose,
+        system_prompt=(
+            "Role: LLM ERP approval case agent. You are the user-facing approval materials specialist. "
+            "Write the main reply for this turn in natural Chinese. Do not sound like a backend status template. "
+            "Use the current case state, policy/RAG evidence, patch proposal, review gates, and model role outputs. "
+            "If evidence is missing, explain what is missing and what the user should submit next. "
+            "If evidence was accepted, explain what you accepted, which requirement it supports, and what remains. "
+            "If evidence was rejected, explain why and how to fix it. "
+            "If final memo was requested but not ready, backtrack to the missing materials. "
+            "If final memo is ready, write a reviewer-facing memo/submission package summary. "
+            "Never imply ERP approval, rejection, payment, comment, route, supplier activation, budget update, or contract signing. "
+            "Return JSON only: "
+            '{"title":"short Chinese title","body":"Chinese user-facing answer","meta":["short tags"],'
+            '"next_suggested_user_message":"optional next message the user can send",'
+            '"warnings":[],"confidence":0.0,'
+            '"non_action_statement":"This is a local approval case state update. No ERP write action was executed."}'
+        ),
+        payload={
+            "purpose": purpose,
+            "user_message": state["request"].user_message,
+            "case_state": state["case_state"].model_dump(),
+            "operation_scope": "read_only_case_turn" if state.get("read_only_turn") else "persistent_case_turn",
+            "patch": patch.model_dump(),
+            "review_summary": _review_summary_for_agent_reply(review),
+            "context_pack": state.get("context_pack") or {},
+            "branch_review_outputs": state.get("branch_review_outputs") or {},
+            "stage_model_role_outputs": state.get("stage_model_role_outputs") or {},
+            "p2p_llm_explanations": state.get("p2p_llm_explanations") or {},
+            "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+        },
+    )
+    title = str(model_output.get("title") or "").strip() or _agent_reply_title(purpose)
+    body = str(model_output.get("body") or "").strip()
+    meta = [str(item).strip() for item in (model_output.get("meta") or []) if str(item or "").strip()]
+    reply = {
+        "used": bool(model_output.get("used")),
+        "status": model_output.get("status", "executed" if model_output.get("used") else "model_required"),
+        "purpose": purpose,
+        "title": title[:120],
+        "body": _ensure_non_action_statement(body) if body else "",
+        "meta": meta[:8],
+        "next_suggested_user_message": str(model_output.get("next_suggested_user_message") or "").strip()[:500],
+        "role_output": model_output,
+        "missing_model_reply": not bool(body),
+        "non_action_statement": CASE_HARNESS_NON_ACTION_STATEMENT,
+    }
+    model_review["agent_reply"] = reply
+    model_review["used"] = bool(model_review.get("used") or reply["used"])
+    return patch.model_copy(update={"model_review": model_review})
+
+
+def _agent_reply_title(purpose: str) -> str:
+    titles = {
+        "materials_advisor": "材料准备建议",
+        "missing_items_advisor": "当前缺口说明",
+        "policy_failure_explainer": "材料退回解释",
+        "case_supervisor_reply": "审批资料专员",
+        "read_only_case_advisor": "审批资料专员",
+        "rejection_explainer": "材料未写入案卷",
+    }
+    return titles.get(purpose, "审批资料专员")
+
+
+def _review_summary_for_agent_reply(review: Any) -> dict[str, Any]:
+    return {
+        "evidence_sufficiency": getattr(review, "evidence_sufficiency", {}) or {},
+        "control_matrix": getattr(review, "control_matrix", {}) or {},
+        "contradictions": getattr(review, "contradictions", {}) or {},
+        "recommendation": getattr(review, "recommendation", {}) or {},
+        "risk_assessment": getattr(review, "risk_assessment", {}) or {},
+        "adversarial_review": getattr(review, "adversarial_review", {}) or {},
+        "reviewer_memo_preview": str(getattr(review, "reviewer_memo", "") or "")[:3000],
+        "requirement_count": len(getattr(review, "evidence_requirements", []) or []),
+        "claim_count": len(getattr(review, "evidence_claims", []) or []),
+    }
+
+
+def _ensure_non_action_statement(body: str) -> str:
+    body = str(body or "").strip()
+    if CASE_HARNESS_NON_ACTION_STATEMENT not in body and "No ERP write action was executed." not in body:
+        body = f"{body}\n\nNo ERP write action was executed." if body else "No ERP write action was executed."
+    return body
 
 
 CHECKLIST_STATUS_LABELS = {
@@ -1730,27 +1846,6 @@ def _checklist_summary(items: list[dict[str, Any]]) -> str:
         f"材料清单：已通过 {counts['accepted']} 项，未提交 {counts['not_submitted']} 项，"
         f"审核没通过 {counts['review_failed']} 项，待补充 {counts['incomplete']} 项，冲突 {counts['conflict']} 项。"
     )
-
-
-def _render_missing_requirements_answer(state: CaseTurnGraphState, review: Any) -> str:
-    case_state = state["case_state"]
-    gaps = list(review.evidence_sufficiency.get("blocking_gaps") or []) or list(case_state.missing_items or [])
-    questions = list(review.evidence_sufficiency.get("next_questions") or []) or list(case_state.next_questions or [])
-    failures = [item for item in case_state.policy_failures if not item.resolved]
-    lines = ["当前缺口（来自案卷状态、证据充分性和控制矩阵）："]
-    if gaps:
-        lines.append("Blocking 缺口：")
-        lines.extend(f"- {item}" for item in gaps[:12])
-    else:
-        lines.append("- 暂无新的 blocking gap，但仍需 human reviewer 查看完整案卷。")
-    if failures:
-        lines.append("未解决 policy failure：")
-        lines.extend(f"- {item.requirement_id}: {item.how_to_fix}" for item in failures[:8])
-    if questions:
-        lines.append("下一步补证问题：")
-        lines.extend(f"- {item}" for item in questions[:8])
-    lines.append("No ERP write action was executed.")
-    return "\n".join(lines)
 
 
 def _steps(state: CaseTurnGraphState, step: str) -> list[str]:

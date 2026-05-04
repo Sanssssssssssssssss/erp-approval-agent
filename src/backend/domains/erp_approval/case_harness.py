@@ -148,8 +148,8 @@ class CaseHarness:
         except Exception as exc:  # pragma: no cover - live model/runtime dependent
             return (
                 CaseStageModelDecision(
-                    warnings=["阶段模型调用失败，已退回 deterministic fallback。"],
-                    reviewer_message="阶段模型调用失败，本轮仍由 deterministic evidence gate 处理。",
+                    warnings=["阶段模型调用失败，本轮没有模型结构化审查输出。"],
+                    reviewer_message="阶段模型调用失败，本轮不会生成模型业务审查结论。",
                 ),
                 f"{type(exc).__name__}: {exc}",
             )
@@ -221,7 +221,15 @@ class CaseHarness:
         now: str,
     ) -> tuple[list[CaseAcceptedEvidence], list[CaseRejectedEvidence], list[str]]:
         if decision is None:
-            return accepted, rejected, warnings
+            if not candidates:
+                return accepted, rejected, warnings
+            model_required_rejections = [
+                _rejected(item, now, ["模型没有返回本轮材料审查决定，不能把材料写入 accepted_evidence。"])
+                for item in candidates
+            ]
+            return [], _unique_rejected(rejected + model_required_rejections), _unique(
+                warnings + ["本轮材料写入需要 LLM evidence reviewer 显式确认 accepted_source_ids。"]
+            )
         warnings = _unique(warnings + list(decision.warnings))
         candidate_by_source = {item.source_id: item for item in candidates}
         accepted_by_source = {item.source_id: item for item in accepted}
@@ -238,14 +246,17 @@ class CaseHarness:
                 for item in candidates
             }
 
-        if decision.accepted_source_ids:
-            allowed_sources = set(decision.accepted_source_ids)
+        allowed_sources = set(decision.accepted_source_ids)
+        if candidates:
             for source_id in list(accepted_by_source):
                 if source_id not in allowed_sources:
-                    model_rejections.setdefault(source_id, ["模型未确认该材料可作为本轮 accepted evidence。"])
+                    model_rejections.setdefault(source_id, ["模型未明确接受该材料，不能写入 accepted_evidence。"])
+            if decision.evidence_decision == "accepted" and not allowed_sources:
+                for item in candidates:
+                    model_rejections.setdefault(item.source_id, ["模型说可以接受，但没有返回 accepted_source_ids，不能写入案卷。"])
             for source_id in allowed_sources:
                 if source_id not in accepted_by_source:
-                    warnings.append(f"模型尝试接受 {source_id}，但本地证据门没有发现可支持必备要求的 claim，已拒绝。")
+                    warnings.append(f"模型尝试接受 {source_id}，但证据结构没有发现可支持必备要求的 claim，已拒绝。")
 
         if decision.evidence_decision in {"rejected", "needs_clarification"} and candidates and not model_rejections:
             model_rejections = {
@@ -379,6 +390,8 @@ def classify_case_turn(user_message: str, *, has_case: bool, has_evidence: bool)
         return "submit_evidence"
     if _asks_how_to_prepare(text):
         return "ask_how_to_prepare"
+    if has_case and re.search(r"(收据|发票|receipt|invoice).*(丢了|丢失|lost)|((确实|已经)?花了钱)", user_message, re.IGNORECASE):
+        return "submit_evidence"
     if any(term in text for term in ("撤回", "withdraw", "更正", "correct", "修正")):
         return "correct_previous_evidence"
     if any(term in text for term in ("为什么", "不符合", "退回原因", "失败原因", "why failed", "why rejected", "policy failure")):
@@ -559,6 +572,18 @@ def _rejected(item: CaseReviewEvidenceInput, now: str, reasons: list[str]) -> Ca
         reasons=reasons,
         metadata=dict(item.metadata or {}),
     )
+
+
+def _unique_rejected(items: list[CaseRejectedEvidence]) -> list[CaseRejectedEvidence]:
+    by_source: dict[str, CaseRejectedEvidence] = {}
+    for item in items:
+        if item.source_id not in by_source:
+            by_source[item.source_id] = item
+            continue
+        existing = by_source[item.source_id]
+        merged_reasons = _unique(list(existing.reasons) + list(item.reasons))
+        by_source[item.source_id] = existing.model_copy(update={"reasons": merged_reasons})
+    return list(by_source.values())
 
 
 def _stage_from_review(review: CaseReviewResponse):

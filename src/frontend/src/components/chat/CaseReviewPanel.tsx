@@ -173,26 +173,6 @@ function object(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-function policyRagTraceFromModelReview(modelReview: Record<string, unknown>) {
-  const candidates = [
-    object(modelReview.policy_rag),
-    object(object(modelReview.missing_requirements_answer).policy_rag),
-    object(object(modelReview.policy_failures_answer).policy_rag)
-  ];
-  return candidates.find((candidate) => Object.keys(candidate).length > 0) ?? {};
-}
-
-function policyRagPlan(trace: Record<string, unknown>) {
-  const retrieval = object(trace.retrieval);
-  return object(trace.plan || retrieval.plan);
-}
-
-function policyRagEvidences(trace: Record<string, unknown>) {
-  const retrieval = object(trace.retrieval);
-  const direct = records(trace.evidences);
-  return direct.length ? direct : records(retrieval.evidences);
-}
-
 function caseChecklistItems(turn: ErpApprovalCaseTurnResponse) {
   const modelReview = object(turn.patch?.model_review);
   const checklist = object(modelReview.case_checklist);
@@ -295,133 +275,31 @@ function makeMessage(role: ChatMessage["role"], body: string, title?: string, me
   };
 }
 
-function buildAgentReply(response: ErpApprovalCaseTurnResponse, humanReview: LocalHumanReviewRecord | null = null): ChatMessage {
-  const review = response.review;
-  const recommendation = review.recommendation ?? {};
-  const sufficiency = review.evidence_sufficiency ?? {};
-  const patch = response.patch ?? {};
-  const patchIntent = text(patch.turn_intent, "");
-  const patchType = text(patch.patch_type, "");
-  const modelReview = object(patch.model_review);
-  const casePlan = object(modelReview.case_supervisor_plan || response.case_state.case_plan);
-  const policyRag = object(modelReview.policy_rag);
-  const policyFailureAnswer = object(modelReview.policy_failures_answer);
-  const missingAnswer = object(modelReview.missing_requirements_answer);
-  const renderedGuidance = text(policyRag.rendered_guidance, "");
-  const renderedFailureAnswer = text(policyFailureAnswer.rendered, "");
-  const renderedMissingAnswer = text(missingAnswer.rendered, "");
-  const finalReviewRequested = ["request_final_memo", "request_final_review"].includes(patchIntent);
-  const controlMatrix = object(review.control_matrix);
-  const unresolvedPolicyFailures = records(response.case_state.policy_failures).filter((item) => !item.resolved);
-  const finalMemoAllowed =
-    patchType === "final_memo" ||
-    (finalReviewRequested &&
-      Boolean(sufficiency.passed) &&
-      Boolean(controlMatrix.passed) &&
-      unresolvedPolicyFailures.length === 0);
-
-  if (finalReviewRequested && finalMemoAllowed) {
-    const humanReviewLine =
-      humanReview?.decision === "accepted"
-        ? `本地人工复核：${humanReview.reviewer || "reviewer"} 已接受 v${humanReview.dossier_version ?? "?"} memo。`
-        : humanReview?.decision === "changes_requested"
-          ? `本地人工复核：${humanReview.reviewer || "reviewer"} 已退回继续补充。`
-          : "本地人工复核：尚未记录接受；右侧可以接受当前 memo 或退回继续补充。";
-    const memo = text(review.reviewer_memo || response.case_state.reviewer_memo || response.dossier, "当前案卷已满足证据门，但没有返回 memo 正文。");
+function buildAgentReply(response: ErpApprovalCaseTurnResponse): ChatMessage {
+  const modelReview = object(response.patch?.model_review);
+  const agentReply = object(modelReview.agent_reply);
+  const agentReplyBody = text(agentReply.body, "");
+  if (agentReplyBody) {
+    const meta = list(agentReply.meta);
     return makeMessage(
       "agent",
-      [
-        "已生成当前案卷的 reviewer memo / submission package。",
-        humanReviewLine,
-        memo,
-        "No ERP write action was executed."
-      ].filter(Boolean).join("\n\n"),
-      "最终审查 memo",
-      [
-        humanReview?.decision === "accepted" ? "已人工复核" : "待人工复核",
-        "本地非执行 memo",
-        STAGE_LABELS[response.case_state.stage] ?? response.case_state.stage
-      ]
+      agentReplyBody,
+      text(agentReply.title, "审批资料专员"),
+      meta.length
+        ? meta
+        : [
+            agentReply.used ? "模型主回复" : "模型未确认",
+            response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
+          ]
     );
   }
 
-  if (finalReviewRequested && !finalMemoAllowed) {
-    const gaps = list(sufficiency.blocking_gaps).concat(list(response.case_state.missing_items));
-    const failures = unresolvedPolicyFailures.map((item) => labelForPolicyFailure(item));
-    return makeMessage(
-      "agent",
-      [
-        "现在还不能生成最终 reviewer memo。",
-        gaps.length ? `Blocking 缺口：${Array.from(new Set(gaps)).slice(0, 6).join("；")}。` : "",
-        failures.length ? `未解决制度失败：${failures.slice(0, 6).join("；")}。` : "",
-        !gaps.length && !failures.length ? "证据门看起来已清空，但控制矩阵或后端 gate 仍未放行。请查看右侧控制矩阵和案卷详情。" : "",
-        "No ERP write action was executed."
-      ].filter(Boolean).join("\n\n"),
-      "最终 memo 被阻断",
-      ["证据门未放行", "本地判断"]
-    );
-  }
-
-  if (renderedGuidance) {
-    const policyRagMeta = policyRag.model_used
-      ? "模型+政策RAG"
-      : policyRag.used
-        ? "政策RAG检索"
-        : "政策/RAG fallback";
-    return makeMessage("agent", renderedGuidance, "材料准备清单", [
-      policyRagMeta,
-      response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
-    ]);
-  }
-  if (renderedFailureAnswer) {
-    return makeMessage("agent", renderedFailureAnswer, "材料不符合制度的原因", [
-      policyFailureAnswer.used ? "模型解释" : "本地解释",
-      "只读答复"
-    ]);
-  }
-  if (renderedMissingAnswer) {
-    return makeMessage("agent", renderedMissingAnswer, "当前缺口", [
-      missingAnswer.used ? "模型判断" : "本地判断",
-      "只读答复"
-    ]);
-  }
-  const accepted = records(patch.accepted_evidence);
-  const rejected = records(patch.rejected_evidence);
-  const policyFailures = records(patch.policy_failures).concat(records(response.case_state.policy_failures));
-  const gaps = list(sufficiency.blocking_gaps).concat(response.case_state.missing_items ?? []);
-  const questions = Array.from(new Set(list(sufficiency.next_questions).concat(response.case_state.next_questions ?? [])));
-  const status = labelForStatus(recommendation.status);
-  const isMissingAsk = patchIntent === "ask_missing_requirements" || patchIntent === "ask_status";
-  const isEvidenceSubmission = patchIntent === "submit_evidence" || ["accept_evidence", "reject_evidence"].includes(patchType);
-  const readyForMemo = response.case_state.stage === "ready_for_final_review" && !finalReviewRequested;
-  const planStrategy = text(casePlan.strategy, "");
-  const suggestedPrompt = text(casePlan.suggested_user_prompt, "");
-  const title = readyForMemo ? "案卷已可生成最终审查单" : isMissingAsk ? "当前缺口" : isEvidenceSubmission ? "本轮材料审核结果" : "Agent 审查结果";
-  const leadingLine = isMissingAsk
-    ? "当前缺口如下。"
-    : isEvidenceSubmission
-      ? `本轮材料审核结果：${status}。`
-      : `当前结论：${status}。`;
-  const lines = [
-    leadingLine,
-    accepted.length ? `本轮接受 ${accepted.length} 份材料：${accepted.map((item) => text(item.title || item.source_id)).join("、")}。` : "",
-    rejected.length ? `本轮退回 ${rejected.length} 份材料：${rejected.map((item) => text(item.title || item.source_id)).join("、")}。` : "",
-    policyFailures.length
-      ? `退回/政策失败：${policyFailures.slice(0, 3).map((item) => `${labelForPolicyFailure(item)} - ${text(item.how_to_fix || item.why_failed, "请补充可追溯证据")}`).join("；")}。`
-      : "",
-    planStrategy ? `案卷推进计划：${planStrategy}` : "",
-    suggestedPrompt ? `建议你下一轮：${suggestedPrompt}` : "",
-    gaps.length ? `关键缺口：${Array.from(new Set(gaps)).slice(0, 5).join("；")}。` : "暂未发现新的 blocking gap，但仍需以案卷详情为准。",
-    questions.length ? `下一步建议：${questions.slice(0, 4).join("；")}。` : "",
-    readyForMemo ? "当前 blocking evidence 已满足，控制矩阵已通过。你可以点击“生成审查 memo”，让我基于本案卷生成最终 reviewer memo / submission package。" : "",
-    "No ERP write action was executed."
-  ].filter(Boolean);
-
-  return makeMessage("agent", lines.join("\n\n"), title, [
-    PATCH_LABELS[patchType] ?? patchType,
-    STAGE_LABELS[response.case_state.stage] ?? response.case_state.stage,
-    response.operation_scope === "read_only_case_turn" ? "只读答复" : "案卷已更新"
-  ]);
+  return makeMessage(
+    "system",
+    "模型没有返回结构化主回复，所以前端不会用模板替它生成审批结论。请重试，或检查本地模型服务是否正在运行。\n\nNo ERP write action was executed.",
+    "模型未返回主回复",
+    ["需要模型回复"]
+  );
 }
 
 function ProgressDots({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
@@ -530,97 +408,6 @@ function HumanReviewPanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
       </div>
       <p className="case-agent-boundary">{HUMAN_REVIEW_NON_ACTION_STATEMENT}</p>
     </section>
-  );
-}
-
-function AgentPromptContractPanel({ turn }: { turn: ErpApprovalCaseTurnResponse }) {
-  const patch = object(turn.patch);
-  const modelReview = object(patch.model_review);
-  const harnessRun = object(turn.harness_run);
-  const graphName = text(harnessRun.graph_name || harnessRun.graph || "erp_approval_dynamic_case_turn_graph");
-  const modelStatus = text(
-    modelReview.stage_model_status || modelReview.model_status || modelReview.status || "按本轮配置执行，失败会回退到本地校验"
-  );
-  const graphSteps = list(harnessRun.graph_steps || modelReview.graph_steps || patch.graph_steps);
-  const policyTrace = policyRagTraceFromModelReview(modelReview);
-  const policyPlan = policyRagPlan(policyTrace);
-  const policyEvidences = policyRagEvidences(policyTrace);
-  const rewrittenQueries = list(policyPlan.rewritten_queries || policyTrace.query_rewrite || policyTrace.rewritten_queries);
-  const queryHints = list(policyPlan.query_hints || policyTrace.query_hints);
-  const plannerStatus = text(policyTrace.planner_status || policyPlan.planner_status || policyTrace.model_status, "未触发");
-  const retrievalStatus = text(policyTrace.retrieval_status || policyTrace.status, "未检索");
-
-  return (
-    <details className="case-agent-details case-agent-prompt-contract">
-      <summary>查看 Agent 提示契约</summary>
-      <div className="case-agent-detail-block">
-        <h4>System prompt 可视化</h4>
-        <div className="case-agent-contract-grid">
-          <div>
-            <strong>角色</strong>
-            <p>审批资料专员：审材料、抽 claim、列缺口、写 reviewer memo；不能直接审批。</p>
-          </div>
-          <div>
-            <strong>上下文</strong>
-            <p>只装配当前案卷状态、材料清单、本轮输入、相关 policy/RAG 和必要证据摘要。</p>
-          </div>
-          <div>
-            <strong>模型输出</strong>
-            <p>只能提出 CasePatch、证据 claims、制度解释和 memo 草案；不能直接写案卷。</p>
-          </div>
-          <div>
-            <strong>写入门禁</strong>
-            <p>CasePatchValidator 通过后才写入 case_state、dossier.md 和 audit_log。</p>
-          </div>
-        </div>
-        <p><strong>Graph：</strong>{graphName}</p>
-        <p><strong>模型状态：</strong>{modelStatus}</p>
-        {graphSteps.length ? <p><strong>本轮节点：</strong>{graphSteps.slice(-8).join(" -> ")}</p> : null}
-        <p>No ERP write action was executed.</p>
-      </div>
-      {Object.keys(policyTrace).length ? (
-        <div className="case-agent-detail-block case-agent-policy-rag-trace">
-          <h4>Policy RAG trace</h4>
-          <div className="case-agent-trace-grid">
-            <div>
-              <strong>Planner status</strong>
-              <p>{plannerStatus}</p>
-            </div>
-            <div>
-              <strong>Retrieval status</strong>
-              <p>{retrievalStatus}</p>
-            </div>
-          </div>
-          {rewrittenQueries.length ? (
-            <>
-              <strong>Query rewrite</strong>
-              <ul className="case-agent-list">
-                {rewrittenQueries.slice(0, 4).map((query) => (
-                  <li key={query}>{query}</li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-          {queryHints.length ? (
-            <p><strong>Query hints：</strong>{queryHints.slice(0, 8).join(" / ")}</p>
-          ) : null}
-          {policyEvidences.length ? (
-            <div className="case-agent-rag-snippets">
-              <strong>Policy snippets</strong>
-              {policyEvidences.slice(0, 4).map((evidence, index) => (
-                <div className="case-agent-rag-snippet" key={`${text(evidence.source_path)}-${text(evidence.locator)}-${index}`}>
-                  <p><strong>Source：</strong>{text(evidence.source_path, "unknown")}</p>
-                  <p><strong>Locator：</strong>{text(evidence.locator, "unknown")}</p>
-                  <p>{text(evidence.snippet, "没有 snippet")}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="case-agent-muted">本轮没有命中 policy snippet；模型会回退到 requirement matrix 和本地校验。</p>
-          )}
-        </div>
-      ) : null}
-    </details>
   );
 }
 
@@ -835,8 +622,6 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
         </section>
       ) : null}
 
-      <AgentPromptContractPanel turn={turn} />
-
       <details className="case-agent-details">
         <summary>查看案卷详情</summary>
         <div className="case-agent-detail-block">
@@ -856,7 +641,11 @@ function CaseSidePanel({ turn }: { turn: ErpApprovalCaseTurnResponse | null }) {
   );
 }
 
-export function CaseReviewPanel() {
+export function CaseReviewPanel({
+  onCaseTurnChange
+}: {
+  onCaseTurnChange?: (turn: ErpApprovalCaseTurnResponse | null) => void;
+}) {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -982,7 +771,8 @@ export function CaseReviewPanel() {
       // backend graph; the UI needs this draft state so the user can keep
       // asking follow-up questions and submit evidence without restarting.
       setCaseTurn(response);
-      setMessages((items) => [...items, buildAgentReply(response, loadLocalHumanReview(response.case_state.case_id))]);
+      onCaseTurnChange?.(response);
+      setMessages((items) => [...items, buildAgentReply(response)]);
       if (includeEvidence) {
         setQueuedEvidence([]);
         setFileStatus("");
@@ -1025,6 +815,7 @@ export function CaseReviewPanel() {
               className="ui-button"
               onClick={() => {
                 setCaseTurn(null);
+                onCaseTurnChange?.(null);
                 setQueuedEvidence([]);
                 setFileStatus("");
                 setEvidenceTitle("");

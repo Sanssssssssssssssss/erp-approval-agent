@@ -27,7 +27,7 @@ const STEP_META: Record<
     badge: "bg-[var(--color-surface)] text-[var(--color-ink)]"
   },
   fallback: {
-    label: "兜底",
+    label: "补充检索",
     icon: Sparkles,
     border: "border-[rgba(183,84,39,0.2)] bg-[rgba(183,84,39,0.08)]",
     badge: "bg-[rgba(183,84,39,0.12)] text-[var(--color-danger)]"
