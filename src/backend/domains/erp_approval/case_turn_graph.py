@@ -917,7 +917,7 @@ def merge_review_outputs_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def evidence_sufficiency_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="ask_status")
     warnings = list(state.get("warnings", []))
-    if not review.evidence_sufficiency.get("passed"):
+    if _final_guard_active(state) and not review.evidence_sufficiency.get("passed"):
         warnings.extend(str(item) for item in review.evidence_sufficiency.get("blocking_gaps") or [])
     return {**state, "review": review, "warnings": _unique(warnings), "graph_steps": _steps(state, "evidence_sufficiency_gate")}
 
@@ -926,7 +926,7 @@ def contradiction_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="ask_status")
     warnings = list(state.get("warnings", []))
     contradictions = review.contradictions or {}
-    if contradictions.get("has_conflict"):
+    if _final_guard_active(state) and contradictions.get("has_conflict"):
         warnings.append("Contradiction gate found conflicting evidence; approve-style recommendation is not allowed.")
     return {**state, "review": review, "warnings": _unique(warnings), "graph_steps": _steps(state, "contradiction_gate")}
 
@@ -934,7 +934,7 @@ def contradiction_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
 def control_matrix_gate_node(state: CaseTurnGraphState) -> CaseTurnGraphState:
     review = state.get("review") or state.get("provisional_review") or _review_without_new_evidence(state, branch="ask_status")
     warnings = list(state.get("warnings", []))
-    if not review.control_matrix.get("passed"):
+    if _final_guard_active(state) and not review.control_matrix.get("passed"):
         warnings.append("Control matrix gate found missing/failing controls; continue evidence collection or escalate.")
     return {**state, "review": review, "warnings": _unique(warnings), "graph_steps": _steps(state, "control_matrix_gate")}
 
@@ -1209,6 +1209,17 @@ def _route_evidence_type(state: CaseTurnGraphState) -> str:
 
 def _route_patch_validity(state: CaseTurnGraphState) -> str:
     return "valid" if state["patch"].allowed_to_apply else "invalid"
+
+
+def _final_guard_active(state: CaseTurnGraphState) -> bool:
+    """Keep final guard messaging out of ordinary collection turns.
+
+    Daily case turns should focus on gathering and reviewing evidence. The
+    deterministic patch validator still protects writes, but final blocking
+    guard warnings are only surfaced when the user asks for a reviewer memo.
+    """
+
+    return state.get("intent") in {"request_final_memo", "request_final_review"} or state.get("branch") == "final_memo"
 
 
 def _context_branch_for_intent(intent: str) -> str:
